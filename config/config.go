@@ -9,7 +9,6 @@ import (
 
 type Env struct {
 	NotionToken              string `mapstructure:"NOTION_TOKEN"`
-	NotionUsername           string `mapstructure:"NOTION_USERNAME"`
 	NotionPageID             string `mapstructure:"NOTION_PAGE_ID"`
 	MeuPluggyClientID        string `mapstructure:"MEU_PLUGGY_CLIENT_ID"`
 	MeuPluggyClientSecret    string `mapstructure:"MEU_PLUGGY_CLIENT_SECRET"`
@@ -22,9 +21,6 @@ func (e *Env) validate() error {
 	errs := []string{}
 	if e.NotionToken == "" {
 		errs = append(errs, "NOTION_TOKEN (string) is not set")
-	}
-	if e.NotionUsername == "" {
-		errs = append(errs, "NOTION_USERNAME (string) is not set")
 	}
 	if e.NotionPageID == "" {
 		errs = append(errs, "NOTION_PAGE_ID (string) is not set")

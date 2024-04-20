@@ -1,10 +1,11 @@
 package main
 
-import "github.com/danielmesquitta/openfinance/internal/app"
+import (
+	"github.com/danielmesquitta/openfinance/internal/app"
+)
 
 func main() {
-	err := app.Run()
-	if err != nil {
+	if err := app.Run(); err != nil {
 		panic(err)
 	}
 }

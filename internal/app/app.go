@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/danielmesquitta/asyncloop"
 
 	"github.com/danielmesquitta/openfinance/config"
 	"github.com/danielmesquitta/openfinance/internal/service/meupluggyapi"
@@ -11,6 +14,8 @@ import (
 
 func Run() error {
 	e := config.LoadEnv()
+
+	fmt.Printf("%+v", *e)
 
 	meupluggyAPIClient := meupluggyapi.NewClient(
 		e.MeuPluggyClientID,
@@ -21,43 +26,39 @@ func Run() error {
 		return fmt.Errorf("error authenticating: %v", err)
 	}
 
-	ch := make(chan *meupluggyapi.ListTransactionsResponse, 2)
+	now := time.Now()
+	startOfMonth := time.Date(
+		now.Year(),
+		now.Month(),
+		1,
+		0,
+		0,
+		0,
+		0,
+		now.Location(),
+	)
+
 	mu := sync.Mutex{}
 	errs := []error{}
 
-	go func() {
-		bankTransactions, err := meupluggyAPIClient.ListTransactions(
-			e.MeuPluggyBankAccountID,
-			nil,
-			nil,
-		)
-		if err != nil {
-			mu.Lock()
-			errs = append(errs, err)
-			mu.Unlock()
-		}
-		ch <- bankTransactions
-	}()
-
-	go func() {
-		creditCardTransactions, err := meupluggyAPIClient.ListTransactions(
-			e.MeuPluggyCreditAccountID,
-			nil,
-			nil,
-		)
-		if err != nil {
-			mu.Lock()
-			errs = append(errs, err)
-			mu.Unlock()
-		}
-		ch <- creditCardTransactions
-	}()
-
-	for transactions := range ch {
-		if transactions == nil {
-			continue
-		}
+	requestsData := []string{
+		e.MeuPluggyBankAccountID,
+		e.MeuPluggyCreditAccountID,
 	}
+
+	asyncloop.Loop(requestsData, func(i int, v string) {
+		ts, err := meupluggyAPIClient.ListTransactions(
+			v,
+			&startOfMonth,
+			nil,
+		)
+		if err != nil {
+			mu.Lock()
+			errs = append(errs, err)
+			mu.Unlock()
+			return
+		}
+	})
 
 	if len(errs) > 0 {
 		fmtErrs := []string{}

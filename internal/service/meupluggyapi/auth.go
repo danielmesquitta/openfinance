@@ -2,17 +2,25 @@ package meupluggyapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 )
 
 type AuthenticateResponse struct {
 	APIKey string `json:"apiKey"`
 }
 
-func (m *MeuPluggyAPIClient) Authenticate() error {
-	url := m.BaseURL.String() + "/auth"
+func (c *Client) Authenticate() error {
+	url := c.BaseURL.String() + "/auth"
 
-	req, _ := http.NewRequest("POST", url, nil)
+	payload := strings.NewReader(fmt.Sprintf(
+		"{\"clientId\":\"%s\",\"clientSecret\":\"%s\"}",
+		c.ClientID,
+		c.ClientSecret,
+	))
+
+	req, _ := http.NewRequest("POST", url, payload)
 
 	req.Header.Add("accept", "application/json")
 	req.Header.Add("content-type", "application/json")
@@ -34,7 +42,7 @@ func (m *MeuPluggyAPIClient) Authenticate() error {
 		return err
 	}
 
-	m.Token = data.APIKey
+	c.Token = data.APIKey
 
 	return nil
 }

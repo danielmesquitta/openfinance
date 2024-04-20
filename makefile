@@ -3,6 +3,6 @@
 default: dev
 
 dev:
-	@go run cmd/server/main.go
+	@go run cmd/job/main.go
 install:
 	@go mod tidy

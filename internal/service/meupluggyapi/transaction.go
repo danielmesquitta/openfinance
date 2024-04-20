@@ -14,15 +14,21 @@ type ListTransactionsResponse struct {
 }
 
 type Result struct {
-	ID          string      `json:"id"`
-	Description Description `json:"description"`
-	Amount      float64     `json:"amount"`
-	Date        time.Time   `json:"date"`
-	Category    Category    `json:"category"`
-	PaymentData PaymentData `json:"paymentData"`
-	Type        ResultType  `json:"type"`
-	CreatedAt   time.Time   `json:"createdAt"`
-	UpdatedAt   time.Time   `json:"updatedAt"`
+	ID                      string              `json:"id"`
+	Description             string              `json:"description"`
+	Amount                  float64             `json:"amount"`
+	AmountInAccountCurrency *float64            `json:"amountInAccountCurrency"`
+	Date                    time.Time           `json:"date"`
+	Category                *string             `json:"category"`
+	PaymentData             *PaymentData        `json:"paymentData"`
+	Type                    ResultType          `json:"type"`
+	CreditCardMetadata      *CreditCardMetadata `json:"creditCardMetadata"`
+}
+
+type CreditCardMetadata struct {
+	CardNumber        *string `json:"cardNumber,omitempty"`
+	TotalInstallments *int64  `json:"totalInstallments,omitempty"`
+	InstallmentNumber *int64  `json:"installmentNumber,omitempty"`
 }
 
 type PaymentData struct {
@@ -35,35 +41,11 @@ type Payer struct {
 	Name *string `json:"name"`
 }
 
-type Category string
+type CurrencyCode string
 
 const (
-	Clothing               Category = "Clothing"
-	Electricity            Category = "Electricity"
-	Electronics            Category = "Electronics"
-	FoodAndDrinks          Category = "Food and drinks"
-	GymsAndFitnessCenters  Category = "Gyms and fitness centers"
-	HospitalClinicsAndLabs Category = "Hospital clinics and labs"
-	Houseware              Category = "Houseware"
-	Housing                Category = "Housing"
-	Investments            Category = "Investments"
-	LandmarksAndMuseums    Category = "Landmarks and museums"
-	Pharmacy               Category = "Pharmacy"
-	Services               Category = "Services"
-	Telecommunications     Category = "Telecommunications"
-	Transfers              Category = "Transfers"
-	University             Category = "University"
-)
-
-type Description string
-
-const (
-	AplicaçãoRDB          Description = "Aplicação RDB"
-	PagamentoDeFatura     Description = "Pagamento de fatura"
-	PagamentoEfetuado     Description = "Pagamento efetuado"
-	ResgateRDB            Description = "Resgate RDB"
-	TransferênciaEnviada  Description = "Transferência enviada"
-	TransferênciaRecebida Description = "Transferência Recebida"
+	BRL CurrencyCode = "BRL"
+	USD CurrencyCode = "USD"
 )
 
 type PaymentMethod string
@@ -74,6 +56,12 @@ const (
 	Ted    PaymentMethod = "TED"
 )
 
+type Status string
+
+const (
+	Posted Status = "POSTED"
+)
+
 type ResultType string
 
 const (
@@ -81,11 +69,11 @@ const (
 	Debit  ResultType = "DEBIT"
 )
 
-func (m *MeuPluggyAPIClient) ListTransactions(
+func (c *Client) ListTransactions(
 	accountID string,
 	from, to *time.Time,
 ) (*ListTransactionsResponse, error) {
-	url := m.BaseURL
+	url := c.BaseURL
 
 	url.Path = "/transactions"
 	query := url.Query()
@@ -101,13 +89,13 @@ func (m *MeuPluggyAPIClient) ListTransactions(
 		url.Query().Add("to", time.DateOnly)
 	}
 
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequest("GET", url.String()+"?"+query.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Add("accept", "application/json")
-	req.Header.Add("X-API-KEY", m.Token)
+	req.Header.Add("X-API-KEY", c.Token)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {

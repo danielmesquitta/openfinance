@@ -7,20 +7,20 @@ import (
 	"net/url"
 )
 
-type MeuPluggyAPIClient struct {
+type Client struct {
 	BaseURL      url.URL
 	ClientID     string
 	ClientSecret string
 	Token        string
 }
 
-func NewClient(clientID, clientSecret string) *MeuPluggyAPIClient {
+func NewClient(clientID, clientSecret string) *Client {
 	baseURL := url.URL{
 		Scheme: "https",
 		Host:   "api.pluggy.ai",
 	}
 
-	return &MeuPluggyAPIClient{
+	return &Client{
 		BaseURL:      baseURL,
 		ClientID:     clientID,
 		ClientSecret: clientSecret,

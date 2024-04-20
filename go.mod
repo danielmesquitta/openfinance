@@ -2,7 +2,10 @@ module github.com/danielmesquitta/openfinance
 
 go 1.22.2
 
-require github.com/spf13/viper v1.18.2
+require (
+	github.com/danielmesquitta/asyncloop v0.0.0-20240418230632-ffb603e68611
+	github.com/spf13/viper v1.18.2
+)
 
 require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
