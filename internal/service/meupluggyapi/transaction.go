@@ -38,15 +38,14 @@ type PaymentData struct {
 }
 
 type Payer struct {
-	Name *string `json:"name"`
+	Name           *string         `json:"name"`
+	DocumentNumber *DocumentNumber `json:"documentNumber"`
 }
 
-type CurrencyCode string
-
-const (
-	BRL CurrencyCode = "BRL"
-	USD CurrencyCode = "USD"
-)
+type DocumentNumber struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
 
 type PaymentMethod string
 
@@ -54,12 +53,6 @@ const (
 	Boleto PaymentMethod = "BOLETO"
 	Pix    PaymentMethod = "PIX"
 	Ted    PaymentMethod = "TED"
-)
-
-type Status string
-
-const (
-	Posted Status = "POSTED"
 )
 
 type ResultType string
