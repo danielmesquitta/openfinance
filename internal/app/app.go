@@ -36,8 +36,8 @@ func Run() error {
 
 	now := time.Now()
 	startOfMonth := time.Date(
-		now.Year(),
-		now.Month(),
+		2024,
+		4,
 		1,
 		0,
 		0,
@@ -45,6 +45,7 @@ func Run() error {
 		0,
 		now.Location(),
 	)
+	endOfMonth := startOfMonth.AddDate(0, 1, -1)
 
 	mu := sync.Mutex{}
 	errs := []error{}
@@ -61,7 +62,7 @@ func Run() error {
 		res, err := meupluggyAPIClient.ListTransactions(
 			v,
 			&startOfMonth,
-			nil,
+			&endOfMonth,
 		)
 		if err != nil {
 			mu.Lock()
@@ -70,6 +71,7 @@ func Run() error {
 			return
 		}
 
+	loop:
 		for _, r := range res.Results {
 			if isInvestment := (r.Category != nil &&
 				*r.Category == "Investments"); isInvestment {
@@ -105,7 +107,7 @@ func Run() error {
 						),
 					)
 					mu.Unlock()
-					continue
+					continue loop
 				}
 
 				transaction.PaymentMethod = *r.PaymentData.PaymentMethod
@@ -126,7 +128,7 @@ func Run() error {
 							mu.Lock()
 							errs = append(errs, err)
 							mu.Unlock()
-							continue
+							continue loop
 						}
 
 						transaction.Name = document

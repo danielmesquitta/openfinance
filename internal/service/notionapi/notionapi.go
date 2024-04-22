@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type Color string
@@ -83,4 +84,8 @@ func parseResError(res *http.Response) error {
 		res.Status,
 		jsonData,
 	)
+}
+
+func formatSelectOption(option string) string {
+	return strings.ReplaceAll(option, ",", "")
 }

@@ -112,7 +112,7 @@ func (c *Client) CreateDB(
 	categoryOptions := make([]CreateDBReqSelectOption, len(dto.Categories)+1)
 	for i, category := range dto.Categories {
 		categoryOptions[i] = CreateDBReqSelectOption{
-			Name:  category,
+			Name:  formatSelectOption(category),
 			Color: colors[i%len(colors)],
 		}
 	}

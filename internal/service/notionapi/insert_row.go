@@ -130,7 +130,7 @@ func (c *Client) InsertRow(dto InsertRowDTO) (*InsertRowRes, error) {
 	if dto.Category != "" {
 		requestData.Properties.Category = InsertRowReqSelector{
 			Select: InsertRowReqSelect{
-				Name: dto.Category,
+				Name: formatSelectOption(dto.Category),
 			},
 		}
 	}
