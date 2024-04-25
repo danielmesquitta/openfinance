@@ -8,17 +8,20 @@ import (
 )
 
 type Env struct {
-	NotionToken              string `mapstructure:"NOTION_TOKEN"`
-	NotionPageID             string `mapstructure:"NOTION_PAGE_ID"`
-	MeuPluggyClientID        string `mapstructure:"MEU_PLUGGY_CLIENT_ID"`
-	MeuPluggyClientSecret    string `mapstructure:"MEU_PLUGGY_CLIENT_SECRET"`
-	MeuPluggyBankAccountID   string `mapstructure:"MEU_PLUGGY_BANK_ACCOUNT_ID"`
-	MeuPluggyCreditAccountID string `mapstructure:"MEU_PLUGGY_CREDIT_ACCOUNT_ID"`
-	MeuPluggyToken           string
+	Port                  string   `mapstructure:"PORT"`
+	NotionToken           string   `mapstructure:"NOTION_TOKEN"`
+	NotionPageID          string   `mapstructure:"NOTION_PAGE_ID"`
+	MeuPluggyClientID     string   `mapstructure:"MEU_PLUGGY_CLIENT_ID"`
+	MeuPluggyClientSecret string   `mapstructure:"MEU_PLUGGY_CLIENT_SECRET"`
+	MeuPluggyAccountIDs   []string `mapstructure:"MEU_PLUGGY_ACCOUNT_IDS"`
+	MeuPluggyToken        string
 }
 
 func (e *Env) validate() error {
 	errs := []string{}
+	if e.Port == "" {
+		e.Port = "8080"
+	}
 	if e.NotionToken == "" {
 		errs = append(errs, "NOTION_TOKEN (string) is not set")
 	}
@@ -27,12 +30,6 @@ func (e *Env) validate() error {
 	}
 	if e.MeuPluggyClientID == "" {
 		errs = append(errs, "MEU_PLUGGY_CLIENT_ID (string) is not set")
-	}
-	if e.MeuPluggyBankAccountID == "" {
-		errs = append(errs, "MEU_PLUGGY_BANK_ACCOUNT_ID (string) is not set")
-	}
-	if e.MeuPluggyCreditAccountID == "" {
-		errs = append(errs, "MEU_PLUGGY_CREDIT_ACCOUNT_ID (string) is not set")
 	}
 	if len(errs) > 0 {
 		return errors.New(strings.Join(errs, ", "))
