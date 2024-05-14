@@ -3,6 +3,6 @@
 default: dev
 
 dev:
-	@go run cmd/job/main.go
+	@air
 install:
 	@go mod tidy

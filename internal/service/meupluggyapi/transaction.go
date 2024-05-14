@@ -2,7 +2,6 @@ package meupluggyapi
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 )
@@ -73,7 +72,7 @@ func (c *Client) ListTransactions(
 	query := url.Query()
 
 	query.Add("accountId", accountID)
-	query.Add("limit", "500")
+	query.Add("pageSize", "500")
 
 	if from != nil {
 		query.Add("from", (*from).Format(time.DateOnly))
@@ -82,8 +81,6 @@ func (c *Client) ListTransactions(
 	if to != nil {
 		query.Add("to", (*to).Format(time.DateOnly))
 	}
-
-	fmt.Println(url.String() + "?" + query.Encode())
 
 	req, err := http.NewRequest("GET", url.String()+"?"+query.Encode(), nil)
 	if err != nil {

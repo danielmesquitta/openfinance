@@ -9,6 +9,7 @@ import (
 
 	"github.com/danielmesquitta/asyncloop"
 
+	"github.com/danielmesquitta/openfinance/config"
 	"github.com/danielmesquitta/openfinance/internal/service/meupluggyapi"
 	"github.com/danielmesquitta/openfinance/internal/service/notionapi"
 	"github.com/danielmesquitta/openfinance/pkg/formatter"
@@ -21,20 +22,33 @@ const (
 	CreditCard
 )
 
-func OpenFinanceToNotionUseCase(
-	notionPageID string,
-	meuPluggyAccountIDs []string,
-	meupluggyAPIClient *meupluggyapi.Client,
+type OpenFinanceToNotionUseCase struct {
+	env                *config.Env
+	notionAPIClient    *notionapi.Client
+	meupluggyAPIClient *meupluggyapi.Client
+}
+
+func NewOpenFinanceToNotionUseCase(
+	env *config.Env,
 	notionAPIClient *notionapi.Client,
-) error {
-	if err := meupluggyAPIClient.Authenticate(); err != nil {
+	meupluggyAPIClient *meupluggyapi.Client,
+) *OpenFinanceToNotionUseCase {
+	return &OpenFinanceToNotionUseCase{
+		env:                env,
+		notionAPIClient:    notionAPIClient,
+		meupluggyAPIClient: meupluggyAPIClient,
+	}
+}
+
+func (uc *OpenFinanceToNotionUseCase) Execute() error {
+	if err := uc.meupluggyAPIClient.Authenticate(); err != nil {
 		return fmt.Errorf("error authenticating: %v", err)
 	}
 
 	now := time.Now()
 	startOfMonth := time.Date(
 		2024,
-		4,
+		5,
 		1,
 		0,
 		0,
@@ -47,11 +61,13 @@ func OpenFinanceToNotionUseCase(
 	mu := sync.Mutex{}
 	errs := []error{}
 
-	uniqueCategories := map[string]struct{}{}
+	transactionMu := sync.Mutex{}
 	transactions := []notionapi.InsertRowDTO{}
 
-	asyncloop.Loop(meuPluggyAccountIDs, func(i int, v string) {
-		res, err := meupluggyAPIClient.ListTransactions(
+	uniqueCategories := map[string]struct{}{}
+
+	asyncloop.Loop(uc.env.MeuPluggyAccountIDs, func(i int, v string) {
+		res, err := uc.meupluggyAPIClient.ListTransactions(
 			v,
 			&startOfMonth,
 			&endOfMonth,
@@ -132,7 +148,9 @@ func OpenFinanceToNotionUseCase(
 				transaction.PaymentMethod = "CREDIT CARD"
 			}
 
+			transactionMu.Lock()
 			transactions = append(transactions, transaction)
+			transactionMu.Unlock()
 		}
 	})
 
@@ -152,8 +170,8 @@ func OpenFinanceToNotionUseCase(
 		categories = append(categories, category)
 	}
 
-	createDBRes, err := notionAPIClient.CreateDB(notionapi.CreateDBDTO{
-		PageID:     notionPageID,
+	createDBRes, err := uc.notionAPIClient.CreateDB(notionapi.CreateDBDTO{
+		PageID:     uc.env.NotionPageID,
 		Date:       startOfMonth,
 		Categories: categories,
 	})
@@ -161,13 +179,12 @@ func OpenFinanceToNotionUseCase(
 		return fmt.Errorf("error creating spending database: %v", err)
 	}
 
-	asyncloop.Loop(transactions, func(_ int, t notionapi.InsertRowDTO) {
+	asyncloop.Loop(transactions, func(i int, t notionapi.InsertRowDTO) {
 		t.DatabaseID = createDBRes.ID
-		if _, err := notionAPIClient.InsertRow(t); err != nil {
+		if _, err := uc.notionAPIClient.InsertRow(t); err != nil {
 			mu.Lock()
 			errs = append(errs, err)
 			mu.Unlock()
-			return
 		}
 	})
 

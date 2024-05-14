@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+
+	"github.com/danielmesquitta/openfinance/config"
 )
 
 type Client struct {
@@ -14,7 +16,7 @@ type Client struct {
 	Token        string
 }
 
-func NewClient(clientID, clientSecret string) *Client {
+func NewClient(env *config.Env) *Client {
 	baseURL := url.URL{
 		Scheme: "https",
 		Host:   "api.pluggy.ai",
@@ -22,8 +24,8 @@ func NewClient(clientID, clientSecret string) *Client {
 
 	return &Client{
 		BaseURL:      baseURL,
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
+		ClientID:     env.MeuPluggyClientID,
+		ClientSecret: env.MeuPluggyClientSecret,
 	}
 }
 
