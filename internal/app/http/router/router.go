@@ -1,29 +1,42 @@
 package router
 
 import (
-	"github.com/danielmesquitta/openfinance/internal/app/http/handler"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/swagger"
+
+	"github.com/danielmesquitta/openfinance/internal/app/http/docs"
+	"github.com/danielmesquitta/openfinance/internal/app/http/handler"
 )
 
 type Router struct {
-	app                        *fiber.App
 	openFinanceToNotionHandler *handler.OpenFinanceToNotionHandler
 }
 
+// @title OpenFinance to Notion API
+// @version 1.0
+// @description This API is responsible for syncing OpenFinance data to Notion.
+// @contact.name Daniel Mesquita
+// @contact.email danielmesquitta123@gmail.com
+// @BasePath /
 func NewRouter(
-	app *fiber.App,
 	openFinanceToNotionHandler *handler.OpenFinanceToNotionHandler,
 ) *Router {
+	return &Router{
+		openFinanceToNotionHandler: openFinanceToNotionHandler,
+	}
+}
+
+func (r *Router) Register(
+	app *fiber.App,
+) {
 	basePath := "/api/v1"
 
 	apiV1 := app.Group(basePath)
 	apiV1.Get(
 		"/to-notion",
-		openFinanceToNotionHandler.Do,
+		r.openFinanceToNotionHandler.Sync,
 	)
 
-	return &Router{
-		app:                        app,
-		openFinanceToNotionHandler: openFinanceToNotionHandler,
-	}
+	docs.SwaggerInfo.BasePath = basePath
+	app.Get("/docs/*", swagger.New())
 }
