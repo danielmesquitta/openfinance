@@ -7,18 +7,33 @@ import (
 	"github.com/spf13/viper"
 )
 
+type Environment string
+
+const (
+	DevelopmentEnv Environment = "development"
+	ProductionEnv  Environment = "production"
+)
+
 type Env struct {
-	Port                  string   `mapstructure:"PORT"`
-	NotionToken           string   `mapstructure:"NOTION_TOKEN"`
-	NotionPageID          string   `mapstructure:"NOTION_PAGE_ID"`
-	MeuPluggyClientID     string   `mapstructure:"MEU_PLUGGY_CLIENT_ID"`
-	MeuPluggyClientSecret string   `mapstructure:"MEU_PLUGGY_CLIENT_SECRET"`
-	MeuPluggyAccountIDs   []string `mapstructure:"MEU_PLUGGY_ACCOUNT_IDS"`
+	Environment           Environment `mapstructure:"ENVIRONMENT"`
+	Port                  string      `mapstructure:"PORT"`
+	NotionToken           string      `mapstructure:"NOTION_TOKEN"`
+	NotionPageID          string      `mapstructure:"NOTION_PAGE_ID"`
+	MeuPluggyClientID     string      `mapstructure:"MEU_PLUGGY_CLIENT_ID"`
+	MeuPluggyClientSecret string      `mapstructure:"MEU_PLUGGY_CLIENT_SECRET"`
+	MeuPluggyAccountIDs   []string    `mapstructure:"MEU_PLUGGY_ACCOUNT_IDS"`
 	MeuPluggyToken        string
 }
 
 func (e *Env) validate() error {
 	errs := []string{}
+	if e.Environment == "" {
+		e.Environment = DevelopmentEnv
+	}
+	if e.Environment != DevelopmentEnv &&
+		e.Environment != ProductionEnv {
+		errs = append(errs, "ENVIRONMENT must be 'development' or 'production'")
+	}
 	if e.Port == "" {
 		e.Port = "8080"
 	}

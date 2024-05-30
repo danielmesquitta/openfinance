@@ -1,6 +1,7 @@
 package notionapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -55,11 +56,43 @@ func NewClient(env *config.Env) *Client {
 	}
 }
 
-func setHeaders(req *http.Request, token string) {
+func (c *Client) doRequest(
+	method, path string,
+	requestData any,
+	responseData any,
+) error {
+	jsonRequestData, err := json.Marshal(requestData)
+	if err != nil {
+		return err
+	}
+	body := bytes.NewReader(jsonRequestData)
+
+	req, err := http.NewRequest(method, path, body)
+	if err != nil {
+		return err
+	}
+
 	req.Header.Set("accept", "application/json")
 	req.Header.Set("content-type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer "+c.Token)
 	req.Header.Set("Notion-Version", "2022-06-28")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		return parseResError(res)
+	}
+
+	decoder := json.NewDecoder(res.Body)
+	if err := decoder.Decode(&responseData); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type ErrorMessage struct {

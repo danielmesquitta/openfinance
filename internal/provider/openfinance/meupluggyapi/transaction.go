@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
+
+	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 )
 
 type ListTransactionsResponse struct {
@@ -32,9 +34,9 @@ type CreditCardMetadata struct {
 }
 
 type PaymentData struct {
-	Payer         *Payer         `json:"payer"`
-	PaymentMethod *PaymentMethod `json:"paymentMethod"`
-	Receiver      *Payer         `json:"receiver"`
+	Payer         *Payer                `json:"payer"`
+	PaymentMethod *entity.PaymentMethod `json:"paymentMethod"`
+	Receiver      *Payer                `json:"receiver"`
 }
 
 type Payer struct {
@@ -47,14 +49,6 @@ type DocumentNumber struct {
 	Value string `json:"value"`
 }
 
-type PaymentMethod string
-
-const (
-	Boleto PaymentMethod = "BOLETO"
-	Pix    PaymentMethod = "PIX"
-	Ted    PaymentMethod = "TED"
-)
-
 type ResultType string
 
 const (
@@ -64,7 +58,7 @@ const (
 
 func (c *Client) ListTransactions(
 	accountID string,
-	from, to *time.Time,
+	from, to time.Time,
 ) (*ListTransactionsResponse, error) {
 	url := c.BaseURL
 
@@ -74,13 +68,8 @@ func (c *Client) ListTransactions(
 	query.Add("accountId", accountID)
 	query.Add("pageSize", "500")
 
-	if from != nil {
-		query.Add("from", (*from).Format(time.DateOnly))
-	}
-
-	if to != nil {
-		query.Add("to", (*to).Format(time.DateOnly))
-	}
+	query.Add("from", (from).Format(time.DateOnly))
+	query.Add("to", (to).Format(time.DateOnly))
 
 	req, err := http.NewRequest("GET", url.String()+"?"+query.Encode(), nil)
 	if err != nil {

@@ -22,6 +22,6 @@ func MaskDocument(doc string, docType string) (string, error) {
 		}
 		return cleanDoc[:2] + "." + cleanDoc[2:5] + "." + cleanDoc[5:8] + "/" + cleanDoc[8:12] + "-" + cleanDoc[12:], nil
 	default:
-		return "", errors.New("Unknown Document Type")
+		return doc, errors.New("Unknown Document Type")
 	}
 }

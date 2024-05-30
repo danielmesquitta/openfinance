@@ -32,7 +32,7 @@ func (r *Router) Register(
 	basePath := "/api/v1"
 
 	apiV1 := app.Group(basePath)
-	apiV1.Get(
+	apiV1.Post(
 		"/to-notion",
 		r.openFinanceToNotionHandler.Sync,
 	)

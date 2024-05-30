@@ -1,9 +1,10 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/danielmesquitta/openfinance/internal/app/http/dto"
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
 )
 
@@ -24,14 +25,23 @@ func NewOpenFinanceToNotionHandler(
 // @Tags Notion
 // @Accept json
 // @Produce json
+// @Param start_date query string false "Start date (format RFC3339: 2006-01-02T15:04:05Z07:00)"
+// @Param end_date query string false "End date (format RFC3339: 2006-01-02T15:04:05Z07:00)"
 // @Success 200
+// @Failure 400 {object} dto.ErrorResponseDTO
 // @Failure 500 {object} dto.ErrorResponseDTO
 // @Router /to-notion [post]
 func (h *OpenFinanceToNotionHandler) Sync(c *fiber.Ctx) error {
-	if err := h.uc.Execute(); err != nil {
-		return c.Status(fiber.StatusInternalServerError).
-			JSON(dto.ErrorResponseDTO{Message: err.Error()})
+	startDate := c.Query("start_date", "")
+	endDate := c.Query("end_date", "")
+
+	dto := usecase.OpenFinanceToNotionUseCaseDTO{
+		StartDate: startDate,
+		EndDate:   endDate,
+	}
+	if err := h.uc.Execute(dto); err != nil {
+		return err
 	}
 
-	return c.SendStatus(fiber.StatusOK)
+	return c.SendStatus(http.StatusOK)
 }

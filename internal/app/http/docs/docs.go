@@ -28,9 +28,29 @@ const docTemplate = `{
                     "Notion"
                 ],
                 "summary": "OpenFinance to Notion.",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date (format: 2006-01-02T15:04:05Z)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (format: 2006-01-02T15:04:05Z)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponseDTO"
+                        }
                     },
                     "500": {
                         "description": "Internal Server Error",

@@ -20,7 +20,10 @@ func (c *Client) Authenticate() error {
 		c.ClientSecret,
 	))
 
-	req, _ := http.NewRequest("POST", url, payload)
+	req, err := http.NewRequest("POST", url, payload)
+	if err != nil {
+		return err
+	}
 
 	req.Header.Add("accept", "application/json")
 	req.Header.Add("content-type", "application/json")

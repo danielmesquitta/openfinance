@@ -12,11 +12,24 @@ paths:
       consumes:
       - application/json
       description: This endpoint is responsible for syncing OpenFinance data to Notion.
+      parameters:
+      - description: 'Start date (format: 2006-01-02T15:04:05Z)'
+        in: query
+        name: start_date
+        type: string
+      - description: 'End date (format: 2006-01-02T15:04:05Z)'
+        in: query
+        name: end_date
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponseDTO'
         "500":
           description: Internal Server Error
           schema:
