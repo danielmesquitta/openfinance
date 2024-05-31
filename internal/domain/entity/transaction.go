@@ -3,10 +3,10 @@ package entity
 import "time"
 
 type Transaction struct {
-	Name          string
-	Description   string
-	Category      string
-	Amount        float64
-	PaymentMethod PaymentMethod
-	Date          time.Time
+	Name          string        `json:"name"`
+	Description   string        `json:"description"`
+	Category      string        `json:"category"`
+	Amount        float64       `json:"amount"`
+	PaymentMethod PaymentMethod `json:"payment_method"`
+	Date          time.Time     `json:"date"`
 }

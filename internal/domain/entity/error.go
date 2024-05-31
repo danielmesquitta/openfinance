@@ -10,8 +10,16 @@ func (e *AppError) Error() string {
 }
 
 var (
+	ErrUserNotFound *AppError = &AppError{
+		HTTPStatusCode: 404,
+		Message:        "user not found",
+	}
 	ErrValidation *AppError = &AppError{
 		HTTPStatusCode: 400,
-		Message:        "Validation error",
+		Message:        "validation error",
+	}
+	ErrTokenExpired *AppError = &AppError{
+		HTTPStatusCode: 401,
+		Message:        "token expired",
 	}
 )
