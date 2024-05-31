@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/danielmesquitta/openfinance/internal/config"
 )
 
 type Color string
@@ -44,7 +42,7 @@ type Client struct {
 	Token   string
 }
 
-func NewClient(env *config.Env) *Client {
+func NewClient(token string) *Client {
 	baseURL := url.URL{
 		Scheme: "https",
 		Host:   "api.notion.com",
@@ -52,7 +50,7 @@ func NewClient(env *config.Env) *Client {
 
 	return &Client{
 		BaseURL: baseURL,
-		Token:   env.NotionToken,
+		Token:   token,
 	}
 }
 

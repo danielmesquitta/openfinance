@@ -28,7 +28,7 @@ func (m *Middleware) EnsureAuthenticated(ctx *fiber.Ctx) error {
 		strings.TrimPrefix(authorization, "Bearer "),
 	)
 
-	userID, err := m.j.ParseToken(accessToken)
+	userID, err := m.jwtIssuer.ParseToken(accessToken)
 	if err != nil {
 		return ctx.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponseDTO{
 			Message: "unauthorized",

@@ -6,11 +6,9 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/app/http/router"
 	"github.com/danielmesquitta/openfinance/internal/config"
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
-	"github.com/danielmesquitta/openfinance/internal/provider/openfinance/meupluggyapi"
 	"github.com/danielmesquitta/openfinance/internal/provider/repo"
 	"github.com/danielmesquitta/openfinance/internal/provider/repo/pgrepo"
-	"github.com/danielmesquitta/openfinance/internal/provider/sheet/notionapi"
-	"github.com/danielmesquitta/openfinance/pkg/hasher"
+	"github.com/danielmesquitta/openfinance/pkg/crypto"
 	"github.com/danielmesquitta/openfinance/pkg/jwt"
 	"github.com/danielmesquitta/openfinance/pkg/logger"
 	"github.com/danielmesquitta/openfinance/pkg/validator"
@@ -27,11 +25,12 @@ func Start() {
 		logger.NewLogger,
 		validator.NewValidator,
 		jwt.NewJWTIssuer,
-		hasher.NewHasher,
+		fx.Annotate(
+			crypto.NewCrypto,
+			fx.As(new(crypto.Encrypter)),
+		),
 
 		// Providers
-		meupluggyapi.NewClient,
-		notionapi.NewClient,
 		pgrepo.NewPgDBConn,
 		fx.Annotate(
 			pgrepo.NewUserPgRepo,
@@ -43,7 +42,7 @@ func Start() {
 		),
 
 		// Use cases
-		usecase.NewOpenFinanceToNotionUseCase,
+		usecase.NewSyncAllUsersOpenFinanceDataToNotionUseCase,
 		usecase.NewOAuthAuthenticationUseCase,
 		usecase.NewUpsertUserSettingUseCase,
 

@@ -26,3 +26,10 @@ SET
   updated_at = $7
 WHERE
   id = $1;
+
+
+-- name: ListSettings :many
+SELECT
+  *
+FROM
+  settings;

@@ -3,64 +3,66 @@ package meupluggyapi
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/pkg/formatter"
 )
 
-type ListTransactionsResponse struct {
+type listTransactionsResponse struct {
 	Total      int64    `json:"total"`
 	TotalPages int64    `json:"totalPages"`
 	Page       int64    `json:"page"`
-	Results    []Result `json:"results"`
+	Results    []result `json:"results"`
 }
 
-type Result struct {
+type result struct {
 	ID                      string              `json:"id"`
 	Description             string              `json:"description"`
 	Amount                  float64             `json:"amount"`
 	AmountInAccountCurrency *float64            `json:"amountInAccountCurrency"`
 	Date                    time.Time           `json:"date"`
 	Category                *string             `json:"category"`
-	PaymentData             *PaymentData        `json:"paymentData"`
-	Type                    ResultType          `json:"type"`
-	CreditCardMetadata      *CreditCardMetadata `json:"creditCardMetadata"`
+	PaymentData             *paymentData        `json:"paymentData"`
+	Type                    resultType          `json:"type"`
+	CreditCardMetadata      *creditCardMetadata `json:"creditCardMetadata"`
 }
 
-type CreditCardMetadata struct {
+type creditCardMetadata struct {
 	CardNumber        *string `json:"cardNumber,omitempty"`
 	TotalInstallments *int64  `json:"totalInstallments,omitempty"`
 	InstallmentNumber *int64  `json:"installmentNumber,omitempty"`
 }
 
-type PaymentData struct {
-	Payer         *Payer                `json:"payer"`
+type paymentData struct {
+	Payer         *payer                `json:"payer"`
 	PaymentMethod *entity.PaymentMethod `json:"paymentMethod"`
-	Receiver      *Payer                `json:"receiver"`
+	Receiver      *payer                `json:"receiver"`
 }
 
-type Payer struct {
+type payer struct {
 	Name           *string         `json:"name"`
-	DocumentNumber *DocumentNumber `json:"documentNumber"`
+	DocumentNumber *documentNumber `json:"documentNumber"`
 }
 
-type DocumentNumber struct {
+type documentNumber struct {
 	Type  string `json:"type"`
 	Value string `json:"value"`
 }
 
-type ResultType string
+type resultType string
 
 const (
-	Credit ResultType = "CREDIT"
-	Debit  ResultType = "DEBIT"
+	Credit resultType = "CREDIT"
+	Debit  resultType = "DEBIT"
 )
 
 func (c *Client) ListTransactions(
 	accountID string,
 	from, to time.Time,
-) (*ListTransactionsResponse, error) {
+) ([]entity.Transaction, error) {
 	url := c.BaseURL
 
 	url.Path = "/transactions"
@@ -91,10 +93,63 @@ func (c *Client) ListTransactions(
 	}
 
 	decoder := json.NewDecoder(res.Body)
-	data := &ListTransactionsResponse{}
+	data := &listTransactionsResponse{}
 	if err := decoder.Decode(&data); err != nil {
 		return nil, fmt.Errorf("error decoding response: %w", err)
 	}
 
-	return data, nil
+	transactions := []entity.Transaction{}
+	for _, r := range data.Results {
+		if isInvestment := (r.Category != nil && *r.Category == "Investments") ||
+			(r.Description == "Aplicação RDB"); isInvestment {
+			continue
+		}
+		if isReceivingMoney := r.Type == Credit; isReceivingMoney {
+			continue
+		}
+		if isCreditCardBillPayment := r.
+			Description == "Pagamento de fatura"; isCreditCardBillPayment {
+			continue
+		}
+
+		transaction := entity.Transaction{
+			Amount: math.Abs(r.Amount),
+			Date:   r.Date,
+		}
+
+		if r.Category != nil {
+			transaction.Category = *r.Category
+		}
+
+		accountType := entity.CreditCard
+		if r.PaymentData != nil {
+			accountType = entity.BankAccount
+		}
+
+		if accountType == entity.BankAccount {
+			transaction.PaymentMethod = *r.PaymentData.PaymentMethod
+			transaction.Description = r.Description
+
+			if hasReceiver := (r.PaymentData.Receiver != nil); hasReceiver {
+				if hasReceiverName := r.PaymentData.
+					Receiver.Name != nil; hasReceiverName {
+					transaction.Name = *r.PaymentData.Receiver.Name
+				} else if hasReceiverDocument := r.PaymentData.
+					Receiver.DocumentNumber != nil; hasReceiverDocument {
+					document, _ := formatter.MaskDocument(
+						r.PaymentData.Receiver.DocumentNumber.Value,
+						r.PaymentData.Receiver.DocumentNumber.Type,
+					)
+					transaction.Name = document
+				}
+			}
+		} else if accountType == entity.CreditCard {
+			transaction.Name = r.Description
+			transaction.PaymentMethod = "CREDIT CARD"
+		}
+
+		transactions = append(transactions, transaction)
+	}
+
+	return transactions, nil
 }

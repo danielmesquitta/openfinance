@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -11,18 +12,21 @@ type AuthenticateResponse struct {
 	APIKey string `json:"apiKey"`
 }
 
-func (c *Client) Authenticate() error {
-	url := c.BaseURL.String() + "/auth"
+func authenticate(
+	baseURL url.URL,
+	clientID, clientSecret string,
+) (string, error) {
+	url := baseURL.String() + "/auth"
 
 	payload := strings.NewReader(fmt.Sprintf(
 		"{\"clientId\":\"%s\",\"clientSecret\":\"%s\"}",
-		c.ClientID,
-		c.ClientSecret,
+		clientID,
+		clientSecret,
 	))
 
 	req, err := http.NewRequest("POST", url, payload)
 	if err != nil {
-		return fmt.Errorf("error creating request: %w", err)
+		return "", fmt.Errorf("error creating request: %w", err)
 	}
 
 	req.Header.Add("accept", "application/json")
@@ -30,22 +34,20 @@ func (c *Client) Authenticate() error {
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("error sending request: %w", err)
+		return "", fmt.Errorf("error sending request: %w", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		return parseResError(res)
+		return "", parseResError(res)
 	}
 
 	decoder := json.NewDecoder(res.Body)
 
 	data := AuthenticateResponse{}
 	if err := decoder.Decode(&data); err != nil {
-		return fmt.Errorf("error decoding response: %w", err)
+		return "", fmt.Errorf("error decoding response: %w", err)
 	}
 
-	c.Token = data.APIKey
-
-	return nil
+	return data.APIKey, nil
 }

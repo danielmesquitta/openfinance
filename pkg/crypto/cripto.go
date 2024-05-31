@@ -1,4 +1,4 @@
-package hasher
+package crypto
 
 import (
 	"crypto/aes"
@@ -13,16 +13,16 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/config"
 )
 
-type Hasher struct {
+type Crypto struct {
 	env *config.Env
 }
 
-func NewHasher(env *config.Env) *Hasher {
-	return &Hasher{env: env}
+func NewCrypto(env *config.Env) *Crypto {
+	return &Crypto{env: env}
 }
 
-func (h *Hasher) ToPlainText(hashed string) (string, error) {
-	key, err := hex.DecodeString(h.env.HashSecret)
+func (c *Crypto) Decrypt(hashed string) (string, error) {
+	key, err := hex.DecodeString(c.env.HashSecret)
 	if err != nil {
 		return "", fmt.Errorf("error decoding hash secret: %w", err)
 	}
@@ -53,8 +53,8 @@ func (h *Hasher) ToPlainText(hashed string) (string, error) {
 	return decrypted, nil
 }
 
-func (h *Hasher) Hash(plaintext string) (string, error) {
-	key, err := hex.DecodeString(h.env.HashSecret)
+func (c *Crypto) Encrypt(plaintext string) (string, error) {
+	key, err := hex.DecodeString(c.env.HashSecret)
 	if err != nil {
 		return "", fmt.Errorf("error decoding hash secret: %w", err)
 	}

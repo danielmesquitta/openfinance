@@ -45,7 +45,7 @@ func (r *Router) Register(
 	apiV1.Post("/users/me/settings", r.settingHandler.Upsert)
 	apiV1.Post(
 		"/to-notion",
-		r.openFinanceToNotionHandler.Sync,
+		r.openFinanceToNotionHandler.SyncAllUsers,
 	)
 
 	docs.SwaggerInfo.BasePath = basePath

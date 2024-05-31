@@ -10,19 +10,19 @@ import (
 )
 
 type OpenFinanceToNotionHandler struct {
-	ouc *usecase.OpenFinanceToNotionUseCase
+	uc *usecase.SyncAllUsersOpenFinanceDataToNotionUseCase
 }
 
 func NewOpenFinanceToNotionHandler(
-	ouc *usecase.OpenFinanceToNotionUseCase,
+	uc *usecase.SyncAllUsersOpenFinanceDataToNotionUseCase,
 ) *OpenFinanceToNotionHandler {
 	return &OpenFinanceToNotionHandler{
-		ouc: ouc,
+		uc: uc,
 	}
 }
 
-// @Summary OpenFinance to Notion.
-// @Description This endpoint is responsible for syncing OpenFinance data to Notion.
+// @Summary Sync all users OpenFinance data to Notion.
+// @Description This endpoint is responsible for syncing all users OpenFinance data to Notion.
 // @Tags Notion
 // @Accept json
 // @Produce json
@@ -32,15 +32,15 @@ func NewOpenFinanceToNotionHandler(
 // @Failure 400 {object} dto.ErrorResponseDTO
 // @Failure 500 {object} dto.ErrorResponseDTO
 // @Router /to-notion [post]
-func (h *OpenFinanceToNotionHandler) Sync(c *fiber.Ctx) error {
+func (h *OpenFinanceToNotionHandler) SyncAllUsers(c *fiber.Ctx) error {
 	startDate := c.Query("start_date", "")
 	endDate := c.Query("end_date", "")
 
-	dto := usecase.OpenFinanceToNotionUseCaseDTO{
+	dto := usecase.SyncAllUsersOpenFinanceDataToNotionDTO{
 		StartDate: startDate,
 		EndDate:   endDate,
 	}
-	if err := h.ouc.Execute(dto); err != nil {
+	if err := h.uc.Execute(dto); err != nil {
 		return fmt.Errorf(
 			"error executing open finance to notion use case: %w",
 			err,

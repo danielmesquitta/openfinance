@@ -18,7 +18,7 @@ func (m *Middleware) ErrorHandler(ctx *fiber.Ctx, err error) error {
 			})
 	}
 
-	m.l.Errorw(
+	m.log.Errorw(
 		"internal server error",
 		"error",
 		err,

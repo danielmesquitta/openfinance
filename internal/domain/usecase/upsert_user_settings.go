@@ -1,31 +1,33 @@
 package usecase
 
 import (
+	"fmt"
+
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/provider/repo"
-	"github.com/danielmesquitta/openfinance/pkg/hasher"
+	"github.com/danielmesquitta/openfinance/pkg/crypto"
 	"github.com/danielmesquitta/openfinance/pkg/validator"
 	"github.com/jinzhu/copier"
 )
 
 type UpsertUserSettingUseCase struct {
-	ur repo.UserRepo
-	sr repo.SettingRepo
-	v  *validator.Validator
-	h  *hasher.Hasher
+	userRepo    repo.UserRepo
+	settingRepo repo.SettingRepo
+	val         *validator.Validator
+	cripto      crypto.Encrypter
 }
 
 func NewUpsertUserSettingUseCase(
-	ur repo.UserRepo,
-	sr repo.SettingRepo,
-	v *validator.Validator,
-	h *hasher.Hasher,
+	userRepo repo.UserRepo,
+	settingRepo repo.SettingRepo,
+	val *validator.Validator,
+	cripto crypto.Encrypter,
 ) *UpsertUserSettingUseCase {
 	return &UpsertUserSettingUseCase{
-		ur: ur,
-		sr: sr,
-		v:  v,
-		h:  h,
+		userRepo:    userRepo,
+		settingRepo: settingRepo,
+		val:         val,
+		cripto:      cripto,
 	}
 }
 
@@ -41,13 +43,11 @@ type UpsertUserSettingDTO struct {
 func (uc *UpsertUserSettingUseCase) Execute(
 	dto UpsertUserSettingDTO,
 ) error {
-	if dto.UserID == "" {
-		err := entity.ErrValidation
-		err.Message = "user_id is required"
-		return &err
+	if err := uc.validateUserID(dto.UserID); err != nil {
+		return err
 	}
 
-	user, err := uc.ur.GetUserWithSettingByID(dto.UserID)
+	user, err := uc.userRepo.GetUserWithSettingByID(dto.UserID)
 	if err != nil {
 		return err
 	}
@@ -55,79 +55,107 @@ func (uc *UpsertUserSettingUseCase) Execute(
 		return entity.ErrUserNotFound
 	}
 
-	if err := uc.hashDTOValues(&dto); err != nil {
+	if err := uc.encryptDTO(&dto); err != nil {
 		return err
 	}
 
 	setting := user.Setting
 
 	if settingNotExists := setting.ID == ""; settingNotExists {
-		if err := uc.v.Validate(dto); err != nil {
-			return err
-		}
-
-		if err := copier.Copy(setting, dto); err != nil {
-			return err
-		}
-
-		if err := uc.sr.CreateSetting(setting); err != nil {
-			return err
-		}
-
-		return nil
+		return uc.createSetting(setting, dto)
 	}
 
-	if err := copier.CopyWithOption(
-		setting,
-		dto,
-		copier.Option{IgnoreEmpty: true},
-	); err != nil {
-		return err
-	}
+	return uc.updateSetting(setting, dto)
+}
 
-	if err := uc.v.Validate(setting); err != nil {
-		return err
-	}
-
-	if err := uc.sr.UpdateSetting(setting.ID, setting); err != nil {
-		return err
+func (uc *UpsertUserSettingUseCase) validateUserID(
+	userID string,
+) error {
+	if userID == "" {
+		err := entity.ErrValidation
+		err.Message = "user_id is required"
+		return &err
 	}
 
 	return nil
 }
 
-func (uc *UpsertUserSettingUseCase) hashDTOValues(
+func (uc *UpsertUserSettingUseCase) updateSetting(
+	setting *entity.Setting,
+	dto UpsertUserSettingDTO,
+) error {
+	if err := copier.CopyWithOption(
+		setting,
+		dto,
+		copier.Option{IgnoreEmpty: true},
+	); err != nil {
+		return fmt.Errorf("error copying dto to setting: %w", err)
+	}
+
+	if err := uc.val.Validate(setting); err != nil {
+		return err
+	}
+
+	if err := uc.settingRepo.UpdateSetting(setting.ID, setting); err != nil {
+		return fmt.Errorf("error updating setting: %w", err)
+	}
+
+	return nil
+}
+
+func (uc *UpsertUserSettingUseCase) createSetting(
+	setting *entity.Setting,
+	dto UpsertUserSettingDTO,
+) error {
+	if err := uc.val.Validate(dto); err != nil {
+		return err
+	}
+
+	if err := copier.Copy(setting, dto); err != nil {
+		return fmt.Errorf("error copying dto to setting: %w", err)
+	}
+
+	if err := uc.settingRepo.CreateSetting(setting); err != nil {
+		return fmt.Errorf("error creating setting: %w", err)
+	}
+
+	return nil
+}
+
+func (uc *UpsertUserSettingUseCase) encryptDTO(
 	dto *UpsertUserSettingDTO,
 ) error {
 	for i, accountID := range dto.MeuPluggyAccountIDs {
-		hashed, err := uc.h.Hash(accountID)
+		hashed, err := uc.cripto.Encrypt(accountID)
 		if err != nil {
-			return err
+			return fmt.Errorf("error encrypting account_id: %w", err)
 		}
 		dto.MeuPluggyAccountIDs[i] = hashed
 	}
 
-	hashedMeuPluggyClientID, err := uc.h.Hash(dto.MeuPluggyClientID)
+	hashedMeuPluggyClientID, err := uc.cripto.Encrypt(dto.MeuPluggyClientID)
 	if err != nil {
-		return err
+		return fmt.Errorf("error encrypting meu_pluggy_client_id: %w", err)
 	}
 	dto.MeuPluggyClientID = hashedMeuPluggyClientID
 
-	hashedMeuPluggyClientSecret, err := uc.h.Hash(dto.MeuPluggyClientSecret)
+	hashedMeuPluggyClientSecret, err := uc.cripto.Encrypt(
+		dto.MeuPluggyClientSecret,
+	)
 	if err != nil {
-		return err
+		return fmt.Errorf("error encrypting meu_pluggy_client_secret: %w", err)
 	}
 	dto.MeuPluggyClientSecret = hashedMeuPluggyClientSecret
 
-	hashedNotionPageID, err := uc.h.Hash(dto.NotionPageID)
+	hashedNotionPageID, err := uc.cripto.Encrypt(dto.NotionPageID)
 	if err != nil {
-		return err
+		return fmt.Errorf("error encrypting notion_page_id: %w", err)
 	}
 	dto.NotionPageID = hashedNotionPageID
 
-	hashedNotionToken, err := uc.h.Hash(dto.NotionToken)
+	hashedNotionToken, err := uc.cripto.Encrypt(dto.NotionToken)
 	if err != nil {
-		return err
+		return fmt.Errorf("error encrypting notion_token: %w", err)
 	}
 	dto.NotionToken = hashedNotionToken
 

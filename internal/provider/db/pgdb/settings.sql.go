@@ -53,6 +53,45 @@ func (q *Queries) CreateSetting(ctx context.Context, arg CreateSettingParams) er
 	return err
 }
 
+const listSettings = `-- name: ListSettings :many
+SELECT
+  id, notion_token, notion_page_id, meu_pluggy_client_id, meu_pluggy_client_secret, meu_pluggy_account_ids, user_id, updated_at
+FROM
+  settings
+`
+
+func (q *Queries) ListSettings(ctx context.Context) ([]Setting, error) {
+	rows, err := q.db.QueryContext(ctx, listSettings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Setting
+	for rows.Next() {
+		var i Setting
+		if err := rows.Scan(
+			&i.ID,
+			&i.NotionToken,
+			&i.NotionPageID,
+			&i.MeuPluggyClientID,
+			&i.MeuPluggyClientSecret,
+			pq.Array(&i.MeuPluggyAccountIds),
+			&i.UserID,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateSetting = `-- name: UpdateSetting :exec
 UPDATE
   settings

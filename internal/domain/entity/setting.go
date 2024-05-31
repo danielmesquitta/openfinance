@@ -12,3 +12,9 @@ type Setting struct {
 	UserID                string    `json:"user_id"`
 	UpdatedAt             time.Time `json:"updated_at"`
 }
+
+func (s *Setting) Encrypt() {
+}
+
+func (s *Setting) Decrypt() {
+}

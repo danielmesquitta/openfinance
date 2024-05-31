@@ -17,18 +17,12 @@ const (
 type Env struct {
 	Environment             Environment `mapstructure:"ENVIRONMENT"`
 	Port                    string      `mapstructure:"PORT"`
-	NotionToken             string      `mapstructure:"NOTION_TOKEN"`
-	NotionPageID            string      `mapstructure:"NOTION_PAGE_ID"`
-	MeuPluggyClientID       string      `mapstructure:"MEU_PLUGGY_CLIENT_ID"`
-	MeuPluggyClientSecret   string      `mapstructure:"MEU_PLUGGY_CLIENT_SECRET"`
-	MeuPluggyAccountIDs     []string    `mapstructure:"MEU_PLUGGY_ACCOUNT_IDS"`
-	MeuPluggyToken          string
-	DBConnection            string `mapstructure:"DB_CONNECTION"`
-	GoogleOAUTHClientID     string `mapstructure:"GOOGLE_OAUTH_CLIENT_ID"`
-	GoogleOAUTHClientSecret string `mapstructure:"GOOGLE_OAUTH_CLIENT_SECRET"`
-	ApiURL                  string `mapstructure:"API_URL"`
-	JWTSecret               string `mapstructure:"JWT_SECRET"`
-	HashSecret              string `mapstructure:"HASH_SECRET"`
+	DBConnection            string      `mapstructure:"DB_CONNECTION"`
+	GoogleOAUTHClientID     string      `mapstructure:"GOOGLE_OAUTH_CLIENT_ID"`
+	GoogleOAUTHClientSecret string      `mapstructure:"GOOGLE_OAUTH_CLIENT_SECRET"`
+	ApiURL                  string      `mapstructure:"API_URL"`
+	JWTSecret               string      `mapstructure:"JWT_SECRET"`
+	HashSecret              string      `mapstructure:"HASH_SECRET"`
 }
 
 func (e *Env) validate() error {
@@ -45,21 +39,6 @@ func (e *Env) validate() error {
 	}
 	if e.DBConnection == "" {
 		errs = append(errs, "DB_CONNECTION is not set")
-	}
-	if e.NotionToken == "" {
-		errs = append(errs, "NOTION_TOKEN is not set")
-	}
-	if e.NotionPageID == "" {
-		errs = append(errs, "NOTION_PAGE_ID is not set")
-	}
-	if e.MeuPluggyClientID == "" {
-		errs = append(errs, "MEU_PLUGGY_CLIENT_ID is not set")
-	}
-	if e.MeuPluggyClientSecret == "" {
-		errs = append(errs, "MEU_PLUGGY_CLIENT_SECRET is not set")
-	}
-	if len(e.MeuPluggyAccountIDs) == 0 {
-		errs = append(errs, "MEU_PLUGGY_ACCOUNT_IDS is not set")
 	}
 	if e.GoogleOAUTHClientID == "" {
 		errs = append(errs, "GOOGLE_OAUTH_CLIENT_ID is not set")

@@ -6,16 +6,16 @@ import (
 )
 
 type Middleware struct {
-	l *logger.Logger
-	j *jwt.JWTIssuer
+	log       *logger.Logger
+	jwtIssuer *jwt.JWTIssuer
 }
 
 func NewMiddleware(
-	l *logger.Logger,
-	j *jwt.JWTIssuer,
+	log *logger.Logger,
+	jwtIssuer *jwt.JWTIssuer,
 ) *Middleware {
 	return &Middleware{
-		l: l,
-		j: j,
+		log:       log,
+		jwtIssuer: jwtIssuer,
 	}
 }

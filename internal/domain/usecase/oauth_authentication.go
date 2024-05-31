@@ -10,20 +10,20 @@ import (
 )
 
 type OAuthAuthenticationUseCase struct {
-	ur repo.UserRepo
-	v  *validator.Validator
-	j  *jwt.JWTIssuer
+	userRepo  repo.UserRepo
+	val       *validator.Validator
+	jwtIssuer *jwt.JWTIssuer
 }
 
 func NewOAuthAuthenticationUseCase(
-	ur repo.UserRepo,
-	v *validator.Validator,
-	j *jwt.JWTIssuer,
+	userRepo repo.UserRepo,
+	val *validator.Validator,
+	jwtIssuer *jwt.JWTIssuer,
 ) *OAuthAuthenticationUseCase {
 	return &OAuthAuthenticationUseCase{
-		ur: ur,
-		v:  v,
-		j:  j,
+		userRepo:  userRepo,
+		val:       val,
+		jwtIssuer: jwtIssuer,
 	}
 }
 
@@ -34,26 +34,26 @@ type OAuthAuthenticationDTO struct {
 func (uc *OAuthAuthenticationUseCase) Execute(
 	dto OAuthAuthenticationDTO,
 ) (accessToken string, expiresAt int64, err error) {
-	if err := uc.v.Validate(dto); err != nil {
+	if err := uc.val.Validate(dto); err != nil {
 		return "", 0, err
 	}
 
-	user, err := uc.ur.GetUserByEmail(dto.Email)
+	user, err := uc.userRepo.GetUserByEmail(dto.Email)
 	if err != nil {
 		return "", 0, fmt.Errorf("error getting user by email: %w", err)
 	}
 
 	if userExists := user.ID != ""; userExists {
-		return uc.j.NewAccessToken(user.ID)
+		return uc.jwtIssuer.NewAccessToken(user.ID)
 	}
 
 	if err := copier.Copy(&user, dto); err != nil {
 		return "", 0, fmt.Errorf("error copying dto to user: %w", err)
 	}
 
-	if err := uc.ur.CreateUser(&user); err != nil {
+	if err := uc.userRepo.CreateUser(&user); err != nil {
 		return "", 0, fmt.Errorf("error creating user: %w", err)
 	}
 
-	return uc.j.NewAccessToken(user.ID)
+	return uc.jwtIssuer.NewAccessToken(user.ID)
 }
