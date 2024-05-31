@@ -9,14 +9,14 @@ import (
 )
 
 type OpenFinanceToNotionHandler struct {
-	uc *usecase.OpenFinanceToNotionUseCase
+	ouc *usecase.OpenFinanceToNotionUseCase
 }
 
 func NewOpenFinanceToNotionHandler(
-	uc *usecase.OpenFinanceToNotionUseCase,
+	ouc *usecase.OpenFinanceToNotionUseCase,
 ) *OpenFinanceToNotionHandler {
 	return &OpenFinanceToNotionHandler{
-		uc: uc,
+		ouc: ouc,
 	}
 }
 
@@ -39,7 +39,7 @@ func (h *OpenFinanceToNotionHandler) Sync(c *fiber.Ctx) error {
 		StartDate: startDate,
 		EndDate:   endDate,
 	}
-	if err := h.uc.Execute(dto); err != nil {
+	if err := h.ouc.Execute(dto); err != nil {
 		return err
 	}
 
