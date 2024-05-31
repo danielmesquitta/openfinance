@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/danielmesquitta/openfinance/config"
+	"github.com/danielmesquitta/openfinance/internal/config"
 )
 
 type Color string
