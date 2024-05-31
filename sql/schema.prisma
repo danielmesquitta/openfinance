@@ -1,0 +1,34 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DB_CONNECTION")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id         String   @id
+  email      String
+  updated_at DateTime @updatedAt
+
+  setting Setting?
+
+  @@map("users")
+}
+
+model Setting {
+  id                       String   @id
+  notion_token             String
+  notion_page_id           String
+  meu_pluggy_client_id     String
+  meu_pluggy_client_secret String
+  meu_pluggy_account_ids   String[]
+
+  user_id String @unique
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  updated_at DateTime @updatedAt
+
+  @@map("settings")
+}
