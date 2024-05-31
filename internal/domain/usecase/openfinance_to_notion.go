@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/danielmesquitta/openfinance/config"
+	"github.com/danielmesquitta/openfinance/internal/config"
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/provider/openfinance/meupluggyapi"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
@@ -17,23 +17,23 @@ import (
 )
 
 type OpenFinanceToNotionUseCase struct {
-	env                *config.Env
-	validator          *validator.Validator
-	notionAPIClient    *notionapi.Client
-	meupluggyAPIClient *meupluggyapi.Client
+	e   *config.Env
+	v   *validator.Validator
+	nac *notionapi.Client
+	mac *meupluggyapi.Client
 }
 
 func NewOpenFinanceToNotionUseCase(
-	env *config.Env,
-	validator *validator.Validator,
-	notionAPIClient *notionapi.Client,
-	meupluggyAPIClient *meupluggyapi.Client,
+	e *config.Env,
+	v *validator.Validator,
+	nac *notionapi.Client,
+	mac *meupluggyapi.Client,
 ) *OpenFinanceToNotionUseCase {
 	return &OpenFinanceToNotionUseCase{
-		env:                env,
-		validator:          validator,
-		notionAPIClient:    notionAPIClient,
-		meupluggyAPIClient: meupluggyAPIClient,
+		e:   e,
+		v:   v,
+		nac: nac,
+		mac: mac,
 	}
 }
 
@@ -47,7 +47,7 @@ func (uc *OpenFinanceToNotionUseCase) Execute(
 ) error {
 	uc.setDefaultValues(&dto)
 
-	if err := uc.validator.Validate(dto); err != nil {
+	if err := uc.v.Validate(dto); err != nil {
 		return err
 	}
 
@@ -56,7 +56,7 @@ func (uc *OpenFinanceToNotionUseCase) Execute(
 		return err
 	}
 
-	if err := uc.meupluggyAPIClient.Authenticate(); err != nil {
+	if err := uc.mac.Authenticate(); err != nil {
 		return err
 	}
 
@@ -66,13 +66,13 @@ func (uc *OpenFinanceToNotionUseCase) Execute(
 
 	meupluggyapiResults := []meupluggyapi.Result{}
 
-	wg.Add(len(uc.env.MeuPluggyAccountIDs))
+	wg.Add(len(uc.e.MeuPluggyAccountIDs))
 
-	for _, accountID := range uc.env.MeuPluggyAccountIDs {
+	for _, accountID := range uc.e.MeuPluggyAccountIDs {
 		go func() {
 			defer wg.Done()
 
-			res, err := uc.meupluggyAPIClient.ListTransactions(
+			res, err := uc.mac.ListTransactions(
 				accountID,
 				startDate,
 				endDate,
@@ -161,8 +161,8 @@ func (uc *OpenFinanceToNotionUseCase) Execute(
 	strMonth := dateutil.MonthMapper[month]
 	title := fmt.Sprintf("%s %d", strMonth, year)
 
-	newTableResponse, err := uc.notionAPIClient.NewTable(sheet.NewTableDTO{
-		ParentID:   uc.env.NotionPageID,
+	newTableResponse, err := uc.nac.NewTable(sheet.NewTableDTO{
+		ParentID:   uc.e.NotionPageID,
 		Title:      title,
 		Categories: categories,
 	})
@@ -174,7 +174,7 @@ func (uc *OpenFinanceToNotionUseCase) Execute(
 	for _, transaction := range transactions {
 		go func() {
 			defer wg.Done()
-			if _, err := uc.notionAPIClient.
+			if _, err := uc.nac.
 				InsertRow(newTableResponse.ID, transaction); err != nil {
 				mu.Lock()
 				errs = append(errs, err)
