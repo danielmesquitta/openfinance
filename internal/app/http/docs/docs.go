@@ -9,7 +9,10 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "contact": {},
+        "contact": {
+            "name": "Daniel Mesquita",
+            "email": "danielmesquitta123@gmail.com"
+        },
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
@@ -31,15 +34,106 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Start date (format: 2006-01-02T15:04:05Z)",
+                        "description": "Start date (format RFC3339: 2006-01-02T15:04:05Z07:00)",
                         "name": "start_date",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "End date (format: 2006-01-02T15:04:05Z)",
+                        "description": "End date (format RFC3339: 2006-01-02T15:04:05Z07:00)",
                         "name": "end_date",
                         "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponseDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponseDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/users": {
+            "post": {
+                "description": "This endpoint is responsible for receiving oauth callbacks.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "OAuth Callback.",
+                "parameters": [
+                    {
+                        "description": "Auth",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/usecase.OAuthAuthenticationDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponseDTO"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponseDTO"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/me/settings": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "This endpoint is responsible for updating and creating user settings.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Setting"
+                ],
+                "summary": "Upsert user setting.",
+                "parameters": [
+                    {
+                        "description": "Request body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/usecase.UpsertUserSettingDTO"
+                        }
                     }
                 ],
                 "responses": {
@@ -70,18 +164,65 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "usecase.OAuthAuthenticationDTO": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "usecase.UpsertUserSettingDTO": {
+            "type": "object",
+            "required": [
+                "userID"
+            ],
+            "properties": {
+                "meuPluggyAccountIDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "meuPluggyClientID": {
+                    "type": "string"
+                },
+                "meuPluggyClientSecret": {
+                    "type": "string"
+                },
+                "notionPageID": {
+                    "type": "string"
+                },
+                "notionToken": {
+                    "type": "string"
+                },
+                "userID": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
+	Version:          "1.0",
 	Host:             "",
-	BasePath:         "",
+	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "OpenFinance to Notion API",
+	Description:      "This API is responsible for syncing OpenFinance data to Notion.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

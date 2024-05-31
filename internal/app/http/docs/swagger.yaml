@@ -1,11 +1,43 @@
+basePath: /
 definitions:
   dto.ErrorResponseDTO:
     properties:
       message:
         type: string
     type: object
+  usecase.OAuthAuthenticationDTO:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  usecase.UpsertUserSettingDTO:
+    properties:
+      meuPluggyAccountIDs:
+        items:
+          type: string
+        type: array
+      meuPluggyClientID:
+        type: string
+      meuPluggyClientSecret:
+        type: string
+      notionPageID:
+        type: string
+      notionToken:
+        type: string
+      userID:
+        type: string
+    required:
+    - userID
+    type: object
 info:
-  contact: {}
+  contact:
+    email: danielmesquitta123@gmail.com
+    name: Daniel Mesquita
+  description: This API is responsible for syncing OpenFinance data to Notion.
+  title: OpenFinance to Notion API
+  version: "1.0"
 paths:
   /to-notion:
     post:
@@ -13,11 +45,11 @@ paths:
       - application/json
       description: This endpoint is responsible for syncing OpenFinance data to Notion.
       parameters:
-      - description: 'Start date (format: 2006-01-02T15:04:05Z)'
+      - description: 'Start date (format RFC3339: 2006-01-02T15:04:05Z07:00)'
         in: query
         name: start_date
         type: string
-      - description: 'End date (format: 2006-01-02T15:04:05Z)'
+      - description: 'End date (format RFC3339: 2006-01-02T15:04:05Z07:00)'
         in: query
         name: end_date
         type: string
@@ -37,4 +69,67 @@ paths:
       summary: OpenFinance to Notion.
       tags:
       - Notion
+  /users:
+    post:
+      consumes:
+      - application/json
+      description: This endpoint is responsible for receiving oauth callbacks.
+      parameters:
+      - description: Auth
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/usecase.OAuthAuthenticationDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponseDTO'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponseDTO'
+      summary: OAuth Callback.
+      tags:
+      - Auth
+  /users/me/settings:
+    post:
+      consumes:
+      - application/json
+      description: This endpoint is responsible for updating and creating user settings.
+      parameters:
+      - description: Request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/usecase.UpsertUserSettingDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponseDTO'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponseDTO'
+      security:
+      - BearerAuth: []
+      summary: Upsert user setting.
+      tags:
+      - Setting
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"
