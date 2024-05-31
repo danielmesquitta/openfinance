@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"github.com/danielmesquitta/openfinance/config"
+	"github.com/danielmesquitta/openfinance/internal/config"
 	"go.uber.org/zap"
 )
 
@@ -13,6 +13,7 @@ type Logger struct {
 func NewLogger(env *config.Env) *Logger {
 	if env.Environment == config.DevelopmentEnv {
 		return &Logger{
+			env: env,
 			log: zap.Must(zap.NewDevelopment()).Sugar(),
 		}
 	}
