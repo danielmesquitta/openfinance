@@ -1,6 +1,8 @@
 package usecase
 
 import (
+	"fmt"
+
 	"github.com/danielmesquitta/openfinance/internal/provider/repo"
 	"github.com/danielmesquitta/openfinance/pkg/jwt"
 	"github.com/danielmesquitta/openfinance/pkg/validator"
@@ -38,7 +40,7 @@ func (uc *OAuthAuthenticationUseCase) Execute(
 
 	user, err := uc.ur.GetUserByEmail(dto.Email)
 	if err != nil {
-		return "", 0, err
+		return "", 0, fmt.Errorf("error getting user by email: %w", err)
 	}
 
 	if userExists := user.ID != ""; userExists {
@@ -46,11 +48,11 @@ func (uc *OAuthAuthenticationUseCase) Execute(
 	}
 
 	if err := copier.Copy(&user, dto); err != nil {
-		return "", 0, err
+		return "", 0, fmt.Errorf("error copying dto to user: %w", err)
 	}
 
 	if err := uc.ur.CreateUser(&user); err != nil {
-		return "", 0, err
+		return "", 0, fmt.Errorf("error creating user: %w", err)
 	}
 
 	return uc.j.NewAccessToken(user.ID)

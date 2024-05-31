@@ -18,6 +18,32 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/auth/login/google": {
+            "get": {
+                "description": "This endpoint is responsible for starting OAuth authentication.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "BeginOAuth.",
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponseDTO"
+                        }
+                    }
+                }
+            }
+        },
         "/to-notion": {
             "post": {
                 "description": "This endpoint is responsible for syncing OpenFinance data to Notion.",
@@ -64,49 +90,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/users": {
-            "post": {
-                "description": "This endpoint is responsible for receiving oauth callbacks.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "OAuth Callback.",
-                "parameters": [
-                    {
-                        "description": "Auth",
-                        "name": "user",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/usecase.OAuthAuthenticationDTO"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponseDTO"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponseDTO"
-                        }
-                    }
-                }
-            }
-        },
         "/users/me/settings": {
             "post": {
                 "security": [
@@ -132,7 +115,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/usecase.UpsertUserSettingDTO"
+                            "$ref": "#/definitions/dto.UpsertUserSettingRequestDTO"
                         }
                     }
                 ],
@@ -165,21 +148,14 @@ const docTemplate = `{
                 }
             }
         },
-        "usecase.OAuthAuthenticationDTO": {
+        "dto.UpsertUserSettingRequestDTO": {
             "type": "object",
             "required": [
-                "email"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                }
-            }
-        },
-        "usecase.UpsertUserSettingDTO": {
-            "type": "object",
-            "required": [
-                "userID"
+                "meuPluggyAccountIDs",
+                "meuPluggyClientID",
+                "meuPluggyClientSecret",
+                "notionPageID",
+                "notionToken"
             ],
             "properties": {
                 "meuPluggyAccountIDs": {
@@ -198,9 +174,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "notionToken": {
-                    "type": "string"
-                },
-                "userID": {
                     "type": "string"
                 }
             }

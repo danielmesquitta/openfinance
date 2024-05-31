@@ -3,7 +3,6 @@ package router
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
-	"github.com/shareed2k/goth_fiber"
 
 	"github.com/danielmesquitta/openfinance/internal/app/http/docs"
 	"github.com/danielmesquitta/openfinance/internal/app/http/handler"
@@ -38,7 +37,7 @@ func (r *Router) Register(
 
 	apiV1 := app.Group(basePath)
 
-	apiV1.Get("/auth/login/:provider", goth_fiber.BeginAuthHandler)
+	apiV1.Get("/auth/login/:provider", r.authHandler.BeginOAuth)
 	apiV1.Get("/auth/callback/:provider", r.authHandler.OAuthCallback)
 
 	apiV1.Use(r.middleware.EnsureAuthenticated)

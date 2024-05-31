@@ -89,7 +89,7 @@ func (c *Client) doRequest(
 
 	decoder := json.NewDecoder(res.Body)
 	if err := decoder.Decode(&responseData); err != nil {
-		return err
+		return fmt.Errorf("error decoding response: %w", err)
 	}
 
 	return nil

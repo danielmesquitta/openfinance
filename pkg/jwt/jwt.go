@@ -2,6 +2,7 @@ package jwt
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/config"
@@ -32,7 +33,7 @@ func (j *JWTIssuer) NewAccessToken(
 
 	accessToken, err = claims.SignedString([]byte(j.env.JWTSecret))
 	if err != nil {
-		return "", 0, err
+		return "", 0, fmt.Errorf("error signing token: %w", err)
 	}
 
 	return accessToken, expiresAt, nil
@@ -54,17 +55,17 @@ func (j *JWTIssuer) ParseToken(
 		},
 	)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error parsing token: %w", err)
 	}
 
 	bytes, err := json.Marshal(token.Claims)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error marshalling claims: %w", err)
 	}
 
 	claims := Claims{}
 	if err := json.Unmarshal(bytes, &claims); err != nil {
-		return "", err
+		return "", fmt.Errorf("error unmarshalling claims: %w", err)
 	}
 
 	if claims.ExpiresAt < time.Now().Unix() {

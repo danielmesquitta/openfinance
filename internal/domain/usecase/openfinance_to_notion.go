@@ -57,7 +57,7 @@ func (uc *OpenFinanceToNotionUseCase) Execute(
 	}
 
 	if err := uc.mac.Authenticate(); err != nil {
-		return err
+		return fmt.Errorf("error authenticating meupluggyapi client: %w", err)
 	}
 
 	mu := sync.Mutex{}
@@ -167,7 +167,7 @@ func (uc *OpenFinanceToNotionUseCase) Execute(
 		Categories: categories,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating new table: %w", err)
 	}
 
 	wg.Add(len(transactions))
@@ -211,15 +211,15 @@ func (uc *OpenFinanceToNotionUseCase) parseDates(
 	startDate, err = time.Parse(time.RFC3339, dto.StartDate)
 	if err != nil {
 		appErr := entity.ErrValidation
-		appErr.Message = "Invalid start date"
-		return startDate, endDate, appErr
+		appErr.Message = "invalid start date"
+		return time.Time{}, time.Time{}, appErr
 	}
 
 	endDate, err = time.Parse(time.RFC3339, dto.EndDate)
 	if err != nil {
 		appErr := entity.ErrValidation
-		appErr.Message = "Invalid end date"
-		return startDate, endDate, appErr
+		appErr.Message = "invalid end date"
+		return time.Time{}, time.Time{}, appErr
 	}
 
 	return startDate, endDate, nil

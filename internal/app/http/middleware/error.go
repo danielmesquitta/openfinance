@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/danielmesquitta/openfinance/internal/app/http/dto"
@@ -9,17 +10,20 @@ import (
 )
 
 func (m *Middleware) ErrorHandler(ctx *fiber.Ctx, err error) error {
-	if appErr, ok := err.(*entity.AppError); ok {
+	appErr := entity.AppError{}
+	if ok := errors.As(err, &appErr); ok {
 		return ctx.Status(appErr.HTTPStatusCode).
 			JSON(dto.ErrorResponseDTO{
 				Message: appErr.Message,
 			})
 	}
 
-	m.l.Error(
+	m.l.Errorw(
 		"internal server error",
 		"error",
 		err,
+		"url",
+		ctx.OriginalURL(),
 		"body",
 		string(ctx.Body()),
 		"query",

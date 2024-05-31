@@ -38,7 +38,7 @@ func NewValidator() *Validator {
 
 func (v *Validator) Validate(
 	data any,
-) *entity.AppError {
+) error {
 	var strErrs []string
 
 	err := v.validate.Struct(data)
@@ -64,8 +64,8 @@ func (v *Validator) Validate(
 		", ",
 	)
 
-	validationErr := *entity.ErrValidation
+	validationErr := entity.ErrValidation
 	validationErr.Message = errMsg
 
-	return &validationErr
+	return validationErr
 }

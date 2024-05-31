@@ -2,6 +2,7 @@ package pgrepo
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
@@ -28,12 +29,12 @@ func (b SettingPgRepo) CreateSetting(setting *entity.Setting) error {
 
 	err := copier.Copy(&params, setting)
 	if err != nil {
-		return err
+		return fmt.Errorf("error copying setting to params: %w", err)
 	}
 
 	id, err := uuid.NewV7()
 	if err != nil {
-		return err
+		return fmt.Errorf("error generating uuid: %w", err)
 	}
 
 	params.ID = id.String()
@@ -41,7 +42,7 @@ func (b SettingPgRepo) CreateSetting(setting *entity.Setting) error {
 
 	err = b.db.CreateSetting(ctx, params)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating setting: %w", err)
 	}
 
 	setting.ID = params.ID
@@ -56,7 +57,7 @@ func (b SettingPgRepo) UpdateSetting(id string, setting *entity.Setting) error {
 	params := pgdb.UpdateSettingParams{}
 	err := copier.Copy(&params, setting)
 	if err != nil {
-		return err
+		return fmt.Errorf("error copying setting to params: %w", err)
 	}
 
 	params.ID = id
@@ -64,7 +65,7 @@ func (b SettingPgRepo) UpdateSetting(id string, setting *entity.Setting) error {
 
 	err = b.db.UpdateSetting(ctx, params)
 	if err != nil {
-		return err
+		return fmt.Errorf("error updating setting: %w", err)
 	}
 
 	setting.ID = params.ID

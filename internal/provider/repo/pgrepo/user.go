@@ -3,6 +3,7 @@ package pgrepo
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
@@ -31,13 +32,13 @@ func (b UserPgRepo) GetUserByID(id string) (entity.User, error) {
 	}
 
 	if err != nil {
-		return entity.User{}, err
+		return entity.User{}, fmt.Errorf("error getting user by id: %w", err)
 	}
 
 	var user entity.User
 	err = copier.Copy(&user, dbUser)
 	if err != nil {
-		return entity.User{}, err
+		return entity.User{}, fmt.Errorf("error copying user: %w", err)
 	}
 
 	return user, nil
@@ -53,7 +54,10 @@ func (b UserPgRepo) GetUserWithSettingByID(id string) (entity.User, error) {
 	}
 
 	if err != nil {
-		return entity.User{}, err
+		return entity.User{}, fmt.Errorf(
+			"error getting user with setting by id: %w",
+			err,
+		)
 	}
 
 	user := entity.User{
@@ -85,13 +89,13 @@ func (b UserPgRepo) GetUserByEmail(email string) (entity.User, error) {
 	}
 
 	if err != nil {
-		return entity.User{}, err
+		return entity.User{}, fmt.Errorf("error getting user by email: %w", err)
 	}
 
 	var user entity.User
 	err = copier.Copy(&user, dbUser)
 	if err != nil {
-		return entity.User{}, err
+		return entity.User{}, fmt.Errorf("error copying user: %w", err)
 	}
 
 	return user, nil
@@ -105,12 +109,12 @@ func (b UserPgRepo) CreateUser(user *entity.User) error {
 
 	err := copier.Copy(&params, user)
 	if err != nil {
-		return err
+		return fmt.Errorf("error copying user to params: %w", err)
 	}
 
 	id, err := uuid.NewV7()
 	if err != nil {
-		return err
+		return fmt.Errorf("error generating uuid: %w", err)
 	}
 
 	params.ID = id.String()
@@ -118,7 +122,7 @@ func (b UserPgRepo) CreateUser(user *entity.User) error {
 
 	err = b.db.CreateUser(ctx, params)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating user: %w", err)
 	}
 
 	user.ID = params.ID

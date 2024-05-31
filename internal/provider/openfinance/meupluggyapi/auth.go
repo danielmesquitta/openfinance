@@ -22,7 +22,7 @@ func (c *Client) Authenticate() error {
 
 	req, err := http.NewRequest("POST", url, payload)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating request: %w", err)
 	}
 
 	req.Header.Add("accept", "application/json")
@@ -30,7 +30,7 @@ func (c *Client) Authenticate() error {
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("error sending request: %w", err)
 	}
 	defer res.Body.Close()
 
@@ -42,7 +42,7 @@ func (c *Client) Authenticate() error {
 
 	data := AuthenticateResponse{}
 	if err := decoder.Decode(&data); err != nil {
-		return err
+		return fmt.Errorf("error decoding response: %w", err)
 	}
 
 	c.Token = data.APIKey

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
@@ -22,20 +23,22 @@ func NewAuthHandler(
 	}
 }
 
-// @Summary OAuth Callback.
-// @Description This endpoint is responsible for receiving oauth callbacks.
+// @Summary BeginOAuth.
+// @Description This endpoint is responsible for starting OAuth authentication.
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param user body usecase.OAuthAuthenticationDTO true "Auth"
 // @Success 200
-// @Failure 400 {object} dto.ErrorResponseDTO
 // @Failure 500 {object} dto.ErrorResponseDTO
-// @Router /users [post]
+// @Router /auth/login/google [get]
+func (h *AuthHandler) BeginOAuth(c *fiber.Ctx) error {
+	return goth_fiber.BeginAuthHandler(c)
+}
+
 func (h *AuthHandler) OAuthCallback(c *fiber.Ctx) error {
 	user, err := goth_fiber.CompleteUserAuth(c)
 	if err != nil {
-		return err
+		return fmt.Errorf("error completing user auth: %w", err)
 	}
 
 	data := usecase.OAuthAuthenticationDTO{
@@ -43,7 +46,10 @@ func (h *AuthHandler) OAuthCallback(c *fiber.Ctx) error {
 	}
 	accessToken, expiresAt, err := h.ouc.Execute(data)
 	if err != nil {
-		return err
+		return fmt.Errorf(
+			"error executing oauth authentication use case: %w",
+			err,
+		)
 	}
 
 	return c.Status(http.StatusOK).JSON(dto.OauthCallbackResponseDTO{

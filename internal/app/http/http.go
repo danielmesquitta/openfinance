@@ -10,6 +10,7 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/provider/repo"
 	"github.com/danielmesquitta/openfinance/internal/provider/repo/pgrepo"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet/notionapi"
+	"github.com/danielmesquitta/openfinance/pkg/hasher"
 	"github.com/danielmesquitta/openfinance/pkg/jwt"
 	"github.com/danielmesquitta/openfinance/pkg/logger"
 	"github.com/danielmesquitta/openfinance/pkg/validator"
@@ -26,6 +27,7 @@ func Start() {
 		logger.NewLogger,
 		validator.NewValidator,
 		jwt.NewJWTIssuer,
+		hasher.NewHasher,
 
 		// Providers
 		meupluggyapi.NewClient,

@@ -2,6 +2,7 @@ package meupluggyapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -73,7 +74,7 @@ func (c *Client) ListTransactions(
 
 	req, err := http.NewRequest("GET", url.String()+"?"+query.Encode(), nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
 	req.Header.Add("accept", "application/json")
@@ -81,7 +82,7 @@ func (c *Client) ListTransactions(
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error sending request: %w", err)
 	}
 	defer res.Body.Close()
 
@@ -92,7 +93,7 @@ func (c *Client) ListTransactions(
 	decoder := json.NewDecoder(res.Body)
 	data := &ListTransactionsResponse{}
 	if err := decoder.Decode(&data); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error decoding response: %w", err)
 	}
 
 	return data, nil

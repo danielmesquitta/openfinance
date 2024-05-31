@@ -1,6 +1,7 @@
 package notionapi
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
@@ -152,7 +153,7 @@ func (c *Client) NewTable(
 		requestData,
 		responseData,
 	); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating table: %w", err)
 	}
 
 	return responseData, nil

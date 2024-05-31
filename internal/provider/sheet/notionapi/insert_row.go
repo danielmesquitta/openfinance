@@ -1,6 +1,7 @@
 package notionapi
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -128,7 +129,7 @@ func (c *Client) InsertRow(
 		requestData,
 		responseData,
 	); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error inserting row: %w", err)
 	}
 
 	return responseData, nil

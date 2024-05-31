@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
@@ -40,7 +41,10 @@ func (h *OpenFinanceToNotionHandler) Sync(c *fiber.Ctx) error {
 		EndDate:   endDate,
 	}
 	if err := h.ouc.Execute(dto); err != nil {
-		return err
+		return fmt.Errorf(
+			"error executing open finance to notion use case: %w",
+			err,
+		)
 	}
 
 	return c.SendStatus(http.StatusOK)

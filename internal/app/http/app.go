@@ -6,6 +6,7 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/app/http/middleware"
 	"github.com/danielmesquitta/openfinance/internal/app/http/router"
 	"github.com/danielmesquitta/openfinance/internal/config"
+	"github.com/danielmesquitta/openfinance/pkg/logger"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/idempotency"
@@ -21,6 +22,7 @@ func newApp(
 	lc fx.Lifecycle,
 	env *config.Env,
 	middleware *middleware.Middleware,
+	log *logger.Logger,
 	router *router.Router,
 ) *fiber.App {
 	app := fiber.New(fiber.Config{

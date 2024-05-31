@@ -28,6 +28,7 @@ type Env struct {
 	GoogleOAUTHClientSecret string `mapstructure:"GOOGLE_OAUTH_CLIENT_SECRET"`
 	ApiURL                  string `mapstructure:"API_URL"`
 	JWTSecret               string `mapstructure:"JWT_SECRET"`
+	HashSecret              string `mapstructure:"HASH_SECRET"`
 }
 
 func (e *Env) validate() error {
@@ -43,16 +44,37 @@ func (e *Env) validate() error {
 		e.Port = "8080"
 	}
 	if e.DBConnection == "" {
-		errs = append(errs, "DB_CONNECTION (string) is not set")
+		errs = append(errs, "DB_CONNECTION is not set")
 	}
 	if e.NotionToken == "" {
-		errs = append(errs, "NOTION_TOKEN (string) is not set")
+		errs = append(errs, "NOTION_TOKEN is not set")
 	}
 	if e.NotionPageID == "" {
-		errs = append(errs, "NOTION_PAGE_ID (string) is not set")
+		errs = append(errs, "NOTION_PAGE_ID is not set")
 	}
 	if e.MeuPluggyClientID == "" {
-		errs = append(errs, "MEU_PLUGGY_CLIENT_ID (string) is not set")
+		errs = append(errs, "MEU_PLUGGY_CLIENT_ID is not set")
+	}
+	if e.MeuPluggyClientSecret == "" {
+		errs = append(errs, "MEU_PLUGGY_CLIENT_SECRET is not set")
+	}
+	if len(e.MeuPluggyAccountIDs) == 0 {
+		errs = append(errs, "MEU_PLUGGY_ACCOUNT_IDS is not set")
+	}
+	if e.GoogleOAUTHClientID == "" {
+		errs = append(errs, "GOOGLE_OAUTH_CLIENT_ID is not set")
+	}
+	if e.GoogleOAUTHClientSecret == "" {
+		errs = append(errs, "GOOGLE_OAUTH_CLIENT_SECRET is not set")
+	}
+	if e.ApiURL == "" {
+		errs = append(errs, "API_URL is not set")
+	}
+	if e.JWTSecret == "" {
+		errs = append(errs, "JWT_SECRET is not set")
+	}
+	if e.HashSecret == "" {
+		errs = append(errs, "HASH_SECRET is not set")
 	}
 	if len(errs) > 0 {
 		return errors.New(strings.Join(errs, ", "))

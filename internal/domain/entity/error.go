@@ -5,20 +5,22 @@ type AppError struct {
 	Message        string
 }
 
-func (e *AppError) Error() string {
+func (e AppError) Error() string {
 	return e.Message
 }
 
 var (
-	ErrUserNotFound *AppError = &AppError{
+	ErrUserNotFound AppError = AppError{
 		HTTPStatusCode: 404,
 		Message:        "user not found",
 	}
-	ErrValidation *AppError = &AppError{
+
+	ErrValidation AppError = AppError{
 		HTTPStatusCode: 400,
 		Message:        "validation error",
 	}
-	ErrTokenExpired *AppError = &AppError{
+
+	ErrTokenExpired AppError = AppError{
 		HTTPStatusCode: 401,
 		Message:        "token expired",
 	}
