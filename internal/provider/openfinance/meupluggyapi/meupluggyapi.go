@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/danielmesquitta/openfinance/config"
+	"github.com/danielmesquitta/openfinance/internal/config"
 )
 
 type Client struct {
