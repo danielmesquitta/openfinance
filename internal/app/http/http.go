@@ -58,7 +58,7 @@ func Start() {
 		router.NewRouter,
 
 		// App
-		newApp,
+		NewApp,
 	)
 
 	container := fx.New(

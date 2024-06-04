@@ -7,16 +7,7 @@ WHERE
   email = $1;
 
 
--- name: GetUserByID :one
-SELECT
-  *
-FROM
-  users
-WHERE
-  id = $1;
-
-
--- name: GetUserWithSettingByID :one
+-- name: GetFullUserByID :one
 SELECT
   users.*,
   settings.*
@@ -27,8 +18,10 @@ WHERE
   users.id = $1;
 
 
--- name: CreateUser :exec
+-- name: CreateUser :one
 INSERT INTO
   users (id, email, updated_at)
 VALUES
-  ($1, $2, $3);
+  ($1, $2, $3)
+RETURNING
+  *;

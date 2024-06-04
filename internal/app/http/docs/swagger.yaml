@@ -55,7 +55,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: This endpoint is responsible for syncing OpenFinance data to Notion.
+      description: This endpoint is responsible for syncing all users OpenFinance
+        data to Notion.
       parameters:
       - description: 'Start date (format RFC3339: 2006-01-02T15:04:05Z07:00)'
         in: query
@@ -78,7 +79,9 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/dto.ErrorResponseDTO'
-      summary: OpenFinance to Notion.
+      security:
+      - BasicAuth: []
+      summary: Sync all users OpenFinance data to Notion.
       tags:
       - Notion
   /users/me/settings:
@@ -112,7 +115,10 @@ paths:
       tags:
       - Setting
 securityDefinitions:
+  BasicAuth:
+    type: basic
   BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
     in: header
     name: Authorization
     type: apiKey

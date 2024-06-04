@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/provider/db/pgdb"
+	"github.com/danielmesquitta/openfinance/internal/provider/repo"
 	"github.com/google/uuid"
 	"github.com/jinzhu/copier"
 )
@@ -22,33 +23,11 @@ func NewUserPgRepo(db *pgdb.Queries) *UserPgRepo {
 	}
 }
 
-func (b UserPgRepo) GetUserByID(id string) (entity.User, error) {
+func (b UserPgRepo) GetFullUserByID(id string) (entity.User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	dbUser, err := b.db.GetUserByID(ctx, id)
-	if err == sql.ErrNoRows {
-		return entity.User{}, nil
-	}
-
-	if err != nil {
-		return entity.User{}, fmt.Errorf("error getting user by id: %w", err)
-	}
-
-	var user entity.User
-	err = copier.Copy(&user, dbUser)
-	if err != nil {
-		return entity.User{}, fmt.Errorf("error copying user: %w", err)
-	}
-
-	return user, nil
-}
-
-func (b UserPgRepo) GetUserWithSettingByID(id string) (entity.User, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	dbUser, err := b.db.GetUserWithSettingByID(ctx, id)
+	dbUser, err := b.db.GetFullUserByID(ctx, id)
 	if err == sql.ErrNoRows {
 		return entity.User{}, nil
 	}
@@ -101,31 +80,33 @@ func (b UserPgRepo) GetUserByEmail(email string) (entity.User, error) {
 	return user, nil
 }
 
-func (b UserPgRepo) CreateUser(user *entity.User) error {
+func (b UserPgRepo) CreateUser(dto repo.CreateUserDTO) (entity.User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	params := pgdb.CreateUserParams{}
-
-	err := copier.Copy(&params, user)
-	if err != nil {
-		return fmt.Errorf("error copying user to params: %w", err)
+	arg := pgdb.CreateUserParams{}
+	if err := copier.Copy(&arg, dto); err != nil {
+		return entity.User{}, fmt.Errorf("error copying dto to db arg: %w", err)
 	}
 
 	id, err := uuid.NewV7()
 	if err != nil {
-		return fmt.Errorf("error generating uuid: %w", err)
+		return entity.User{}, fmt.Errorf("error generating uuid: %w", err)
 	}
 
-	params.ID = id.String()
-	params.UpdatedAt = time.Now()
+	arg.ID = id.String()
+	arg.UpdatedAt = time.Now()
 
-	err = b.db.CreateUser(ctx, params)
+	result, err := b.db.CreateUser(ctx, arg)
 	if err != nil {
-		return fmt.Errorf("error creating user: %w", err)
+		return entity.User{}, fmt.Errorf("error creating user: %w", err)
 	}
 
-	user.ID = params.ID
+	var user entity.User
+	err = copier.Copy(&user, result)
+	if err != nil {
+		return entity.User{}, fmt.Errorf("error copying user: %w", err)
+	}
 
-	return nil
+	return entity.User{}, nil
 }

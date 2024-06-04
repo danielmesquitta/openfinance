@@ -33,7 +33,7 @@ func NewSettingHandler(
 // @Produce json
 // @Security BearerAuth
 // @Param request body dto.UpsertUserSettingRequestDTO true "Request body"
-// @Success 200
+// @Success 200 {object} entity.Setting
 // @Failure 400 {object} dto.ErrorResponseDTO
 // @Failure 500 {object} dto.ErrorResponseDTO
 // @Router /users/me/settings [post]
@@ -46,12 +46,13 @@ func (h *SettingHandler) Upsert(c *fiber.Ctx) error {
 	userID := c.Locals(middleware.UserIDKey).(string)
 	data.UserID = userID
 
-	if err := h.uuc.Execute(data); err != nil {
+	setting, err := h.uuc.Execute(data)
+	if err != nil {
 		return fmt.Errorf(
 			"error executing upsert user setting use case: %w",
 			err,
 		)
 	}
 
-	return c.SendStatus(http.StatusOK)
+	return c.Status(http.StatusOK).JSON(setting)
 }

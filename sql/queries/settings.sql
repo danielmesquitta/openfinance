@@ -1,4 +1,4 @@
--- name: CreateSetting :exec
+-- name: CreateSetting :one
 INSERT INTO
   settings (
     id,
@@ -11,10 +11,12 @@ INSERT INTO
     updated_at
   )
 VALUES
-  ($1, $2, $3, $4, $5, $6, $7, $8);
+  ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING
+  *;
 
 
--- name: UpdateSetting :exec
+-- name: UpdateSetting :one
 UPDATE
   settings
 SET
@@ -25,7 +27,9 @@ SET
   meu_pluggy_account_ids = $6,
   updated_at = $7
 WHERE
-  id = $1;
+  id = $1
+RETURNING
+  *;
 
 
 -- name: ListSettings :many

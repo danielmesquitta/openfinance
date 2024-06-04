@@ -13,11 +13,13 @@ import (
 	"github.com/lib/pq"
 )
 
-const createUser = `-- name: CreateUser :exec
+const createUser = `-- name: CreateUser :one
 INSERT INTO
   users (id, email, updated_at)
 VALUES
   ($1, $2, $3)
+RETURNING
+  id, email, updated_at
 `
 
 type CreateUserParams struct {
@@ -26,9 +28,55 @@ type CreateUserParams struct {
 	UpdatedAt time.Time
 }
 
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
-	_, err := q.db.ExecContext(ctx, createUser, arg.ID, arg.Email, arg.UpdatedAt)
-	return err
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createUser, arg.ID, arg.Email, arg.UpdatedAt)
+	var i User
+	err := row.Scan(&i.ID, &i.Email, &i.UpdatedAt)
+	return i, err
+}
+
+const getFullUserByID = `-- name: GetFullUserByID :one
+SELECT
+  users.id, users.email, users.updated_at,
+  settings.id, settings.notion_token, settings.notion_page_id, settings.meu_pluggy_client_id, settings.meu_pluggy_client_secret, settings.meu_pluggy_account_ids, settings.user_id, settings.updated_at
+FROM
+  users
+  LEFT JOIN settings ON users.id = settings.user_id
+WHERE
+  users.id = $1
+`
+
+type GetFullUserByIDRow struct {
+	ID                    string
+	Email                 string
+	UpdatedAt             time.Time
+	ID_2                  sql.NullString
+	NotionToken           sql.NullString
+	NotionPageID          sql.NullString
+	MeuPluggyClientID     sql.NullString
+	MeuPluggyClientSecret sql.NullString
+	MeuPluggyAccountIds   []string
+	UserID                sql.NullString
+	UpdatedAt_2           sql.NullTime
+}
+
+func (q *Queries) GetFullUserByID(ctx context.Context, id string) (GetFullUserByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getFullUserByID, id)
+	var i GetFullUserByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.UpdatedAt,
+		&i.ID_2,
+		&i.NotionToken,
+		&i.NotionPageID,
+		&i.MeuPluggyClientID,
+		&i.MeuPluggyClientSecret,
+		pq.Array(&i.MeuPluggyAccountIds),
+		&i.UserID,
+		&i.UpdatedAt_2,
+	)
+	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
@@ -44,65 +92,5 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
 	var i User
 	err := row.Scan(&i.ID, &i.Email, &i.UpdatedAt)
-	return i, err
-}
-
-const getUserByID = `-- name: GetUserByID :one
-SELECT
-  id, email, updated_at
-FROM
-  users
-WHERE
-  id = $1
-`
-
-func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
-	row := q.db.QueryRowContext(ctx, getUserByID, id)
-	var i User
-	err := row.Scan(&i.ID, &i.Email, &i.UpdatedAt)
-	return i, err
-}
-
-const getUserWithSettingByID = `-- name: GetUserWithSettingByID :one
-SELECT
-  users.id, users.email, users.updated_at,
-  settings.id, settings.notion_token, settings.notion_page_id, settings.meu_pluggy_client_id, settings.meu_pluggy_client_secret, settings.meu_pluggy_account_ids, settings.user_id, settings.updated_at
-FROM
-  users
-  LEFT JOIN settings ON users.id = settings.user_id
-WHERE
-  users.id = $1
-`
-
-type GetUserWithSettingByIDRow struct {
-	ID                    string
-	Email                 string
-	UpdatedAt             time.Time
-	ID_2                  sql.NullString
-	NotionToken           sql.NullString
-	NotionPageID          sql.NullString
-	MeuPluggyClientID     sql.NullString
-	MeuPluggyClientSecret sql.NullString
-	MeuPluggyAccountIds   []string
-	UserID                sql.NullString
-	UpdatedAt_2           sql.NullTime
-}
-
-func (q *Queries) GetUserWithSettingByID(ctx context.Context, id string) (GetUserWithSettingByIDRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserWithSettingByID, id)
-	var i GetUserWithSettingByIDRow
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.UpdatedAt,
-		&i.ID_2,
-		&i.NotionToken,
-		&i.NotionPageID,
-		&i.MeuPluggyClientID,
-		&i.MeuPluggyClientSecret,
-		pq.Array(&i.MeuPluggyAccountIds),
-		&i.UserID,
-		&i.UpdatedAt_2,
-	)
 	return i, err
 }

@@ -47,13 +47,15 @@ func (uc *OAuthAuthenticationUseCase) Execute(
 		return uc.jwtIssuer.NewAccessToken(user.ID)
 	}
 
-	if err := copier.Copy(&user, dto); err != nil {
-		return "", 0, fmt.Errorf("error copying dto to user: %w", err)
+	params := repo.CreateUserDTO{}
+	if err := copier.Copy(&params, dto); err != nil {
+		return "", 0, fmt.Errorf("error copying dto to params: %w", err)
 	}
 
-	if err := uc.userRepo.CreateUser(&user); err != nil {
+	createdUser, err := uc.userRepo.CreateUser(params)
+	if err != nil {
 		return "", 0, fmt.Errorf("error creating user: %w", err)
 	}
 
-	return uc.jwtIssuer.NewAccessToken(user.ID)
+	return uc.jwtIssuer.NewAccessToken(createdUser.ID)
 }

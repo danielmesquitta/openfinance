@@ -32,94 +32,98 @@ func NewUpsertUserSettingUseCase(
 }
 
 type UpsertUserSettingDTO struct {
-	UserID                string   `validate:"required,uuid"`
-	NotionToken           string   `validate:"required"`
-	NotionPageID          string   `validate:"required"`
-	MeuPluggyClientID     string   `validate:"required"`
-	MeuPluggyClientSecret string   `validate:"required"`
-	MeuPluggyAccountIDs   []string `validate:"required"`
+	UserID                string   `json:"user_id,omitempty"                  validate:"required,uuid"`
+	NotionToken           string   `json:"notion_token,omitempty"`
+	NotionPageID          string   `json:"notion_page_id,omitempty"`
+	MeuPluggyClientID     string   `json:"meu_pluggy_client_id,omitempty"`
+	MeuPluggyClientSecret string   `json:"meu_pluggy_client_secret,omitempty"`
+	MeuPluggyAccountIDs   []string `json:"meu_pluggy_account_i_ds,omitempty"`
 }
 
 func (uc *UpsertUserSettingUseCase) Execute(
 	dto UpsertUserSettingDTO,
-) error {
-	if err := uc.validateUserID(dto.UserID); err != nil {
-		return err
+) (entity.Setting, error) {
+	if err := uc.val.Validate(dto); err != nil {
+		return entity.Setting{}, err
 	}
 
-	user, err := uc.userRepo.GetUserWithSettingByID(dto.UserID)
+	user, err := uc.userRepo.GetFullUserByID(dto.UserID)
 	if err != nil {
-		return err
+		return entity.Setting{}, err
 	}
 	if user.ID == "" {
-		return entity.ErrUserNotFound
+		return entity.Setting{}, entity.ErrUserNotFound
 	}
 
 	if err := uc.encryptDTO(&dto); err != nil {
-		return err
+		return entity.Setting{}, err
 	}
 
 	setting := user.Setting
 
 	if settingNotExists := setting.ID == ""; settingNotExists {
-		return uc.createSetting(setting, dto)
+		return uc.createSetting(dto)
 	}
 
-	return uc.updateSetting(setting, dto)
-}
-
-func (uc *UpsertUserSettingUseCase) validateUserID(
-	userID string,
-) error {
-	if userID == "" {
-		err := entity.ErrValidation
-		err.Message = "user_id is required"
-		return &err
-	}
-
-	return nil
+	return uc.updateSetting(*setting, dto)
 }
 
 func (uc *UpsertUserSettingUseCase) updateSetting(
-	setting *entity.Setting,
+	setting entity.Setting,
 	dto UpsertUserSettingDTO,
-) error {
+) (entity.Setting, error) {
 	if err := copier.CopyWithOption(
-		setting,
+		&setting,
 		dto,
 		copier.Option{IgnoreEmpty: true},
 	); err != nil {
-		return fmt.Errorf("error copying dto to setting: %w", err)
+		return entity.Setting{}, fmt.Errorf(
+			"error copying dto to setting: %w",
+			err,
+		)
 	}
 
-	if err := uc.val.Validate(setting); err != nil {
-		return err
+	params := repo.UpdateSettingDTO{}
+	if err := copier.Copy(&params, setting); err != nil {
+		return entity.Setting{}, fmt.Errorf(
+			"error copying setting to params: %w",
+			err,
+		)
 	}
 
-	if err := uc.settingRepo.UpdateSetting(setting.ID, setting); err != nil {
-		return fmt.Errorf("error updating setting: %w", err)
+	if err := uc.val.Validate(params); err != nil {
+		return entity.Setting{}, err
 	}
 
-	return nil
+	updatedSetting, err := uc.settingRepo.UpdateSetting(setting.ID, params)
+	if err != nil {
+		return entity.Setting{}, fmt.Errorf("error updating setting: %w", err)
+	}
+
+	return updatedSetting, nil
 }
 
 func (uc *UpsertUserSettingUseCase) createSetting(
-	setting *entity.Setting,
 	dto UpsertUserSettingDTO,
-) error {
-	if err := uc.val.Validate(dto); err != nil {
-		return err
+) (entity.Setting, error) {
+	params := repo.CreateSettingDTO{}
+	if err := copier.Copy(&params, dto); err != nil {
+		return entity.Setting{}, fmt.Errorf(
+			"error copying dto to params: %w",
+			err,
+		)
 	}
 
-	if err := copier.Copy(setting, dto); err != nil {
-		return fmt.Errorf("error copying dto to setting: %w", err)
+	if err := uc.val.Validate(params); err != nil {
+		return entity.Setting{}, err
 	}
 
-	if err := uc.settingRepo.CreateSetting(setting); err != nil {
-		return fmt.Errorf("error creating setting: %w", err)
+	setting, err := uc.settingRepo.CreateSetting(params)
+	if err != nil {
+		return entity.Setting{}, fmt.Errorf("error creating setting: %w", err)
 	}
 
-	return nil
+	return setting, nil
 }
 
 func (uc *UpsertUserSettingUseCase) encryptDTO(

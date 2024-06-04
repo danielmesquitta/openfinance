@@ -1,9 +1,7 @@
 package config
 
 import (
-	"errors"
-	"strings"
-
+	"github.com/danielmesquitta/openfinance/pkg/validator"
 	"github.com/spf13/viper"
 )
 
@@ -11,58 +9,45 @@ type Environment string
 
 const (
 	DevelopmentEnv Environment = "development"
+	TestEnv        Environment = "test"
 	ProductionEnv  Environment = "production"
 )
 
 type Env struct {
+	val *validator.Validator
+
 	Environment             Environment `mapstructure:"ENVIRONMENT"`
 	Port                    string      `mapstructure:"PORT"`
-	DBConnection            string      `mapstructure:"DB_CONNECTION"`
-	GoogleOAUTHClientID     string      `mapstructure:"GOOGLE_OAUTH_CLIENT_ID"`
-	GoogleOAUTHClientSecret string      `mapstructure:"GOOGLE_OAUTH_CLIENT_SECRET"`
 	ApiURL                  string      `mapstructure:"API_URL"`
-	JWTSecret               string      `mapstructure:"JWT_SECRET"`
-	HashSecret              string      `mapstructure:"HASH_SECRET"`
+	DBConnection            string      `mapstructure:"DB_CONNECTION"              validate:"required"`
+	GoogleOAUTHClientID     string      `mapstructure:"GOOGLE_OAUTH_CLIENT_ID"     validate:"required"`
+	GoogleOAUTHClientSecret string      `mapstructure:"GOOGLE_OAUTH_CLIENT_SECRET" validate:"required"`
+	BasicAuthUsername       string      `mapstructure:"BASIC_AUTH_USERNAME"        validate:"required"`
+	BasicAuthPassword       string      `mapstructure:"BASIC_AUTH_PASSWORD"        validate:"required"`
+	JWTSecret               string      `mapstructure:"JWT_SECRET"                 validate:"required"`
+	HashSecret              string      `mapstructure:"HASH_SECRET"                validate:"required"`
 }
 
 func (e *Env) validate() error {
-	errs := []string{}
+	if err := e.val.Validate(e); err != nil {
+		return err
+	}
 	if e.Environment == "" {
 		e.Environment = DevelopmentEnv
-	}
-	if e.Environment != DevelopmentEnv &&
-		e.Environment != ProductionEnv {
-		errs = append(errs, "ENVIRONMENT must be 'development' or 'production'")
 	}
 	if e.Port == "" {
 		e.Port = "8080"
 	}
-	if e.DBConnection == "" {
-		errs = append(errs, "DB_CONNECTION is not set")
-	}
-	if e.GoogleOAUTHClientID == "" {
-		errs = append(errs, "GOOGLE_OAUTH_CLIENT_ID is not set")
-	}
-	if e.GoogleOAUTHClientSecret == "" {
-		errs = append(errs, "GOOGLE_OAUTH_CLIENT_SECRET is not set")
-	}
 	if e.ApiURL == "" {
-		errs = append(errs, "API_URL is not set")
-	}
-	if e.JWTSecret == "" {
-		errs = append(errs, "JWT_SECRET is not set")
-	}
-	if e.HashSecret == "" {
-		errs = append(errs, "HASH_SECRET is not set")
-	}
-	if len(errs) > 0 {
-		return errors.New(strings.Join(errs, ", "))
+		e.ApiURL = "http://localhost:" + e.Port
 	}
 	return nil
 }
 
-func LoadEnv() *Env {
-	env := &Env{}
+func LoadEnv(val *validator.Validator) *Env {
+	env := &Env{
+		val: val,
+	}
 
 	viper.SetConfigFile(".env")
 	viper.AutomaticEnv()

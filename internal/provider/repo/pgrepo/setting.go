@@ -7,6 +7,7 @@ import (
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/provider/db/pgdb"
+	"github.com/danielmesquitta/openfinance/internal/provider/repo"
 	"github.com/google/uuid"
 	"github.com/jinzhu/copier"
 )
@@ -21,70 +22,89 @@ func NewSettingPgRepo(db *pgdb.Queries) *SettingPgRepo {
 	}
 }
 
-func (s SettingPgRepo) CreateSetting(setting *entity.Setting) error {
+func (s SettingPgRepo) CreateSetting(
+	dto repo.CreateSettingDTO,
+) (entity.Setting, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	params := pgdb.CreateSettingParams{}
-
-	err := copier.Copy(&params, setting)
-	if err != nil {
-		return fmt.Errorf("error copying setting to params: %w", err)
+	arg := pgdb.CreateSettingParams{}
+	if err := copier.Copy(&arg, dto); err != nil {
+		return entity.Setting{}, fmt.Errorf(
+			"error copying dto to db args: %w",
+			err,
+		)
 	}
 
 	id, err := uuid.NewV7()
 	if err != nil {
-		return fmt.Errorf("error generating uuid: %w", err)
+		return entity.Setting{}, fmt.Errorf("error generating uuid: %w", err)
 	}
 
-	params.ID = id.String()
-	params.UpdatedAt = time.Now()
+	arg.ID = id.String()
+	arg.UpdatedAt = time.Now()
 
-	err = s.db.CreateSetting(ctx, params)
+	result, err := s.db.CreateSetting(ctx, arg)
 	if err != nil {
-		return fmt.Errorf("error creating setting: %w", err)
+		return entity.Setting{}, fmt.Errorf("error creating setting: %w", err)
 	}
 
-	setting.ID = params.ID
+	setting := entity.Setting{}
+	if err := copier.Copy(&setting, result); err != nil {
+		return entity.Setting{}, fmt.Errorf(
+			"error copying result to setting entity: %w",
+			err,
+		)
+	}
 
-	return nil
+	return setting, nil
 }
 
-func (s SettingPgRepo) UpdateSetting(id string, setting *entity.Setting) error {
+func (s SettingPgRepo) UpdateSetting(
+	id string,
+	dto repo.UpdateSettingDTO,
+) (entity.Setting, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	params := pgdb.UpdateSettingParams{}
-	err := copier.Copy(&params, setting)
-	if err != nil {
-		return fmt.Errorf("error copying setting to params: %w", err)
+	arg := pgdb.UpdateSettingParams{}
+	if err := copier.Copy(&arg, dto); err != nil {
+		return entity.Setting{}, fmt.Errorf(
+			"error copying dto to db args: %w",
+			err,
+		)
 	}
 
-	params.ID = id
-	params.UpdatedAt = time.Now()
+	arg.ID = id
+	arg.UpdatedAt = time.Now()
 
-	err = s.db.UpdateSetting(ctx, params)
+	result, err := s.db.UpdateSetting(ctx, arg)
 	if err != nil {
-		return fmt.Errorf("error updating setting: %w", err)
+		return entity.Setting{}, fmt.Errorf("error updating setting: %w", err)
 	}
 
-	setting.ID = params.ID
+	setting := entity.Setting{}
+	if err := copier.Copy(&setting, result); err != nil {
+		return entity.Setting{}, fmt.Errorf(
+			"error copying result to setting entity: %w",
+			err,
+		)
+	}
 
-	return nil
+	return setting, nil
 }
 
 func (s SettingPgRepo) ListSettings() ([]entity.Setting, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	dbSettings, err := s.db.ListSettings(ctx)
+	result, err := s.db.ListSettings(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error listing settings: %w", err)
 	}
 
 	var settings []entity.Setting
-	err = copier.Copy(&settings, dbSettings)
-	if err != nil {
+	if err := copier.Copy(&settings, result); err != nil {
 		return nil, fmt.Errorf("error copying settings: %w", err)
 	}
 

@@ -2,12 +2,13 @@ package http
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/danielmesquitta/openfinance/internal/app/http/middleware"
 	"github.com/danielmesquitta/openfinance/internal/app/http/router"
 	"github.com/danielmesquitta/openfinance/internal/config"
-	"github.com/danielmesquitta/openfinance/pkg/logger"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/healthcheck"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/idempotency"
 	"github.com/gofiber/fiber/v2/middleware/recover"
@@ -18,11 +19,10 @@ import (
 	"go.uber.org/fx"
 )
 
-func newApp(
+func NewApp(
 	lc fx.Lifecycle,
 	env *config.Env,
 	middleware *middleware.Middleware,
-	log *logger.Logger,
 	router *router.Router,
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
@@ -32,6 +32,11 @@ func newApp(
 	app.Use(recover.New())
 	app.Use(helmet.New())
 	app.Use(idempotency.New())
+
+	app.Use(healthcheck.New(healthcheck.Config{
+		LivenessEndpoint:  "/live",
+		ReadinessEndpoint: "/ready",
+	}))
 
 	goth_fiber.SessionStore = session.New(session.Config{
 		CookiePath:     "/",
@@ -52,11 +57,10 @@ func newApp(
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
 			go func() {
-				err := app.Listen(":" + env.Port)
-
-				if err != nil {
+				if err := app.Listen(":" + env.Port); err != nil {
 					panic(err)
 				}
+				fmt.Println("Server is running on port " + env.Port)
 			}()
 
 			return nil

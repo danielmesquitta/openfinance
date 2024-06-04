@@ -12,7 +12,7 @@ import (
 	"github.com/lib/pq"
 )
 
-const createSetting = `-- name: CreateSetting :exec
+const createSetting = `-- name: CreateSetting :one
 INSERT INTO
   settings (
     id,
@@ -26,6 +26,8 @@ INSERT INTO
   )
 VALUES
   ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING
+  id, notion_token, notion_page_id, meu_pluggy_client_id, meu_pluggy_client_secret, meu_pluggy_account_ids, user_id, updated_at
 `
 
 type CreateSettingParams struct {
@@ -39,8 +41,8 @@ type CreateSettingParams struct {
 	UpdatedAt             time.Time
 }
 
-func (q *Queries) CreateSetting(ctx context.Context, arg CreateSettingParams) error {
-	_, err := q.db.ExecContext(ctx, createSetting,
+func (q *Queries) CreateSetting(ctx context.Context, arg CreateSettingParams) (Setting, error) {
+	row := q.db.QueryRowContext(ctx, createSetting,
 		arg.ID,
 		arg.NotionToken,
 		arg.NotionPageID,
@@ -50,7 +52,18 @@ func (q *Queries) CreateSetting(ctx context.Context, arg CreateSettingParams) er
 		arg.UserID,
 		arg.UpdatedAt,
 	)
-	return err
+	var i Setting
+	err := row.Scan(
+		&i.ID,
+		&i.NotionToken,
+		&i.NotionPageID,
+		&i.MeuPluggyClientID,
+		&i.MeuPluggyClientSecret,
+		pq.Array(&i.MeuPluggyAccountIds),
+		&i.UserID,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const listSettings = `-- name: ListSettings :many
@@ -92,7 +105,7 @@ func (q *Queries) ListSettings(ctx context.Context) ([]Setting, error) {
 	return items, nil
 }
 
-const updateSetting = `-- name: UpdateSetting :exec
+const updateSetting = `-- name: UpdateSetting :one
 UPDATE
   settings
 SET
@@ -104,6 +117,8 @@ SET
   updated_at = $7
 WHERE
   id = $1
+RETURNING
+  id, notion_token, notion_page_id, meu_pluggy_client_id, meu_pluggy_client_secret, meu_pluggy_account_ids, user_id, updated_at
 `
 
 type UpdateSettingParams struct {
@@ -116,8 +131,8 @@ type UpdateSettingParams struct {
 	UpdatedAt             time.Time
 }
 
-func (q *Queries) UpdateSetting(ctx context.Context, arg UpdateSettingParams) error {
-	_, err := q.db.ExecContext(ctx, updateSetting,
+func (q *Queries) UpdateSetting(ctx context.Context, arg UpdateSettingParams) (Setting, error) {
+	row := q.db.QueryRowContext(ctx, updateSetting,
 		arg.ID,
 		arg.NotionToken,
 		arg.NotionPageID,
@@ -126,5 +141,16 @@ func (q *Queries) UpdateSetting(ctx context.Context, arg UpdateSettingParams) er
 		pq.Array(arg.MeuPluggyAccountIds),
 		arg.UpdatedAt,
 	)
-	return err
+	var i Setting
+	err := row.Scan(
+		&i.ID,
+		&i.NotionToken,
+		&i.NotionPageID,
+		&i.MeuPluggyClientID,
+		&i.MeuPluggyClientSecret,
+		pq.Array(&i.MeuPluggyAccountIds),
+		&i.UserID,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

@@ -5,11 +5,12 @@ import (
 
 	"github.com/danielmesquitta/openfinance/internal/app/http/dto"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/basicauth"
 )
 
 const UserIDKey = "userID"
 
-func (m *Middleware) EnsureAuthenticated(ctx *fiber.Ctx) error {
+func (m *Middleware) EnsureBearerAuth(ctx *fiber.Ctx) error {
 	authorization := ctx.Get("Authorization")
 
 	if authorization == "" {
@@ -38,4 +39,14 @@ func (m *Middleware) EnsureAuthenticated(ctx *fiber.Ctx) error {
 	ctx.Locals(UserIDKey, userID)
 
 	return ctx.Next()
+}
+
+func (m *Middleware) EnsureBasicAuth(ctx *fiber.Ctx) error {
+	handler := basicauth.New(basicauth.Config{
+		Users: map[string]string{
+			m.env.BasicAuthUsername: m.env.BasicAuthPassword,
+		},
+	})
+
+	return handler(ctx)
 }

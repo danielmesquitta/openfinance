@@ -46,7 +46,12 @@ const docTemplate = `{
         },
         "/to-notion": {
             "post": {
-                "description": "This endpoint is responsible for syncing OpenFinance data to Notion.",
+                "security": [
+                    {
+                        "BasicAuth": []
+                    }
+                ],
+                "description": "This endpoint is responsible for syncing all users OpenFinance data to Notion.",
                 "consumes": [
                     "application/json"
                 ],
@@ -56,7 +61,7 @@ const docTemplate = `{
                 "tags": [
                     "Notion"
                 ],
-                "summary": "OpenFinance to Notion.",
+                "summary": "Sync all users OpenFinance data to Notion.",
                 "parameters": [
                     {
                         "type": "string",
@@ -180,7 +185,11 @@ const docTemplate = `{
         }
     },
     "securityDefinitions": {
+        "BasicAuth": {
+            "type": "basic"
+        },
         "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and JWT token.",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"

@@ -26,9 +26,10 @@ func NewOpenFinanceToNotionHandler(
 // @Tags Notion
 // @Accept json
 // @Produce json
+// @Security BasicAuth
 // @Param start_date query string false "Start date (format RFC3339: 2006-01-02T15:04:05Z07:00)"
 // @Param end_date query string false "End date (format RFC3339: 2006-01-02T15:04:05Z07:00)"
-// @Success 200
+// @Success 200 {object}
 // @Failure 400 {object} dto.ErrorResponseDTO
 // @Failure 500 {object} dto.ErrorResponseDTO
 // @Router /to-notion [post]

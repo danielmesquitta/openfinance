@@ -34,8 +34,8 @@ func NewSyncAllUsersOpenFinanceDataToNotionUseCase(
 }
 
 type SyncAllUsersOpenFinanceDataToNotionDTO struct {
-	StartDate string `validate:"datetime=2006-01-02T15:04:05Z07:00"`
-	EndDate   string `validate:"datetime=2006-01-02T15:04:05Z07:00"`
+	StartDate string `validate:"datetime=2006-01-02T15:04:05Z07:00" json:"start_date,omitempty"`
+	EndDate   string `validate:"datetime=2006-01-02T15:04:05Z07:00" json:"end_date,omitempty"`
 }
 
 func (uc *SyncAllUsersOpenFinanceDataToNotionUseCase) Execute(
@@ -146,7 +146,6 @@ func (uc *SyncAllUsersOpenFinanceDataToNotionUseCase) syncUserOpenFinanceDataToN
 	transactions := []entity.Transaction{}
 
 	wg.Add(len(setting.MeuPluggyAccountIDs))
-
 	for _, accountID := range setting.MeuPluggyAccountIDs {
 		go func() {
 			defer wg.Done()
@@ -184,6 +183,9 @@ func (uc *SyncAllUsersOpenFinanceDataToNotionUseCase) syncUserOpenFinanceDataToN
 
 	categories := []string{}
 	for category := range uniqueCategories {
+		if category == "" {
+			continue
+		}
 		categories = append(categories, category)
 	}
 

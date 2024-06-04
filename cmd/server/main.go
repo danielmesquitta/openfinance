@@ -13,6 +13,8 @@ import (
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
+// @securityDefinitions.basic BasicAuth
 func main() {
 	http.Start()
 }

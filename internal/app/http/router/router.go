@@ -7,9 +7,11 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/app/http/docs"
 	"github.com/danielmesquitta/openfinance/internal/app/http/handler"
 	"github.com/danielmesquitta/openfinance/internal/app/http/middleware"
+	"github.com/danielmesquitta/openfinance/internal/config"
 )
 
 type Router struct {
+	env                        *config.Env
 	openFinanceToNotionHandler *handler.OpenFinanceToNotionHandler
 	authHandler                *handler.AuthHandler
 	settingHandler             *handler.SettingHandler
@@ -17,12 +19,14 @@ type Router struct {
 }
 
 func NewRouter(
+	env *config.Env,
 	openFinanceToNotionHandler *handler.OpenFinanceToNotionHandler,
 	authHandler *handler.AuthHandler,
 	settingHandler *handler.SettingHandler,
 	middleware *middleware.Middleware,
 ) *Router {
 	return &Router{
+		env:                        env,
 		openFinanceToNotionHandler: openFinanceToNotionHandler,
 		authHandler:                authHandler,
 		settingHandler:             settingHandler,
@@ -34,18 +38,21 @@ func (r *Router) Register(
 	app *fiber.App,
 ) {
 	basePath := "/api/v1"
-
 	apiV1 := app.Group(basePath)
 
 	apiV1.Get("/auth/login/:provider", r.authHandler.BeginOAuth)
 	apiV1.Get("/auth/callback/:provider", r.authHandler.OAuthCallback)
 
-	apiV1.Use(r.middleware.EnsureAuthenticated)
-
-	apiV1.Post("/users/me/settings", r.settingHandler.Upsert)
 	apiV1.Post(
 		"/to-notion",
+		r.middleware.EnsureBasicAuth,
 		r.openFinanceToNotionHandler.SyncAllUsers,
+	)
+
+	apiV1.Post(
+		"/users/me/settings",
+		r.middleware.EnsureBearerAuth,
+		r.settingHandler.Upsert,
 	)
 
 	docs.SwaggerInfo.BasePath = basePath
