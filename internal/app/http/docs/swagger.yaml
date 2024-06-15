@@ -7,24 +7,45 @@ definitions:
     type: object
   dto.UpsertUserSettingRequestDTO:
     properties:
-      meuPluggyAccountIDs:
+      meu_pluggy_account_ids:
         items:
           type: string
         type: array
-      meuPluggyClientID:
+      meu_pluggy_client_id:
         type: string
-      meuPluggyClientSecret:
+      meu_pluggy_client_secret:
         type: string
-      notionPageID:
+      notion_page_id:
         type: string
-      notionToken:
+      notion_token:
         type: string
     required:
-    - meuPluggyAccountIDs
-    - meuPluggyClientID
-    - meuPluggyClientSecret
-    - notionPageID
-    - notionToken
+    - meu_pluggy_account_ids
+    - meu_pluggy_client_id
+    - meu_pluggy_client_secret
+    - notion_page_id
+    - notion_token
+    type: object
+  entity.Setting:
+    properties:
+      id:
+        type: string
+      meu_pluggy_account_ids:
+        items:
+          type: string
+        type: array
+      meu_pluggy_client_id:
+        type: string
+      meu_pluggy_client_secret:
+        type: string
+      notion_page_id:
+        type: string
+      notion_token:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
     type: object
 info:
   contact:
@@ -101,6 +122,8 @@ paths:
       responses:
         "200":
           description: OK
+          schema:
+            $ref: '#/definitions/entity.Setting'
         "400":
           description: Bad Request
           schema:

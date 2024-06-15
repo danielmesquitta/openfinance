@@ -19,10 +19,12 @@ import (
 )
 
 var JwtIssuer *jwt.JWTIssuer
+var Validator *validator.Validator
 
 func NewApp(dbConnURL string) *fiber.App {
 	env := loadTestEnv(dbConnURL)
 	JwtIssuer = jwt.NewJWTIssuer(env)
+	Validator = validator.NewValidator()
 
 	var app *fiber.App
 	wg := sync.WaitGroup{}
@@ -33,10 +35,11 @@ func NewApp(dbConnURL string) *fiber.App {
 		fx.Supply(env),
 
 		// PKGs
+		fx.Supply(Validator),
 		fx.Supply(JwtIssuer),
+
 		fx.Provide(
 			logger.NewLogger,
-			validator.NewValidator,
 			fx.Annotate(
 				crypto.NewCrypto,
 				fx.As(new(crypto.Encrypter)),

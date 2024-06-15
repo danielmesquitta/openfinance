@@ -37,7 +37,7 @@ type UpsertUserSettingDTO struct {
 	NotionPageID          string   `json:"notion_page_id,omitempty"`
 	MeuPluggyClientID     string   `json:"meu_pluggy_client_id,omitempty"`
 	MeuPluggyClientSecret string   `json:"meu_pluggy_client_secret,omitempty"`
-	MeuPluggyAccountIDs   []string `json:"meu_pluggy_account_i_ds,omitempty"`
+	MeuPluggyAccountIDs   []string `json:"meu_pluggy_account_ids,omitempty"`
 }
 
 func (uc *UpsertUserSettingUseCase) Execute(

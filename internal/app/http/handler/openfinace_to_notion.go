@@ -29,7 +29,7 @@ func NewOpenFinanceToNotionHandler(
 // @Security BasicAuth
 // @Param start_date query string false "Start date (format RFC3339: 2006-01-02T15:04:05Z07:00)"
 // @Param end_date query string false "End date (format RFC3339: 2006-01-02T15:04:05Z07:00)"
-// @Success 200 {object}
+// @Success 200
 // @Failure 400 {object} dto.ErrorResponseDTO
 // @Failure 500 {object} dto.ErrorResponseDTO
 // @Router /to-notion [post]
@@ -37,11 +37,11 @@ func (h *OpenFinanceToNotionHandler) SyncAllUsers(c *fiber.Ctx) error {
 	startDate := c.Query("start_date", "")
 	endDate := c.Query("end_date", "")
 
-	dto := usecase.SyncAllUsersOpenFinanceDataToNotionDTO{
+	data := usecase.SyncAllUsersOpenFinanceDataToNotionDTO{
 		StartDate: startDate,
 		EndDate:   endDate,
 	}
-	if err := h.uc.Execute(dto); err != nil {
+	if err := h.uc.Execute(data); err != nil {
 		return fmt.Errorf(
 			"error executing open finance to notion use case: %w",
 			err,

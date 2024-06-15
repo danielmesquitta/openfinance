@@ -108,5 +108,5 @@ func (b UserPgRepo) CreateUser(dto repo.CreateUserDTO) (entity.User, error) {
 		return entity.User{}, fmt.Errorf("error copying user: %w", err)
 	}
 
-	return entity.User{}, nil
+	return user, nil
 }

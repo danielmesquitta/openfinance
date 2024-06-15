@@ -126,7 +126,10 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK"
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/entity.Setting"
+                        }
                     },
                     "400": {
                         "description": "Bad Request",
@@ -156,29 +159,61 @@ const docTemplate = `{
         "dto.UpsertUserSettingRequestDTO": {
             "type": "object",
             "required": [
-                "meuPluggyAccountIDs",
-                "meuPluggyClientID",
-                "meuPluggyClientSecret",
-                "notionPageID",
-                "notionToken"
+                "meu_pluggy_account_ids",
+                "meu_pluggy_client_id",
+                "meu_pluggy_client_secret",
+                "notion_page_id",
+                "notion_token"
             ],
             "properties": {
-                "meuPluggyAccountIDs": {
+                "meu_pluggy_account_ids": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
-                "meuPluggyClientID": {
+                "meu_pluggy_client_id": {
                     "type": "string"
                 },
-                "meuPluggyClientSecret": {
+                "meu_pluggy_client_secret": {
                     "type": "string"
                 },
-                "notionPageID": {
+                "notion_page_id": {
                     "type": "string"
                 },
-                "notionToken": {
+                "notion_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "entity.Setting": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "meu_pluggy_account_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "meu_pluggy_client_id": {
+                    "type": "string"
+                },
+                "meu_pluggy_client_secret": {
+                    "type": "string"
+                },
+                "notion_page_id": {
+                    "type": "string"
+                },
+                "notion_token": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
                     "type": "string"
                 }
             }

@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/danielmesquitta/openfinance/internal/app/http/middleware"
 	"github.com/danielmesquitta/openfinance/internal/app/http/router"
@@ -60,7 +59,6 @@ func NewApp(
 				if err := app.Listen(":" + env.Port); err != nil {
 					panic(err)
 				}
-				fmt.Println("Server is running on port " + env.Port)
 			}()
 
 			return nil
