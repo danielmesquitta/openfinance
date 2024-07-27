@@ -10,20 +10,20 @@ import (
 )
 
 type OAuthAuthenticationUseCase struct {
-	userRepo  repo.UserRepo
-	val       *validator.Validator
-	jwtIssuer *jwt.JWTIssuer
+	userRepo repo.UserRepo
+	val      *validator.Validator
+	Issuer   *jwt.Issuer
 }
 
 func NewOAuthAuthenticationUseCase(
 	userRepo repo.UserRepo,
 	val *validator.Validator,
-	jwtIssuer *jwt.JWTIssuer,
+	Issuer *jwt.Issuer,
 ) *OAuthAuthenticationUseCase {
 	return &OAuthAuthenticationUseCase{
-		userRepo:  userRepo,
-		val:       val,
-		jwtIssuer: jwtIssuer,
+		userRepo: userRepo,
+		val:      val,
+		Issuer:   Issuer,
 	}
 }
 
@@ -44,7 +44,7 @@ func (uc *OAuthAuthenticationUseCase) Execute(
 	}
 
 	if userExists := user.ID != ""; userExists {
-		return uc.jwtIssuer.NewAccessToken(user.ID)
+		return uc.Issuer.NewAccessToken(user.ID)
 	}
 
 	params := repo.CreateUserDTO{}
@@ -57,5 +57,5 @@ func (uc *OAuthAuthenticationUseCase) Execute(
 		return "", 0, fmt.Errorf("error creating user: %w", err)
 	}
 
-	return uc.jwtIssuer.NewAccessToken(createdUser.ID)
+	return uc.Issuer.NewAccessToken(createdUser.ID)
 }

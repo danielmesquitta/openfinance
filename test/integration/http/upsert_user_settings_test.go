@@ -49,7 +49,12 @@ func TestHTTPUpsertUserSetting(t *testing.T) {
 			defer terminate()
 
 			app := container.NewApp(dbConnURL)
-			defer app.Shutdown()
+			defer func() {
+				err := app.Shutdown()
+				if err != nil {
+					t.Fatalf("failed to shutdown app: %s", err)
+				}
+			}()
 
 			jsonBody, err := json.Marshal(tt.body)
 			if err != nil {
@@ -60,7 +65,7 @@ func TestHTTPUpsertUserSetting(t *testing.T) {
 
 			req := httptest.NewRequest(tt.method, tt.route, bytesBody)
 
-			accessToken, _, err := container.JwtIssuer.NewAccessToken(tt.userID)
+			accessToken, _, err := container.Issuer.NewAccessToken(tt.userID)
 			if err != nil {
 				t.Fatalf("failed to create access token: %s", err)
 			}

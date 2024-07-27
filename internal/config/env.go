@@ -18,7 +18,7 @@ type Env struct {
 
 	Environment             Environment `mapstructure:"ENVIRONMENT"`
 	Port                    string      `mapstructure:"PORT"`
-	ApiURL                  string      `mapstructure:"API_URL"`
+	APIURL                  string      `mapstructure:"API_URL"`
 	DBConnection            string      `mapstructure:"DB_CONNECTION"              validate:"required"`
 	GoogleOAUTHClientID     string      `mapstructure:"GOOGLE_OAUTH_CLIENT_ID"     validate:"required"`
 	GoogleOAUTHClientSecret string      `mapstructure:"GOOGLE_OAUTH_CLIENT_SECRET" validate:"required"`
@@ -38,8 +38,8 @@ func (e *Env) validate() error {
 	if e.Port == "" {
 		e.Port = "8080"
 	}
-	if e.ApiURL == "" {
-		e.ApiURL = "http://localhost:" + e.Port
+	if e.APIURL == "" {
+		e.APIURL = "http://localhost:" + e.Port
 	}
 	return nil
 }

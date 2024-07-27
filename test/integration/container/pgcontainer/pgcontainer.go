@@ -14,14 +14,14 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-type PgContainerOpts struct {
+type options struct {
 	seeds []Seed
 }
 
-type Option func(*PgContainerOpts)
+type Option func(*options)
 
 func WithSeeds(seeds ...Seed) Option {
-	return func(o *PgContainerOpts) {
+	return func(o *options) {
 		o.seeds = seeds
 	}
 }
@@ -30,10 +30,10 @@ func NewPgContainer(
 	ctx context.Context,
 	opts ...Option,
 ) (dbConnURL string, terminate func()) {
-	pgContainerOpts := &PgContainerOpts{}
+	containerOpts := &options{}
 
 	for _, opt := range opts {
-		opt(pgContainerOpts)
+		opt(containerOpts)
 	}
 
 	dbName := "testdb"
@@ -45,7 +45,7 @@ func NewPgContainer(
 		log.Fatalf("failed to get migration files: %s", err)
 	}
 
-	seedFiles, err := getSeedFiles(pgContainerOpts.seeds...)
+	seedFiles, err := getSeedFiles(containerOpts.seeds...)
 	if err != nil {
 		log.Fatalf("failed to get seed files: %s", err)
 	}

@@ -6,16 +6,16 @@ import (
 )
 
 type Middleware struct {
-	env       *config.Env
-	jwtIssuer *jwt.JWTIssuer
+	env    *config.Env
+	Issuer *jwt.Issuer
 }
 
 func NewMiddleware(
 	env *config.Env,
-	jwtIssuer *jwt.JWTIssuer,
+	Issuer *jwt.Issuer,
 ) *Middleware {
 	return &Middleware{
-		env:       env,
-		jwtIssuer: jwtIssuer,
+		env:    env,
+		Issuer: Issuer,
 	}
 }

@@ -3,6 +3,7 @@ package notionapi
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -78,6 +79,9 @@ func (c *Client) doRequest(
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
+	}
+	if res == nil {
+		return errors.New("response is nil")
 	}
 	defer res.Body.Close()
 

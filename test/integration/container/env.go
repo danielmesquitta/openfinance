@@ -34,7 +34,7 @@ func loadTestEnv(dbConnURL string) *config.Env {
 	env.Environment = config.TestEnv
 	env.Port = port
 	env.DBConnection = dbConnURL
-	env.ApiURL = "http://localhost:" + port
+	env.APIURL = "http://localhost:" + port
 
 	return env
 }

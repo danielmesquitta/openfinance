@@ -40,7 +40,12 @@ func TestHTTPHealthCheck(t *testing.T) {
 			defer terminate()
 
 			app := container.NewApp(dbConnURL)
-			defer app.Shutdown()
+			defer func() {
+				err := app.Shutdown()
+				if err != nil {
+					t.Fatalf("failed to shutdown app: %s", err)
+				}
+			}()
 
 			req := httptest.NewRequest(tt.method, tt.route, nil)
 

@@ -13,7 +13,7 @@ type NewTableDTO struct {
 	Categories []string
 }
 
-type SheetProvider interface {
+type Provider interface {
 	NewTable(dto NewTableDTO) (*Table, error)
 	InsertRow(databaseID string, transaction entity.Transaction) (*Table, error)
 }

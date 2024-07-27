@@ -10,19 +10,19 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-type JWTIssuer struct {
+type Issuer struct {
 	env *config.Env
 }
 
-func NewJWTIssuer(
+func NewIssuer(
 	env *config.Env,
-) *JWTIssuer {
-	return &JWTIssuer{
+) *Issuer {
+	return &Issuer{
 		env: env,
 	}
 }
 
-func (j *JWTIssuer) NewAccessToken(
+func (j *Issuer) NewAccessToken(
 	userID string,
 ) (accessToken string, expiresAt int64, err error) {
 	expiresAt = time.Now().Add(time.Hour * 24).Unix()
@@ -44,13 +44,13 @@ type Claims struct {
 	ExpiresAt int64  `json:"exp"`
 }
 
-func (j *JWTIssuer) ParseToken(
+func (j *Issuer) ParseToken(
 	accessToken string,
 ) (userID string, err error) {
 	token, err := jwt.ParseWithClaims(
 		accessToken,
 		&jwt.StandardClaims{},
-		func(token *jwt.Token) (any, error) {
+		func(_ *jwt.Token) (any, error) {
 			return []byte(j.env.JWTSecret), nil
 		},
 	)

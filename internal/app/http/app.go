@@ -47,7 +47,7 @@ func NewApp(
 		google.New(
 			env.GoogleOAUTHClientID,
 			env.GoogleOAUTHClientSecret,
-			env.ApiURL+"/api/v1/auth/callback/google",
+			env.APIURL+"/api/v1/auth/callback/google",
 		),
 	)
 
@@ -63,8 +63,12 @@ func NewApp(
 
 			return nil
 		},
-		OnStop: func(ctx context.Context) error {
-			return app.Shutdown()
+		OnStop: func(_ context.Context) error {
+			err := app.Shutdown()
+			if err != nil {
+				panic(err)
+			}
+			return nil
 		},
 	})
 

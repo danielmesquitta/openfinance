@@ -165,7 +165,8 @@ func (uc *SyncAllUsersOpenFinanceDataToNotionUseCase) syncUserOpenFinanceDataToN
 			mu.Lock()
 			transactions = append(
 				transactions,
-				accountTransactions...)
+				accountTransactions...,
+			)
 			mu.Unlock()
 		}()
 	}

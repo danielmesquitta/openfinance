@@ -88,6 +88,9 @@ func (c *Client) ListTransactions(
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %w", err)
 	}
+	if res == nil {
+		return nil, fmt.Errorf("response is nil")
+	}
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
@@ -100,6 +103,14 @@ func (c *Client) ListTransactions(
 		return nil, fmt.Errorf("error decoding response: %w", err)
 	}
 
+	transactions := c.parseRequestToTransactions(data)
+
+	return transactions, nil
+}
+
+func (c *Client) parseRequestToTransactions(
+	data *listTransactionsResponse,
+) []entity.Transaction {
 	transactions := []entity.Transaction{}
 
 loop:
@@ -174,5 +185,5 @@ loop:
 		transactions = append(transactions, transaction)
 	}
 
-	return transactions, nil
+	return transactions
 }

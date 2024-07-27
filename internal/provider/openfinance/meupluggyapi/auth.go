@@ -36,6 +36,9 @@ func authenticate(
 	if err != nil {
 		return "", fmt.Errorf("error sending request: %w", err)
 	}
+	if res == nil {
+		return "", fmt.Errorf("response is nil")
+	}
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {

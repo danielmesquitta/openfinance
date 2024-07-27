@@ -17,12 +17,12 @@ import (
 	"go.uber.org/fx"
 )
 
-var JwtIssuer *jwt.JWTIssuer
+var Issuer *jwt.Issuer
 var Validator *validator.Validator
 
 func NewApp(dbConnURL string) *fiber.App {
 	env := loadTestEnv(dbConnURL)
-	JwtIssuer = jwt.NewJWTIssuer(env)
+	Issuer = jwt.NewIssuer(env)
 	Validator = validator.NewValidator()
 
 	var app *fiber.App
@@ -35,7 +35,7 @@ func NewApp(dbConnURL string) *fiber.App {
 
 		// PKGs
 		fx.Supply(Validator),
-		fx.Supply(JwtIssuer),
+		fx.Supply(Issuer),
 
 		fx.Provide(
 			fx.Annotate(

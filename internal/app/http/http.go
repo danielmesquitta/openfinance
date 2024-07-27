@@ -22,7 +22,7 @@ func Start() {
 
 		// PKGs
 		validator.NewValidator,
-		jwt.NewJWTIssuer,
+		jwt.NewIssuer,
 		fx.Annotate(
 			crypto.NewCrypto,
 			fx.As(new(crypto.Encrypter)),
