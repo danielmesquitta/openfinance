@@ -18,3 +18,5 @@ db_generate:
 	@sqlc generate
 db_ui:
 	@npx prisma studio --schema=./sql/schema.prisma
+lint:
+	@golangci-lint run && nilaway ./...
