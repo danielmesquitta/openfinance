@@ -12,7 +12,6 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/provider/repo/pgrepo"
 	"github.com/danielmesquitta/openfinance/pkg/crypto"
 	"github.com/danielmesquitta/openfinance/pkg/jwt"
-	"github.com/danielmesquitta/openfinance/pkg/logger"
 	"github.com/danielmesquitta/openfinance/pkg/validator"
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/fx"
@@ -39,7 +38,6 @@ func NewApp(dbConnURL string) *fiber.App {
 		fx.Supply(JwtIssuer),
 
 		fx.Provide(
-			logger.NewLogger,
 			fx.Annotate(
 				crypto.NewCrypto,
 				fx.As(new(crypto.Encrypter)),

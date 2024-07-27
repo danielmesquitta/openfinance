@@ -3,8 +3,10 @@ package meupluggyapi
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
@@ -99,9 +101,11 @@ func (c *Client) ListTransactions(
 	}
 
 	transactions := []entity.Transaction{}
+
+loop:
 	for _, r := range data.Results {
 		if isInvestment := (r.Category != nil && *r.Category == "Investments") ||
-			(r.Description == "Aplicação RDB"); isInvestment {
+			strings.Contains(r.Description, "Aplicação"); isInvestment {
 			continue
 		}
 		if isReceivingMoney := r.Type == Credit; isReceivingMoney {
@@ -126,28 +130,47 @@ func (c *Client) ListTransactions(
 			accountType = entity.BankAccount
 		}
 
-		if accountType == entity.BankAccount {
+		switch accountType {
+		case entity.BankAccount:
+			if r.PaymentData == nil {
+				slog.Error("PaymentData is nil", "result", r)
+				continue loop
+			}
+
+			if r.PaymentData.PaymentMethod == nil {
+				slog.Error("PaymentMethod is nil", "result", r)
+				continue loop
+			}
+
 			transaction.PaymentMethod = *r.PaymentData.PaymentMethod
 			transaction.Description = r.Description
 
-			if hasReceiver := (r.PaymentData.Receiver != nil); hasReceiver {
-				if hasReceiverName := r.PaymentData.
-					Receiver.Name != nil; hasReceiverName {
-					transaction.Name = *r.PaymentData.Receiver.Name
-				} else if hasReceiverDocument := r.PaymentData.
-					Receiver.DocumentNumber != nil; hasReceiverDocument {
-					document, _ := formatter.MaskDocument(
-						r.PaymentData.Receiver.DocumentNumber.Value,
-						r.PaymentData.Receiver.DocumentNumber.Type,
-					)
-					transaction.Name = document
-				}
+			if hasReceiver := (r.PaymentData.Receiver != nil); !hasReceiver {
+				goto appendTransaction
 			}
-		} else if accountType == entity.CreditCard {
+
+			if hasReceiverName := r.PaymentData.
+				Receiver.Name != nil; hasReceiverName {
+				transaction.Name = *r.PaymentData.Receiver.Name
+				goto appendTransaction
+			}
+
+			if hasReceiverDocument := r.PaymentData.
+				Receiver.DocumentNumber != nil; hasReceiverDocument {
+				document, _ := formatter.MaskDocument(
+					r.PaymentData.Receiver.DocumentNumber.Value,
+					r.PaymentData.Receiver.DocumentNumber.Type,
+				)
+				transaction.Name = document
+				goto appendTransaction
+			}
+
+		case entity.CreditCard:
 			transaction.Name = r.Description
 			transaction.PaymentMethod = "CREDIT CARD"
 		}
 
+	appendTransaction:
 		transactions = append(transactions, transaction)
 	}
 

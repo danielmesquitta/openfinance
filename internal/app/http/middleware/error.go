@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielmesquitta/openfinance/internal/app/http/dto"
@@ -18,7 +19,7 @@ func (m *Middleware) ErrorHandler(ctx *fiber.Ctx, err error) error {
 			})
 	}
 
-	m.log.Errorw(
+	slog.Error(
 		"internal server error",
 		"error",
 		err,

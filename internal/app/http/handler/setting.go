@@ -8,21 +8,17 @@ import (
 
 	"github.com/danielmesquitta/openfinance/internal/app/http/middleware"
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
-	"github.com/danielmesquitta/openfinance/pkg/logger"
 )
 
 type SettingHandler struct {
 	uuc *usecase.UpsertUserSettingUseCase
-	l   *logger.Logger
 }
 
 func NewSettingHandler(
 	uuc *usecase.UpsertUserSettingUseCase,
-	l *logger.Logger,
 ) *SettingHandler {
 	return &SettingHandler{
 		uuc: uuc,
-		l:   l,
 	}
 }
 
