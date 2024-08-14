@@ -21,5 +21,9 @@ func NewPgDBConn(
 		panic(err)
 	}
 
+	if err := dbConn.Ping(); err != nil {
+		panic(err)
+	}
+
 	return pgdb.New(dbConn)
 }

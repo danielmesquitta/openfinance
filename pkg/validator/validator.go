@@ -1,9 +1,6 @@
 package validator
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
@@ -39,30 +36,22 @@ func NewValidator() *Validator {
 func (v *Validator) Validate(
 	data any,
 ) error {
-	var strErrs []string
-
 	err := v.validate.Struct(data)
-
 	if err == nil {
 		return nil
 	}
 
 	validatorErrs := err.(validator.ValidationErrors)
 
-	for _, e := range validatorErrs {
-		translatedErr := fmt.Errorf(
-			e.Translate(v.trans),
-		)
-		strErrs = append(
-			strErrs,
-			translatedErr.Error(),
-		)
-	}
+	var errMsg string
+	separator := ", "
+	for i, e := range validatorErrs {
+		errMsg += e.Translate(v.trans)
 
-	errMsg := strings.Join(
-		strErrs,
-		", ",
-	)
+		if i != len(validatorErrs)-1 {
+			errMsg += separator
+		}
+	}
 
 	validationErr := entity.ErrValidation
 	validationErr.Message = errMsg

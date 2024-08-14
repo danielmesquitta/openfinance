@@ -1,4 +1,4 @@
-.PHONY: default dev test auth install
+.PHONY: default dev install test docs create_migration db_ui lint update
 
 default: dev
 
@@ -20,3 +20,5 @@ db_ui:
 	@npx prisma studio --schema=./sql/schema.prisma
 lint:
 	@golangci-lint run && nilaway ./...
+update:
+	@go mod tidy && go get -u ./...

@@ -1,15 +1,20 @@
 package meupluggyapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 )
 
 type AuthenticateResponse struct {
 	APIKey string `json:"apiKey"`
+}
+
+type AuthenticateRequest struct {
+	ClientID     string `json:"clientId"`
+	ClientSecret string `json:"clientSecret"`
 }
 
 func authenticate(
@@ -18,11 +23,17 @@ func authenticate(
 ) (string, error) {
 	url := baseURL.String() + "/auth"
 
-	payload := strings.NewReader(fmt.Sprintf(
-		"{\"clientId\":\"%s\",\"clientSecret\":\"%s\"}",
-		clientID,
-		clientSecret,
-	))
+	authenticateRequest := AuthenticateRequest{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+	}
+
+	authenticateRequestBytes, err := json.Marshal(authenticateRequest)
+	if err != nil {
+		return "", fmt.Errorf("error marshalling authenticate request: %w", err)
+	}
+
+	payload := bytes.NewReader(authenticateRequestBytes)
 
 	req, err := http.NewRequest("POST", url, payload)
 	if err != nil {

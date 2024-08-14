@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -11,7 +12,6 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet/notionapi"
 	"github.com/danielmesquitta/openfinance/pkg/crypto"
-	"github.com/danielmesquitta/openfinance/pkg/dateutil"
 	"github.com/danielmesquitta/openfinance/pkg/validator"
 )
 
@@ -57,34 +57,30 @@ func (uc *SyncAllUsersOpenFinanceDataToNotionUseCase) Execute(
 		return fmt.Errorf("error listing settings: %w", err)
 	}
 
-	mu := sync.Mutex{}
-	wg := sync.WaitGroup{}
-	errs := []error{}
+	jobsCount := len(userSettings)
+	errCh := make(chan error)
 
-	wg.Add(len(userSettings))
 	for _, setting := range userSettings {
 		go func() {
-			defer wg.Done()
-
-			if err := uc.syncUserOpenFinanceDataToNotion(
+			err := uc.syncUserOpenFinanceDataToNotion(
 				setting,
 				startDate,
 				endDate,
-			); err != nil {
-				mu.Lock()
-				errs = append(errs, err)
-				mu.Unlock()
-				return
-			}
+			)
+			errCh <- err
 		}()
 	}
 
-	wg.Wait()
+	for i := 0; i < jobsCount; i++ {
+		err = errors.Join(err, <-errCh)
+	}
 
-	if len(errs) > 0 {
+	close(errCh)
+
+	if err != nil {
 		return fmt.Errorf(
-			"error syncing open finance data to notion:\n%+v",
-			errs,
+			"error syncing open finance data to notion:\n%w",
+			err,
 		)
 	}
 
@@ -94,8 +90,18 @@ func (uc *SyncAllUsersOpenFinanceDataToNotionUseCase) Execute(
 func (uc *SyncAllUsersOpenFinanceDataToNotionUseCase) setDefaultValues(
 	dto *SyncAllUsersOpenFinanceDataToNotionDTO,
 ) {
-	startOfMonth := time.Now().AddDate(0, 0, -time.Now().Day()+1)
-	endOfMonth := startOfMonth.AddDate(0, 1, -1)
+	now := time.Now()
+	startOfMonth := time.Date(
+		now.Year(),
+		now.Month()-1,
+		1,
+		0,
+		0,
+		0,
+		0,
+		time.Local,
+	) // day 1 of previous month
+	endOfMonth := startOfMonth.AddDate(0, 1, -1) // last day of previous month
 	if dto.StartDate == "" {
 		dto.StartDate = startOfMonth.Format(time.RFC3339)
 	}
@@ -139,47 +145,51 @@ func (uc *SyncAllUsersOpenFinanceDataToNotionUseCase) syncUserOpenFinanceDataToN
 
 	notionClient := notionapi.NewClient(setting.NotionToken)
 
-	mu := sync.Mutex{}
-	wg := sync.WaitGroup{}
-	errs := []error{}
+	jobsCount := len(setting.MeuPluggyAccountIDs)
+	wg := &sync.WaitGroup{}
+	wg.Add(jobsCount)
+	transactionsCh := make(chan []entity.Transaction, jobsCount)
+	errCh := make(chan error, jobsCount)
 
-	transactions := []entity.Transaction{}
-
-	wg.Add(len(setting.MeuPluggyAccountIDs))
 	for _, accountID := range setting.MeuPluggyAccountIDs {
 		go func() {
 			defer wg.Done()
 
-			accountTransactions, err := pluggyClient.ListTransactions(
+			transactions, err := pluggyClient.ListTransactions(
 				accountID,
 				startDate,
 				endDate,
 			)
 			if err != nil {
-				mu.Lock()
-				errs = append(errs, err)
-				mu.Unlock()
+				errCh <- err
 				return
 			}
 
-			mu.Lock()
-			transactions = append(
-				transactions,
-				accountTransactions...,
-			)
-			mu.Unlock()
+			transactionsCh <- transactions
 		}()
 	}
 
 	wg.Wait()
+	close(errCh)
+	close(transactionsCh)
 
-	if len(errs) > 0 {
-		return fmt.Errorf("error fetching transactions:\n%+v", errs)
+	var err error
+	for e := range errCh {
+		err = errors.Join(err, e)
+	}
+
+	if err != nil {
+		return fmt.Errorf("error fetching transactions: %w", err)
+	}
+
+	transactions := []entity.Transaction{}
+	for t := range transactionsCh {
+		transactions = append(transactions, t...)
 	}
 
 	uniqueCategories := map[string]struct{}{}
-	for _, transaction := range transactions {
-		uniqueCategories[transaction.Category] = struct{}{}
+	for _, t := range transactions {
+		uniqueCategories[t.Category] = struct{}{}
 	}
 
 	categories := []string{}
@@ -191,8 +201,9 @@ func (uc *SyncAllUsersOpenFinanceDataToNotionUseCase) syncUserOpenFinanceDataToN
 	}
 
 	year, month, _ := startDate.Date()
-	strMonth := dateutil.MonthMapper[month]
-	title := fmt.Sprintf("%s %d", strMonth, year)
+
+	monthAbbreviation := month.String()[0:3]
+	title := fmt.Sprintf("%s %d", monthAbbreviation, year)
 
 	newTableResponse, err := notionClient.NewTable(sheet.NewTableDTO{
 		ParentID:   setting.NotionPageID,
@@ -203,23 +214,24 @@ func (uc *SyncAllUsersOpenFinanceDataToNotionUseCase) syncUserOpenFinanceDataToN
 		return fmt.Errorf("error creating new table: %w", err)
 	}
 
-	wg.Add(len(transactions))
+	jobsCount = len(transactions)
+	errCh = make(chan error)
+
 	for _, transaction := range transactions {
 		go func() {
-			defer wg.Done()
-			if _, err := notionClient.
-				InsertRow(newTableResponse.ID, transaction); err != nil {
-				mu.Lock()
-				errs = append(errs, err)
-				mu.Unlock()
-			}
+			_, err := notionClient.InsertRow(newTableResponse.ID, transaction)
+			errCh <- err
 		}()
 	}
 
-	wg.Wait()
+	for i := 0; i < jobsCount; i++ {
+		err = errors.Join(err, <-errCh)
+	}
 
-	if len(errs) > 0 {
-		return fmt.Errorf("error fetching transactions:\n%+v", errs)
+	close(errCh)
+
+	if err != nil {
+		return fmt.Errorf("error fetching transactions:\n%w", err)
 	}
 
 	return nil

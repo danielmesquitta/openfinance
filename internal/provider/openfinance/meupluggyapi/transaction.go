@@ -2,6 +2,7 @@ package meupluggyapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math"
@@ -73,10 +74,12 @@ func (c *Client) ListTransactions(
 	query.Add("accountId", accountID)
 	query.Add("pageSize", "500")
 
-	query.Add("from", (from).Format(time.DateOnly))
-	query.Add("to", (to).Format(time.DateOnly))
+	query.Add("from", from.Format(time.DateOnly))
+	query.Add("to", to.Format(time.DateOnly))
 
-	req, err := http.NewRequest("GET", url.String()+"?"+query.Encode(), nil)
+	fullURL := url.String() + "?" + query.Encode()
+
+	req, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
@@ -89,7 +92,7 @@ func (c *Client) ListTransactions(
 		return nil, fmt.Errorf("error sending request: %w", err)
 	}
 	if res == nil {
-		return nil, fmt.Errorf("response is nil")
+		return nil, errors.New("response is nil")
 	}
 	defer res.Body.Close()
 
