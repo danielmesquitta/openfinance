@@ -9,7 +9,7 @@ import (
 
 	"github.com/danielmesquitta/openfinance/internal/config"
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
-	"github.com/danielmesquitta/openfinance/internal/provider/repo/envrepo"
+	"github.com/danielmesquitta/openfinance/internal/provider/repo/jsonrepo"
 	"github.com/danielmesquitta/openfinance/pkg/crypto"
 	"github.com/danielmesquitta/openfinance/pkg/validator"
 )
@@ -18,9 +18,7 @@ func Handler() (events.APIGatewayProxyResponse, error) {
 	val := validator.NewValidator()
 	env := config.LoadEnv(val)
 	cry := crypto.NewCrypto(env)
-
-	repoEnv := envrepo.LoadEnv(val)
-	settingRepo := envrepo.NewSettingEnvRepo(repoEnv, cry)
+	settingRepo := jsonrepo.NewSettingJSONRepo(cry)
 
 	u := usecase.NewSyncAllUsersOpenFinanceDataToNotionUseCase(
 		val,
