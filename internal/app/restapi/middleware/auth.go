@@ -3,7 +3,7 @@ package middleware
 import (
 	"strings"
 
-	"github.com/danielmesquitta/openfinance/internal/app/http/dto"
+	"github.com/danielmesquitta/openfinance/internal/app/restapi/dto"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/basicauth"
 )

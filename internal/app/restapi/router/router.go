@@ -4,9 +4,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
 
-	"github.com/danielmesquitta/openfinance/internal/app/http/docs"
-	"github.com/danielmesquitta/openfinance/internal/app/http/handler"
-	"github.com/danielmesquitta/openfinance/internal/app/http/middleware"
+	"github.com/danielmesquitta/openfinance/internal/app/restapi/docs"
+	"github.com/danielmesquitta/openfinance/internal/app/restapi/handler"
+	"github.com/danielmesquitta/openfinance/internal/app/restapi/middleware"
 	"github.com/danielmesquitta/openfinance/internal/config"
 )
 

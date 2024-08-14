@@ -19,13 +19,18 @@ type Env struct {
 	Environment             Environment `mapstructure:"ENVIRONMENT"`
 	Port                    string      `mapstructure:"PORT"`
 	APIURL                  string      `mapstructure:"API_URL"`
-	DBConnection            string      `mapstructure:"DB_CONNECTION"              validate:"required"`
 	GoogleOAUTHClientID     string      `mapstructure:"GOOGLE_OAUTH_CLIENT_ID"     validate:"required"`
 	GoogleOAUTHClientSecret string      `mapstructure:"GOOGLE_OAUTH_CLIENT_SECRET" validate:"required"`
 	BasicAuthUsername       string      `mapstructure:"BASIC_AUTH_USERNAME"        validate:"required"`
 	BasicAuthPassword       string      `mapstructure:"BASIC_AUTH_PASSWORD"        validate:"required"`
 	JWTSecret               string      `mapstructure:"JWT_SECRET"                 validate:"required"`
 	HashSecret              string      `mapstructure:"HASH_SECRET"                validate:"required"`
+
+	// Optional (not required for AWS lambda)
+	DBConnection string `mapstructure:"DB_CONNECTION"`
+
+	// Optional (Not required for rest API)
+
 }
 
 func (e *Env) validate() error {

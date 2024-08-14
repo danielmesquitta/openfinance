@@ -3,10 +3,10 @@ package container
 import (
 	"sync"
 
-	"github.com/danielmesquitta/openfinance/internal/app/http"
-	"github.com/danielmesquitta/openfinance/internal/app/http/handler"
-	"github.com/danielmesquitta/openfinance/internal/app/http/middleware"
-	"github.com/danielmesquitta/openfinance/internal/app/http/router"
+	http "github.com/danielmesquitta/openfinance/internal/app/restapi"
+	"github.com/danielmesquitta/openfinance/internal/app/restapi/handler"
+	"github.com/danielmesquitta/openfinance/internal/app/restapi/middleware"
+	"github.com/danielmesquitta/openfinance/internal/app/restapi/router"
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
 	"github.com/danielmesquitta/openfinance/internal/provider/repo"
 	"github.com/danielmesquitta/openfinance/internal/provider/repo/pgrepo"

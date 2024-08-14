@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/danielmesquitta/openfinance/internal/app/http/dto"
+	"github.com/danielmesquitta/openfinance/internal/app/restapi/dto"
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/gofiber/fiber/v2"
 )

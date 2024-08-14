@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/danielmesquitta/openfinance/internal/app/http"
+	"github.com/danielmesquitta/openfinance/internal/app/restapi"
 )
 
 // @title OpenFinance to Notion API
@@ -16,5 +16,5 @@ import (
 // @description Type "Bearer" followed by a space and JWT token.
 // @securityDefinitions.basic BasicAuth
 func main() {
-	http.Start()
+	restapi.Start()
 }

@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/danielmesquitta/openfinance/internal/app/http/dto"
+	"github.com/danielmesquitta/openfinance/internal/app/restapi/dto"
 	"github.com/danielmesquitta/openfinance/test/integration/container"
 	"github.com/danielmesquitta/openfinance/test/integration/container/pgcontainer"
 )

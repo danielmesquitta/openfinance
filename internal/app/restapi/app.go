@@ -1,10 +1,10 @@
-package http
+package restapi
 
 import (
 	"context"
 
-	"github.com/danielmesquitta/openfinance/internal/app/http/middleware"
-	"github.com/danielmesquitta/openfinance/internal/app/http/router"
+	"github.com/danielmesquitta/openfinance/internal/app/restapi/middleware"
+	"github.com/danielmesquitta/openfinance/internal/app/restapi/router"
 	"github.com/danielmesquitta/openfinance/internal/config"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/healthcheck"

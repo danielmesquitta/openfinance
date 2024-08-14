@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/shareed2k/goth_fiber"
 
-	"github.com/danielmesquitta/openfinance/internal/app/http/dto"
+	"github.com/danielmesquitta/openfinance/internal/app/restapi/dto"
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
 )
 

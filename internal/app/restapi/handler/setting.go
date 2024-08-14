@@ -6,7 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/danielmesquitta/openfinance/internal/app/http/middleware"
+	"github.com/danielmesquitta/openfinance/internal/app/restapi/middleware"
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
 )
 
