@@ -22,3 +22,7 @@ lint:
 	@golangci-lint run && nilaway ./...
 update:
 	@go mod tidy && go get -u ./...
+build_lambda:
+	@GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -tags lambda.norpc -ldflags="-w -s" -o ./bin/bootstrap ./cmd/lambda/main.go
+zip_lambda:
+	@make build_lambda && cp .env ./bin/.env && zip -j ./bin/lambda.zip ./bin/bootstrap ./bin/.env && rm ./bin/.env

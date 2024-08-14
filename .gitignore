@@ -1,6 +1,7 @@
-.env*
+**/.env*
 !.env.example
 
 tmp/*
+bin/*
 
 !.gitkeep

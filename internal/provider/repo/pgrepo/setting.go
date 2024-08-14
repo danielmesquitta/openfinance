@@ -110,3 +110,5 @@ func (s SettingPgRepo) ListSettings() ([]entity.Setting, error) {
 
 	return settings, nil
 }
+
+var _ repo.SettingRepo = (*SettingPgRepo)(nil)

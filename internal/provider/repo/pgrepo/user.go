@@ -110,3 +110,5 @@ func (b UserPgRepo) CreateUser(dto repo.CreateUserDTO) (entity.User, error) {
 
 	return user, nil
 }
+
+var _ repo.UserRepo = (*UserPgRepo)(nil)
