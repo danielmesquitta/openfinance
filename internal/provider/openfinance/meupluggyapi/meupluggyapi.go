@@ -5,31 +5,61 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sync"
+
+	"github.com/danielmesquitta/openfinance/internal/config"
+	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/provider/openfinance"
 )
 
-type Client struct {
-	BaseURL url.URL
-	Token   string
+type _conn struct {
+	accessToken string
+	accountIDs  []string
 }
 
-func NewClient(clientID, clientSecret string) *Client {
+type Client struct {
+	baseURL url.URL
+	conns   map[string]_conn
+}
+
+func NewClient(env *config.Env) *Client {
 	baseURL := url.URL{
 		Scheme: "https",
 		Host:   "api.pluggy.ai",
 	}
 
-	token, err := authenticate(baseURL, clientID, clientSecret)
-	if err != nil {
-		panic(err)
+	c := &Client{
+		baseURL: baseURL,
 	}
 
-	return &Client{
-		BaseURL: baseURL,
-		Token:   token,
+	jobsCount := len(env.Users)
+	conns := make(map[string]_conn, jobsCount)
+	wg := sync.WaitGroup{}
+	wg.Add(jobsCount)
+
+	for _, user := range env.Users {
+		go func() {
+			defer wg.Done()
+			token, err := c.authenticate(
+				user.MeuPluggyClientID,
+				user.MeuPluggyClientSecret,
+			)
+			if err != nil {
+				panic(err)
+			}
+			conns[user.ID] = _conn{
+				accessToken: token,
+				accountIDs:  user.MeuPluggyAccountIDs,
+			}
+		}()
 	}
+
+	c.conns = conns
+
+	return c
 }
 
-type ErrorMessage struct {
+type _errorMessage struct {
 	Code            int    `json:"code"`
 	Message         string `json:"message"`
 	CodeDescription string `json:"codeDescription"`
@@ -37,20 +67,22 @@ type ErrorMessage struct {
 }
 
 func parseResError(res *http.Response) error {
-	jsonData := ErrorMessage{}
+	jsonData := _errorMessage{}
 	decoder := json.NewDecoder(res.Body)
 	if err := decoder.Decode(&jsonData); err != nil {
-		return fmt.Errorf(
+		return entity.NewErr(fmt.Sprintf(
 			"error requesting %s: %s",
 			res.Request.URL,
 			res.Status,
-		)
+		))
 	}
 
-	return fmt.Errorf(
+	return entity.NewErr(fmt.Sprintf(
 		"error requesting %s: %s %v",
 		res.Request.URL,
 		res.Status,
 		jsonData,
-	)
+	))
 }
+
+var _ openfinance.APIProvider = (*Client)(nil)

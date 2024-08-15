@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+
+	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/provider/companyapi"
 )
 
 type Client struct {
@@ -32,17 +35,15 @@ func parseResError(res *http.Response) error {
 	jsonData := ErrorMessage{}
 	decoder := json.NewDecoder(res.Body)
 	if err := decoder.Decode(&jsonData); err != nil {
-		return fmt.Errorf(
-			"error requesting %s: %s",
-			res.Request.URL,
-			res.Status,
-		)
+		return entity.NewErr(err)
 	}
 
-	return fmt.Errorf(
+	return entity.NewErr(fmt.Sprintf(
 		"error requesting %s: %s %v",
 		res.Request.URL,
 		res.Status,
 		jsonData,
-	)
+	))
 }
+
+var _ companyapi.APIProvider = (*Client)(nil)

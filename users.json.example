@@ -1,34 +1,25 @@
 [
   {
-    "id": "1",
-    "email": "johndoe@email.com",
-    "setting": {
-      "id": "1",
-      "user_id": "1",
-      "notion_token": "notion_token",
-      "notion_page_id": "notion_page_id",
-      "meu_pluggy_client_id": "meu_pluggy_client_id",
-      "meu_pluggy_client_secret": "meu_pluggy_client_secret",
-      "meu_pluggy_account_ids": [
-        "meu_pluggy_account_id_1",
-        "meu_pluggy_account_id_2"
-      ]
-    }
+    "id": "johndoe@email.com",
+    "notion_token": "notion_token",
+    "notion_page_id": "notion_page_id",
+    "meu_pluggy_client_id": "meu_pluggy_client_id",
+    "meu_pluggy_client_secret": "meu_pluggy_client_secret",
+    "meu_pluggy_account_ids": [
+      "meu_pluggy_account_id_1",
+      "meu_pluggy_account_id_2"
+    ]
   },
   {
-    "id": "2",
-    "email": "janedoe@email.com",
-    "setting": {
-      "id": "2",
-      "user_id": "2",
-      "notion_token": "notion_token",
-      "notion_page_id": "notion_page_id",
-      "meu_pluggy_client_id": "meu_pluggy_client_id",
-      "meu_pluggy_client_secret": "meu_pluggy_client_secret",
-      "meu_pluggy_account_ids": [
-        "meu_pluggy_account_id_1",
-        "meu_pluggy_account_id_2"
-      ]
-    }
+    "id": "janedoe@email.com",
+    "notion_token": "notion_token",
+    "notion_page_id": "notion_page_id",
+    "meu_pluggy_client_id": "meu_pluggy_client_id",
+    "meu_pluggy_client_secret": "meu_pluggy_client_secret",
+    "meu_pluggy_account_ids": [
+      "meu_pluggy_account_id_1",
+      "meu_pluggy_account_id_2",
+      "meu_pluggy_account_id_3"
+    ]
   }
 ]

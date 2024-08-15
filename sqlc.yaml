@@ -1,9 +1,0 @@
-version: "2"
-sql:
-  - schema: "sql/migrations/**/migration.sql"
-    queries: "sql/queries"
-    engine: "postgresql"
-    gen:
-      go:
-        package: "pgdb"
-        out: "internal/provider/db/pgdb"

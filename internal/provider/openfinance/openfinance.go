@@ -1,7 +1,14 @@
 package openfinance
 
-import "github.com/danielmesquitta/openfinance/internal/domain/entity"
+import (
+	"time"
 
-type API interface {
-	ListTransactions() ([]entity.Transaction, error)
+	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+)
+
+type APIProvider interface {
+	ListTransactionsByUserID(
+		userID string,
+		from, to time.Time,
+	) ([]entity.Transaction, error)
 }

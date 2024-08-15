@@ -1,7 +1,13 @@
 package config
 
 import (
-	"github.com/danielmesquitta/openfinance/pkg/validator"
+	"cmp"
+	"encoding/json"
+	"io"
+	"os"
+
+	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
 	"github.com/spf13/viper"
 )
 
@@ -13,59 +19,111 @@ const (
 	ProductionEnv  Environment = "production"
 )
 
+type EnvFileData struct {
+	Environment   Environment `mapstructure:"ENVIRONMENT"     json:"environment"`
+	OpenAIToken   string      `mapstructure:"OPEN_AI_TOKEN"   json:"open_ai_token"   validate:"required"`
+	UsersFilePath string      `mapstructure:"USERS_FILE_PATH" json:"users_file_path" validate:"required"`
+}
+
+type JSONFileData struct {
+	Users []entity.User `json:"users" validate:"required"`
+}
+
 type Env struct {
 	val *validator.Validator
 
-	Environment             Environment `mapstructure:"ENVIRONMENT"`
-	Port                    string      `mapstructure:"PORT"`
-	APIURL                  string      `mapstructure:"API_URL"`
-	GoogleOAUTHClientID     string      `mapstructure:"GOOGLE_OAUTH_CLIENT_ID"     validate:"required"`
-	GoogleOAUTHClientSecret string      `mapstructure:"GOOGLE_OAUTH_CLIENT_SECRET" validate:"required"`
-	BasicAuthUsername       string      `mapstructure:"BASIC_AUTH_USERNAME"        validate:"required"`
-	BasicAuthPassword       string      `mapstructure:"BASIC_AUTH_PASSWORD"        validate:"required"`
-	JWTSecret               string      `mapstructure:"JWT_SECRET"                 validate:"required"`
-	HashSecret              string      `mapstructure:"HASH_SECRET"                validate:"required"`
-	OpenAIAPIToken          string      `mapstructure:"OPEN_AI_API_TOKEN"          validate:"required"`
-
-	// Optional (not required for AWS lambda)
-	DBConnection string `mapstructure:"DB_CONNECTION"`
+	EnvFileData
+	JSONFileData
 }
 
-func (e *Env) validate() error {
-	if err := e.val.Validate(e); err != nil {
+func NewEnv(val *validator.Validator) *Env {
+	e := &Env{
+		val: val,
+	}
+
+	if err := e.loadEnv(); err != nil {
+		panic(err)
+	}
+
+	return e
+}
+
+func (e *Env) loadEnv() error {
+	if err := e.loadDataFromEnvFile(); err != nil {
+		return err
+	}
+
+	if err := e.validateEnvFile(e.EnvFileData); err != nil {
+		return err
+	}
+
+	if err := e.loadDataFromJSON(); err != nil {
+		return err
+	}
+
+	if err := e.validateJSONFile(e.JSONFileData); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e *Env) loadDataFromEnvFile() error {
+	envFilepath := cmp.Or(os.Getenv("ENV_FILEPATH"), ".env")
+
+	viper.SetConfigFile(envFilepath)
+	viper.AutomaticEnv()
+
+	if err := viper.ReadInConfig(); err != nil {
+		return err
+	}
+
+	if err := viper.Unmarshal(e); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e *Env) loadDataFromJSON() error {
+	users := []entity.User{}
+
+	file, err := os.Open(e.UsersFilePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return err
+	}
+
+	if err = json.Unmarshal(data, &users); err != nil {
+		return err
+	}
+
+	e.Users = users
+
+	return nil
+}
+
+func (e *Env) validateEnvFile(data EnvFileData) error {
+	if err := e.val.Validate(data); err != nil {
 		return err
 	}
 	if e.Environment == "" {
 		e.Environment = DevelopmentEnv
 	}
-	if e.Port == "" {
-		e.Port = "8080"
-	}
-	if e.APIURL == "" {
-		e.APIURL = "http://localhost:" + e.Port
-	}
 	return nil
 }
 
-func LoadEnv(val *validator.Validator) *Env {
-	env := &Env{
-		val: val,
+func (e *Env) validateJSONFile(data JSONFileData) error {
+	if err := e.val.Validate(data); err != nil {
+		return err
 	}
-
-	viper.SetConfigFile(".env")
-	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err != nil {
-		panic(err)
+	if e.Environment == "" {
+		e.Environment = DevelopmentEnv
 	}
-
-	if err := viper.Unmarshal(&env); err != nil {
-		panic(err)
-	}
-
-	if err := env.validate(); err != nil {
-		panic(err)
-	}
-
-	return env
+	return nil
 }

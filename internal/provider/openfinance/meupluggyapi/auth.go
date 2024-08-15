@@ -3,41 +3,41 @@ package meupluggyapi
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"net/url"
+
+	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 )
 
-type AuthenticateResponse struct {
+type _authResponse struct {
 	APIKey string `json:"apiKey"`
 }
 
-type AuthenticateRequest struct {
+type _authRequest struct {
 	ClientID     string `json:"clientId"`
 	ClientSecret string `json:"clientSecret"`
 }
 
-func authenticate(
-	baseURL url.URL,
+func (c *Client) authenticate(
 	clientID, clientSecret string,
 ) (string, error) {
-	url := baseURL.String() + "/auth"
+	url := c.baseURL
+	url.Path = "/auth"
 
-	authenticateRequest := AuthenticateRequest{
+	authRequest := _authRequest{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 	}
 
-	authenticateRequestBytes, err := json.Marshal(authenticateRequest)
+	authRequestBytes, err := json.Marshal(authRequest)
 	if err != nil {
-		return "", fmt.Errorf("error marshalling authenticate request: %w", err)
+		return "", entity.NewErr(err)
 	}
 
-	payload := bytes.NewReader(authenticateRequestBytes)
+	payload := bytes.NewReader(authRequestBytes)
 
-	req, err := http.NewRequest("POST", url, payload)
+	req, err := http.NewRequest("POST", url.String(), payload)
 	if err != nil {
-		return "", fmt.Errorf("error creating request: %w", err)
+		return "", entity.NewErr(err)
 	}
 
 	req.Header.Add("accept", "application/json")
@@ -45,10 +45,10 @@ func authenticate(
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("error sending request: %w", err)
+		return "", entity.NewErr(err)
 	}
 	if res == nil {
-		return "", fmt.Errorf("response is nil")
+		return "", entity.NewErr("response is nil")
 	}
 	defer res.Body.Close()
 
@@ -58,9 +58,9 @@ func authenticate(
 
 	decoder := json.NewDecoder(res.Body)
 
-	data := AuthenticateResponse{}
+	data := _authResponse{}
 	if err := decoder.Decode(&data); err != nil {
-		return "", fmt.Errorf("error decoding response: %w", err)
+		return "", entity.NewErr(err)
 	}
 
 	return data.APIKey, nil

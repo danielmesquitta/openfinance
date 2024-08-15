@@ -3,116 +3,153 @@ package meupluggyapi
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"math"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
-	"github.com/danielmesquitta/openfinance/pkg/formatter"
+	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
 )
 
-type listTransactionsResponse struct {
-	Total      int64    `json:"total"`
-	TotalPages int64    `json:"totalPages"`
-	Page       int64    `json:"page"`
-	Results    []result `json:"results"`
+type _listTransactionsResponse struct {
+	Total      int64     `json:"total"`
+	TotalPages int64     `json:"totalPages"`
+	Page       int64     `json:"page"`
+	Results    []_result `json:"results"`
 }
 
-type result struct {
-	ID                      string              `json:"id"`
-	Description             string              `json:"description"`
-	Amount                  float64             `json:"amount"`
-	AmountInAccountCurrency *float64            `json:"amountInAccountCurrency"`
-	Date                    time.Time           `json:"date"`
-	Category                *string             `json:"category"`
-	PaymentData             *paymentData        `json:"paymentData"`
-	Type                    resultType          `json:"type"`
-	CreditCardMetadata      *creditCardMetadata `json:"creditCardMetadata"`
+type _result struct {
+	ID                      string               `json:"id"`
+	Description             string               `json:"description"`
+	Amount                  float64              `json:"amount"`
+	AmountInAccountCurrency *float64             `json:"amountInAccountCurrency"`
+	Date                    time.Time            `json:"date"`
+	Category                *string              `json:"category"`
+	PaymentData             *_paymentData        `json:"paymentData"`
+	Type                    _resultType          `json:"type"`
+	CreditCardMetadata      *_creditCardMetadata `json:"creditCardMetadata"`
 }
 
-type creditCardMetadata struct {
+type _creditCardMetadata struct {
 	CardNumber        *string `json:"cardNumber,omitempty"`
 	TotalInstallments *int64  `json:"totalInstallments,omitempty"`
 	InstallmentNumber *int64  `json:"installmentNumber,omitempty"`
 }
 
-type paymentData struct {
-	Payer         *payer                `json:"payer"`
+type _paymentData struct {
+	Payer         *_payer               `json:"payer"`
 	PaymentMethod *entity.PaymentMethod `json:"paymentMethod"`
-	Receiver      *payer                `json:"receiver"`
+	Receiver      *_payer               `json:"receiver"`
 }
 
-type payer struct {
-	Name           *string         `json:"name"`
-	DocumentNumber *documentNumber `json:"documentNumber"`
+type _payer struct {
+	Name           *string          `json:"name"`
+	DocumentNumber *_documentNumber `json:"documentNumber"`
 }
 
-type documentNumber struct {
+type _documentNumber struct {
 	Type  string `json:"type"`
 	Value string `json:"value"`
 }
 
-type resultType string
+type _resultType string
 
 const (
-	Credit resultType = "CREDIT"
-	Debit  resultType = "DEBIT"
+	Credit _resultType = "CREDIT"
+	Debit  _resultType = "DEBIT"
 )
 
-func (c *Client) ListTransactions(
-	accountID string,
+func (c *Client) ListTransactionsByUserID(
+	userID string,
 	from, to time.Time,
 ) ([]entity.Transaction, error) {
-	url := c.BaseURL
+	conn := c.conns[userID]
 
-	url.Path = "/transactions"
-	query := url.Query()
+	jobsCount := len(conn.accountIDs)
+	ch := make(chan _listTransactionsResponse, jobsCount)
+	errCh := make(chan error, jobsCount)
+	wg := sync.WaitGroup{}
+	wg.Add(jobsCount)
 
-	query.Add("accountId", accountID)
-	query.Add("pageSize", "500")
+	for _, accountID := range conn.accountIDs {
+		go func() {
+			defer wg.Done()
 
-	query.Add("from", from.Format(time.DateOnly))
-	query.Add("to", to.Format(time.DateOnly))
+			url := c.baseURL
+			url.Path = "/transactions"
+			query := url.Query()
 
-	fullURL := url.String() + "?" + query.Encode()
+			query.Add("pageSize", "500")
+			query.Add("from", from.Format(time.DateOnly))
+			query.Add("to", to.Format(time.DateOnly))
 
-	req, err := http.NewRequest("GET", fullURL, nil)
+			query.Add("accountId", accountID)
+
+			fullURL := url.String() + "?" + query.Encode()
+
+			req, err := http.NewRequest("GET", fullURL, nil)
+			if err != nil {
+				errCh <- entity.NewErr(err)
+				return
+			}
+
+			req.Header.Add("accept", "application/json")
+			req.Header.Add("X-API-KEY", conn.accessToken)
+
+			res, err := http.DefaultClient.Do(req)
+			if err != nil {
+				errCh <- entity.NewErr(err)
+				return
+			}
+			if res == nil {
+				errCh <- entity.NewErr("response is nil")
+				return
+			}
+			defer res.Body.Close()
+
+			if res.StatusCode != 200 {
+				errCh <- parseResError(res)
+				return
+			}
+
+			decoder := json.NewDecoder(res.Body)
+			data := _listTransactionsResponse{}
+			if err := decoder.Decode(&data); err != nil {
+				errCh <- entity.NewErr(err)
+				return
+			}
+
+			ch <- data
+		}()
+	}
+
+	wg.Wait()
+	close(errCh)
+	close(ch)
+
+	var err error
+	for e := range errCh {
+		err = errors.Join(err, e)
+	}
+
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
+		return nil, entity.NewErr(err)
 	}
 
-	req.Header.Add("accept", "application/json")
-	req.Header.Add("X-API-KEY", c.Token)
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error sending request: %w", err)
+	transactions := []entity.Transaction{}
+	for data := range ch {
+		t := c.parseRequestToTransactions(data)
+		transactions = append(transactions, t...)
 	}
-	if res == nil {
-		return nil, errors.New("response is nil")
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != 200 {
-		return nil, parseResError(res)
-	}
-
-	decoder := json.NewDecoder(res.Body)
-	data := &listTransactionsResponse{}
-	if err := decoder.Decode(&data); err != nil {
-		return nil, fmt.Errorf("error decoding response: %w", err)
-	}
-
-	transactions := c.parseRequestToTransactions(data)
 
 	return transactions, nil
 }
 
 func (c *Client) parseRequestToTransactions(
-	data *listTransactionsResponse,
+	data _listTransactionsResponse,
 ) []entity.Transaction {
 	transactions := []entity.Transaction{}
 
@@ -171,10 +208,12 @@ loop:
 
 			if hasReceiverDocument := r.PaymentData.
 				Receiver.DocumentNumber != nil; hasReceiverDocument {
-				document, _ := formatter.MaskDocument(
-					r.PaymentData.Receiver.DocumentNumber.Value,
-					r.PaymentData.Receiver.DocumentNumber.Type,
-				)
+				document, err := docutil.MaskDocument(r.PaymentData.Receiver.DocumentNumber.Value)
+				if err != nil {
+					slog.Error("error masking document", "error", err)
+					continue loop
+				}
+
 				transaction.Name = document
 				goto appendTransaction
 			}

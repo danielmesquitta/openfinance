@@ -3,11 +3,14 @@ package notionapi
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/danielmesquitta/openfinance/internal/config"
+	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 )
 
 type Color string
@@ -38,25 +41,38 @@ var colors = []Color{
 	Gray,
 }
 
-type Client struct {
-	BaseURL url.URL
-	Token   string
+type _conn struct {
+	accessToken string
+	pageID      string
 }
 
-func NewClient(token string) *Client {
+type Client struct {
+	baseURL url.URL
+	conns   map[string]_conn
+}
+
+func NewClient(env *config.Env) *Client {
 	baseURL := url.URL{
 		Scheme: "https",
 		Host:   "api.notion.com",
 	}
 
+	conns := map[string]_conn{}
+	for _, user := range env.Users {
+		conns[user.ID] = _conn{
+			accessToken: user.NotionToken,
+			pageID:      user.NotionPageID,
+		}
+	}
+
 	return &Client{
-		BaseURL: baseURL,
-		Token:   token,
+		baseURL: baseURL,
+		conns:   conns,
 	}
 }
 
 func (c *Client) doRequest(
-	method, path string,
+	method, path, token string,
 	requestData any,
 	responseData any,
 ) error {
@@ -73,7 +89,7 @@ func (c *Client) doRequest(
 
 	req.Header.Set("accept", "application/json")
 	req.Header.Set("content-type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.Token)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Notion-Version", "2022-06-28")
 
 	res, err := http.DefaultClient.Do(req)
@@ -81,7 +97,7 @@ func (c *Client) doRequest(
 		return err
 	}
 	if res == nil {
-		return errors.New("response is nil")
+		return entity.NewErr("response is nil")
 	}
 	defer res.Body.Close()
 
@@ -91,7 +107,7 @@ func (c *Client) doRequest(
 
 	decoder := json.NewDecoder(res.Body)
 	if err := decoder.Decode(&responseData); err != nil {
-		return fmt.Errorf("error decoding response: %w", err)
+		return entity.NewErr(err)
 	}
 
 	return nil
@@ -108,21 +124,23 @@ func parseResError(res *http.Response) error {
 	jsonData := ErrorMessage{}
 	decoder := json.NewDecoder(res.Body)
 	if err := decoder.Decode(&jsonData); err != nil {
-		return fmt.Errorf(
+		return entity.NewErr(fmt.Sprintf(
 			"error requesting %s: %s",
 			res.Request.URL,
 			res.Status,
-		)
+		))
 	}
 
-	return fmt.Errorf(
+	return entity.NewErr(fmt.Sprintf(
 		"error requesting %s: %s %v",
 		res.Request.URL,
 		res.Status,
 		jsonData,
-	)
+	))
 }
 
 func formatSelectOption(option string) string {
 	return strings.ReplaceAll(option, ",", "")
 }
+
+var _ sheet.Provider = (*Client)(nil)

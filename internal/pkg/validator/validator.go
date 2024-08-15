@@ -1,7 +1,9 @@
 package validator
 
 import (
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"errors"
+	"strings"
+
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
@@ -9,8 +11,8 @@ import (
 )
 
 type Validator struct {
-	validate *validator.Validate
-	trans    ut.Translator
+	val   *validator.Validate
+	trans ut.Translator
 }
 
 func NewValidator() *Validator {
@@ -33,28 +35,30 @@ func NewValidator() *Validator {
 	}
 }
 
+// Validate validates the data (struct)
+// returning an error if the data is invalid.
 func (v *Validator) Validate(
 	data any,
 ) error {
-	err := v.validate.Struct(data)
+	err := v.val.Struct(data)
 	if err == nil {
 		return nil
 	}
 
-	validatorErrs := err.(validator.ValidationErrors)
-
-	var errMsg string
-	separator := ", "
-	for i, e := range validatorErrs {
-		errMsg += e.Translate(v.trans)
-
-		if i != len(validatorErrs)-1 {
-			errMsg += separator
-		}
+	validationErrs, ok := err.(validator.ValidationErrors)
+	if !ok {
+		return err
 	}
 
-	validationErr := entity.ErrValidation
-	validationErr.Message = errMsg
+	strErrs := make([]string, len(validationErrs))
+	for i, validationErr := range validationErrs {
+		strErrs[i] = validationErr.Translate(v.trans)
+	}
 
-	return validationErr
+	errMsg := strings.Join(
+		strErrs,
+		", ",
+	)
+
+	return errors.New(errMsg)
 }

@@ -7,13 +7,25 @@ type Table struct {
 	URL string `json:"url"`
 }
 
-type NewTableDTO struct {
-	ParentID   string
+type Category string
+
+const (
+	CategoryUnknown Category = "Others"
+)
+
+type CreateTransactionsTableDTO struct {
 	Title      string
-	Categories []string
+	Categories []Category
 }
 
 type Provider interface {
-	NewTable(dto NewTableDTO) (*Table, error)
-	InsertRow(databaseID string, transaction entity.Transaction) (*Table, error)
+	CreateTransactionsTable(
+		userID string,
+		dto CreateTransactionsTableDTO,
+	) (*Table, error)
+	InsertTransaction(
+		userID string,
+		tableID string,
+		transaction entity.Transaction,
+	) (*Table, error)
 }
