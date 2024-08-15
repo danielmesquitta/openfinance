@@ -6,6 +6,10 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/app/restapi/router"
 	"github.com/danielmesquitta/openfinance/internal/config"
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
+	"github.com/danielmesquitta/openfinance/internal/provider/companyapi"
+	"github.com/danielmesquitta/openfinance/internal/provider/companyapi/brasilapi"
+	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
+	"github.com/danielmesquitta/openfinance/internal/provider/gpt/openai"
 	"github.com/danielmesquitta/openfinance/internal/provider/repo"
 	"github.com/danielmesquitta/openfinance/internal/provider/repo/pgrepo"
 	"github.com/danielmesquitta/openfinance/pkg/crypto"
@@ -37,6 +41,14 @@ func Start() {
 		fx.Annotate(
 			pgrepo.NewSettingPgRepo,
 			fx.As(new(repo.SettingRepo)),
+		),
+		fx.Annotate(
+			brasilapi.NewClient,
+			fx.As(new(companyapi.API)),
+		),
+		fx.Annotate(
+			openai.NewOpenAIClient,
+			fx.As(new(gpt.GPTProvider)),
 		),
 
 		// Use cases

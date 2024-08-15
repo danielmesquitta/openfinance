@@ -14,6 +14,8 @@ require (
 	github.com/jinzhu/copier v0.4.0
 	github.com/lib/pq v1.10.9
 	github.com/markbates/goth v1.80.0
+	github.com/paemuri/brdoc v1.1.2
+	github.com/sashabaranov/go-openai v1.28.1
 	github.com/shareed2k/goth_fiber v0.3.0
 	github.com/spf13/viper v1.19.0
 	github.com/swaggo/swag v1.16.3

@@ -25,12 +25,10 @@ type Env struct {
 	BasicAuthPassword       string      `mapstructure:"BASIC_AUTH_PASSWORD"        validate:"required"`
 	JWTSecret               string      `mapstructure:"JWT_SECRET"                 validate:"required"`
 	HashSecret              string      `mapstructure:"HASH_SECRET"                validate:"required"`
+	OpenAIAPIToken          string      `mapstructure:"OPEN_AI_API_TOKEN"          validate:"required"`
 
 	// Optional (not required for AWS lambda)
 	DBConnection string `mapstructure:"DB_CONNECTION"`
-
-	// Optional (Not required for rest API)
-
 }
 
 func (e *Env) validate() error {

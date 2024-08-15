@@ -9,6 +9,8 @@ import (
 
 	"github.com/danielmesquitta/openfinance/internal/config"
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
+	"github.com/danielmesquitta/openfinance/internal/provider/companyapi/brasilapi"
+	"github.com/danielmesquitta/openfinance/internal/provider/gpt/openai"
 	"github.com/danielmesquitta/openfinance/internal/provider/repo/jsonrepo"
 	"github.com/danielmesquitta/openfinance/pkg/crypto"
 	"github.com/danielmesquitta/openfinance/pkg/validator"
@@ -19,11 +21,15 @@ func Handler() (events.APIGatewayProxyResponse, error) {
 	env := config.LoadEnv(val)
 	cry := crypto.NewCrypto(env)
 	settingRepo := jsonrepo.NewSettingJSONRepo(cry)
+	companyAPI := brasilapi.NewClient()
+	gptProvider := openai.NewOpenAIClient(env)
 
 	u := usecase.NewSyncAllUsersOpenFinanceDataToNotionUseCase(
 		val,
 		cry,
 		settingRepo,
+		companyAPI,
+		gptProvider,
 	)
 
 	err := u.Execute(usecase.SyncAllUsersOpenFinanceDataToNotionDTO{})

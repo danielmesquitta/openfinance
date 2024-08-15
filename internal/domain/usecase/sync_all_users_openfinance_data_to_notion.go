@@ -1,35 +1,48 @@
 package usecase
 
 import (
+	"cmp"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/provider/companyapi"
+	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
 	"github.com/danielmesquitta/openfinance/internal/provider/openfinance/meupluggyapi"
 	"github.com/danielmesquitta/openfinance/internal/provider/repo"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet/notionapi"
 	"github.com/danielmesquitta/openfinance/pkg/crypto"
 	"github.com/danielmesquitta/openfinance/pkg/validator"
+	"github.com/paemuri/brdoc"
 )
 
 type SyncAllUsersOpenFinanceDataToNotionUseCase struct {
 	val         *validator.Validator
 	crypto      crypto.Encrypter
 	settingRepo repo.SettingRepo
+	companyAPI  companyapi.API
+	gptProvider gpt.GPTProvider
 }
 
 func NewSyncAllUsersOpenFinanceDataToNotionUseCase(
 	val *validator.Validator,
 	crypto crypto.Encrypter,
 	settingRepo repo.SettingRepo,
+	companyAPI companyapi.API,
+	gptProvider gpt.GPTProvider,
 ) *SyncAllUsersOpenFinanceDataToNotionUseCase {
 	return &SyncAllUsersOpenFinanceDataToNotionUseCase{
 		val:         val,
 		crypto:      crypto,
 		settingRepo: settingRepo,
+		companyAPI:  companyAPI,
+		gptProvider: gptProvider,
 	}
 }
 
@@ -187,16 +200,109 @@ func (uc *SyncAllUsersOpenFinanceDataToNotionUseCase) syncUserOpenFinanceDataToN
 		transactions = append(transactions, t...)
 	}
 
-	uniqueCategories := map[string]struct{}{}
+	jobsCount = len(transactions)
+	errCh = make(chan error, jobsCount)
+	wg.Add(jobsCount)
+
+	for i, t := range transactions {
+		go func() {
+			defer wg.Done()
+			if !brdoc.IsCNPJ(t.Name) {
+				return
+			}
+
+			re := regexp.MustCompile("[^0-9]")
+			document := re.ReplaceAllString(t.Name, "")
+
+			company, err := uc.companyAPI.GetCompanyByID(document)
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			transactions[i].Name = cmp.Or(
+				company.TradingName,
+				company.Name,
+				transactions[i].Name,
+			)
+		}()
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	for e := range errCh {
+		err = errors.Join(err, e)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to get company data: %w", err)
+	}
+
+	uniqueTransactionNames := map[string]struct{}{}
 	for _, t := range transactions {
-		uniqueCategories[t.Category] = struct{}{}
+		uniqueTransactionNames[t.Name] = struct{}{}
+	}
+
+	transactionNames := []string{}
+	for name := range uniqueTransactionNames {
+		if name == "" {
+			continue
+		}
+		transactionNames = append(transactionNames, name)
+	}
+
+	jsonBytes, err := json.Marshal(transactionNames)
+	if err != nil {
+		return fmt.Errorf("error marshalling transaction names: %w", err)
+	}
+
+	unknownCategory := "Others"
+	gptMessage := fmt.Sprintf(
+		`Give me a JSON hash map, with key being a transaction and value being a category.
+     The values should be unique categories for the following transactions: %s
+     Here is an example response {
+       "TAPAJOS EMPREENDIMENTOS IMOBILIARIOS LTDA": "Real state",
+       "GROWTH SUPPLEMENTS": "Health and fitness",
+       "ALGAR TELECOM": "Telecommunications",
+       "Uber *Uber *Trip": "Transportation",
+       "ESTADO DE MINAS GERAIS": "Taxes",
+       "CEMIG D": "Energy"
+     }, return "%s" for unknown categories.
+     Be direct and return only the JSON
+    `,
+		jsonBytes,
+		unknownCategory,
+	)
+
+	gptResponse, err := uc.gptProvider.CreateChatCompletion(gptMessage)
+	if err != nil {
+		return fmt.Errorf("error creating chat completion: %w", err)
+	}
+
+	expectedJSON, err := formatGPTResponseToExpectedJSON(gptResponse)
+	if err != nil {
+		return fmt.Errorf("error formatting GPT response: %w", err)
+	}
+
+	categoryByTransaction := map[string]string{}
+	if err := json.Unmarshal([]byte(expectedJSON), &categoryByTransaction); err != nil {
+		return fmt.Errorf("error unmarshalling GPT response: %w", err)
+	}
+
+	uniqueCategories := map[string]struct{}{}
+	for i, t := range transactions {
+		category, ok := categoryByTransaction[t.Name]
+		if !ok {
+			category = unknownCategory
+		}
+
+		transactions[i].Category = category
+		uniqueCategories[category] = struct{}{}
 	}
 
 	categories := []string{}
 	for category := range uniqueCategories {
-		if category == "" {
-			continue
-		}
 		categories = append(categories, category)
 	}
 
@@ -277,4 +383,18 @@ func (uc *SyncAllUsersOpenFinanceDataToNotionUseCase) decryptSetting(
 	setting.NotionToken = textNotionToken
 
 	return nil
+}
+
+func formatGPTResponseToExpectedJSON(s string) (string, error) {
+	split := strings.Split(s, "{")
+	if len(split) != 2 {
+		return "", errors.New("invalid GPT response")
+	}
+
+	split = strings.Split(split[1], "}")
+	if len(split) != 2 {
+		return "", errors.New("invalid GPT response")
+	}
+
+	return fmt.Sprintf("{%s}", split[0]), nil
 }
