@@ -20,7 +20,7 @@ import (
 type SyncOne struct {
 	val                    *validator.Validator
 	companyAPIProvider     companyapi.APIProvider
-	gptProvider            gpt.GPTProvider
+	gptProvider            gpt.Provider
 	sheetProvider          sheet.Provider
 	openFinanceAPIProvider openfinance.APIProvider
 }
@@ -28,7 +28,7 @@ type SyncOne struct {
 func NewSyncOne(
 	val *validator.Validator,
 	companyAPIProvider companyapi.APIProvider,
-	gptProvider gpt.GPTProvider,
+	gptProvider gpt.Provider,
 	sheetProvider sheet.Provider,
 	openFinanceAPIProvider openfinance.APIProvider,
 ) *SyncOne {

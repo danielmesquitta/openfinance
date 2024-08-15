@@ -42,4 +42,4 @@ func (o *OpenAIClient) CreateChatCompletion(message string) (string, error) {
 	return resp.Choices[0].Message.Content, nil
 }
 
-var _ gpt.GPTProvider = (*OpenAIClient)(nil)
+var _ gpt.Provider = (*OpenAIClient)(nil)

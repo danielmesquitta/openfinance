@@ -1,5 +1,5 @@
 package gpt
 
-type GPTProvider interface {
+type Provider interface {
 	CreateChatCompletion(message string) (string, error)
 }

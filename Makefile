@@ -1,4 +1,4 @@
-.PHONY: default install test lint update build copy clear zip
+.PHONY: default install gen test lint update build copy clear zip
 
 default: dev
 
@@ -8,6 +8,8 @@ run:
 	@go run ./cmd/cli/main.go
 install:
 	@go mod download
+gen:
+	@go generate ./...
 test:
 	@go test -count=1 -v ./...
 lint:
