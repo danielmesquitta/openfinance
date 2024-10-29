@@ -8,58 +8,58 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 )
 
-type _insertRowReq struct {
-	Parent     _insertRowReqParent     `json:"parent"`
-	Properties _insertRowReqProperties `json:"properties"`
+type insertRowReq struct {
+	Parent     insertRowReqParent     `json:"parent"`
+	Properties insertRowReqProperties `json:"properties"`
 }
 
-type _insertRowReqParent struct {
+type insertRowReqParent struct {
 	DatabaseID string `json:"database_id"`
 }
 
-type _insertRowReqProperties struct {
-	Name          _insertRowReqName        `json:"Name"`
-	Description   _insertRowReqDescription `json:"Description"`
-	Category      _insertRowReqSelector    `json:"Category"`
-	Amount        _insertRowReqNumber      `json:"Amount"`
-	PaymentMethod _insertRowReqSelector    `json:"Payment Method"`
-	Date          _insertRowReqDate        `json:"Date"`
+type insertRowReqProperties struct {
+	Name          insertRowReqName        `json:"Name"`
+	Description   insertRowReqDescription `json:"Description"`
+	Category      insertRowReqSelector    `json:"Category"`
+	Amount        insertRowReqNumber      `json:"Amount"`
+	PaymentMethod insertRowReqSelector    `json:"Payment Method"`
+	Date          insertRowReqDate        `json:"Date"`
 }
 
-type _insertRowReqNumber struct {
+type insertRowReqNumber struct {
 	Number float64 `json:"number"`
 }
 
-type _insertRowReqSelector struct {
-	Select _insertRowReqSelect `json:"select"`
+type insertRowReqSelector struct {
+	Select insertRowReqSelect `json:"select"`
 }
 
-type _insertRowReqSelect struct {
+type insertRowReqSelect struct {
 	Name string `json:"name"`
 }
 
-type _insertRowReqDate struct {
-	Date _insertRowReqSubDate `json:"date"`
+type insertRowReqDate struct {
+	Date insertRowReqSubDate `json:"date"`
 }
 
-type _insertRowReqSubDate struct {
+type insertRowReqSubDate struct {
 	Start string `json:"start"`
 }
 
-type _insertRowReqDescription struct {
-	RichText []_insertRowReqRichText `json:"rich_text"`
+type insertRowReqDescription struct {
+	RichText []insertRowReqRichText `json:"rich_text"`
 }
 
-type _insertRowReqRichText struct {
-	Text _insertRowReqText `json:"text"`
+type insertRowReqRichText struct {
+	Text insertRowReqText `json:"text"`
 }
 
-type _insertRowReqText struct {
+type insertRowReqText struct {
 	Content string `json:"content"`
 }
 
-type _insertRowReqName struct {
-	Title []_insertRowReqRichText `json:"title"`
+type insertRowReqName struct {
+	Title []insertRowReqRichText `json:"title"`
 }
 
 func (c *Client) InsertTransaction(
@@ -74,44 +74,44 @@ func (c *Client) InsertTransaction(
 	url := c.baseURL
 	url.Path = "/v1/pages"
 
-	requestData := _insertRowReq{
-		Parent: _insertRowReqParent{
+	requestData := insertRowReq{
+		Parent: insertRowReqParent{
 			DatabaseID: tableID,
 		},
-		Properties: _insertRowReqProperties{
-			Name: _insertRowReqName{
-				Title: []_insertRowReqRichText{
+		Properties: insertRowReqProperties{
+			Name: insertRowReqName{
+				Title: []insertRowReqRichText{
 					{
-						Text: _insertRowReqText{
+						Text: insertRowReqText{
 							Content: transaction.Name,
 						},
 					},
 				},
 			},
-			Description: _insertRowReqDescription{
-				RichText: []_insertRowReqRichText{
+			Description: insertRowReqDescription{
+				RichText: []insertRowReqRichText{
 					{
-						Text: _insertRowReqText{
+						Text: insertRowReqText{
 							Content: transaction.Description,
 						},
 					},
 				},
 			},
-			Category: _insertRowReqSelector{
-				Select: _insertRowReqSelect{
+			Category: insertRowReqSelector{
+				Select: insertRowReqSelect{
 					Name: "Others",
 				},
 			},
-			Amount: _insertRowReqNumber{
+			Amount: insertRowReqNumber{
 				Number: transaction.Amount,
 			},
-			PaymentMethod: _insertRowReqSelector{
-				Select: _insertRowReqSelect{
+			PaymentMethod: insertRowReqSelector{
+				Select: insertRowReqSelect{
 					Name: string(transaction.PaymentMethod),
 				},
 			},
-			Date: _insertRowReqDate{
-				Date: _insertRowReqSubDate{
+			Date: insertRowReqDate{
+				Date: insertRowReqSubDate{
 					Start: transaction.Date.Format(time.RFC3339),
 				},
 			},
@@ -119,8 +119,8 @@ func (c *Client) InsertTransaction(
 	}
 
 	if transaction.Category != "" {
-		requestData.Properties.Category = _insertRowReqSelector{
-			Select: _insertRowReqSelect{
+		requestData.Properties.Category = insertRowReqSelector{
+			Select: insertRowReqSelect{
 				Name: formatSelectOption(transaction.Category),
 			},
 		}

@@ -41,14 +41,14 @@ var colors = []Color{
 	Gray,
 }
 
-type _conn struct {
+type conn struct {
 	accessToken string
 	pageID      string
 }
 
 type Client struct {
 	baseURL url.URL
-	conns   map[string]_conn
+	conns   map[string]conn
 }
 
 func NewClient(env *config.Env) *Client {
@@ -57,9 +57,9 @@ func NewClient(env *config.Env) *Client {
 		Host:   "api.notion.com",
 	}
 
-	conns := map[string]_conn{}
+	conns := map[string]conn{}
 	for _, user := range env.Users {
-		conns[user.ID] = _conn{
+		conns[user.ID] = conn{
 			accessToken: user.NotionToken,
 			pageID:      user.NotionPageID,
 		}

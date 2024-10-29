@@ -124,20 +124,24 @@ func (so *SyncOne) Execute(
 	}
 
 	gptMessage := fmt.Sprintf(
-		`Give me a JSON hash map, with key being a transaction and value being a category.
-     The values should be unique categories for the following transactions: %s
-     Here is an example response {
+		`Read the text below and return in JSON format,
+     with key as the transaction name and value as the category name.
+     Here is an example response:
+     {
        "TAPAJOS EMPREENDIMENTOS IMOBILIARIOS LTDA": "Real state",
        "GROWTH SUPPLEMENTS": "Health and fitness",
        "ALGAR TELECOM": "Telecommunications",
        "Uber *Uber *Trip": "Transportation",
+       "99app *99app": "Transportation",
        "ESTADO DE MINAS GERAIS": "Taxes",
+       "RECEITA FEDERAL": "Taxes",
        "CEMIG D": "Energy"
      }, return "%s" for unknown categories.
      Be direct and return only the JSON
+     %s
     `,
-		jsonBytes,
 		sheet.CategoryUnknown,
+		jsonBytes,
 	)
 
 	rawResponse, err := so.gptProvider.CreateChatCompletion(gptMessage)

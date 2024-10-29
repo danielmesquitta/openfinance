@@ -12,14 +12,14 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/provider/openfinance"
 )
 
-type _conn struct {
+type conn struct {
 	accessToken string
 	accountIDs  []string
 }
 
 type Client struct {
 	baseURL url.URL
-	conns   map[string]_conn
+	conns   map[string]conn
 }
 
 func NewClient(env *config.Env) *Client {
@@ -33,7 +33,7 @@ func NewClient(env *config.Env) *Client {
 	}
 
 	jobsCount := len(env.Users)
-	conns := make(map[string]_conn, jobsCount)
+	conns := make(map[string]conn, jobsCount)
 	wg := sync.WaitGroup{}
 	wg.Add(jobsCount)
 
@@ -47,12 +47,14 @@ func NewClient(env *config.Env) *Client {
 			if err != nil {
 				panic(err)
 			}
-			conns[user.ID] = _conn{
+			conns[user.ID] = conn{
 				accessToken: token,
 				accountIDs:  user.MeuPluggyAccountIDs,
 			}
 		}()
 	}
+
+	wg.Wait()
 
 	c.conns = conns
 

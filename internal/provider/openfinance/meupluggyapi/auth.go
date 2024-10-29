@@ -8,11 +8,11 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 )
 
-type _authResponse struct {
+type authResponse struct {
 	APIKey string `json:"apiKey"`
 }
 
-type _authRequest struct {
+type authRequest struct {
 	ClientID     string `json:"clientId"`
 	ClientSecret string `json:"clientSecret"`
 }
@@ -23,7 +23,7 @@ func (c *Client) authenticate(
 	url := c.baseURL
 	url.Path = "/auth"
 
-	authRequest := _authRequest{
+	authRequest := authRequest{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 	}
@@ -58,7 +58,7 @@ func (c *Client) authenticate(
 
 	decoder := json.NewDecoder(res.Body)
 
-	data := _authResponse{}
+	data := authResponse{}
 	if err := decoder.Decode(&data); err != nil {
 		return "", entity.NewErr(err)
 	}

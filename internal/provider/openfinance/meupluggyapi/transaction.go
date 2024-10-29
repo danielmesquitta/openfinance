@@ -14,62 +14,65 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
 )
 
-type _listTransactionsResponse struct {
-	Total      int64     `json:"total"`
-	TotalPages int64     `json:"totalPages"`
-	Page       int64     `json:"page"`
-	Results    []_result `json:"results"`
+type listTransactionsResponse struct {
+	Total      int64    `json:"total"`
+	TotalPages int64    `json:"totalPages"`
+	Page       int64    `json:"page"`
+	Results    []result `json:"results"`
 }
 
-type _result struct {
-	ID                      string               `json:"id"`
-	Description             string               `json:"description"`
-	Amount                  float64              `json:"amount"`
-	AmountInAccountCurrency *float64             `json:"amountInAccountCurrency"`
-	Date                    time.Time            `json:"date"`
-	Category                *string              `json:"category"`
-	PaymentData             *_paymentData        `json:"paymentData"`
-	Type                    _resultType          `json:"type"`
-	CreditCardMetadata      *_creditCardMetadata `json:"creditCardMetadata"`
+type result struct {
+	ID                      string              `json:"id"`
+	Description             string              `json:"description"`
+	Amount                  float64             `json:"amount"`
+	AmountInAccountCurrency *float64            `json:"amountInAccountCurrency"`
+	Date                    time.Time           `json:"date"`
+	Category                *string             `json:"category"`
+	PaymentData             *paymentData        `json:"paymentData"`
+	Type                    resultType          `json:"type"`
+	CreditCardMetadata      *creditCardMetadata `json:"creditCardMetadata"`
 }
 
-type _creditCardMetadata struct {
+type creditCardMetadata struct {
 	CardNumber        *string `json:"cardNumber,omitempty"`
 	TotalInstallments *int64  `json:"totalInstallments,omitempty"`
 	InstallmentNumber *int64  `json:"installmentNumber,omitempty"`
 }
 
-type _paymentData struct {
-	Payer         *_payer               `json:"payer"`
+type paymentData struct {
+	Payer         *payer                `json:"payer"`
 	PaymentMethod *entity.PaymentMethod `json:"paymentMethod"`
-	Receiver      *_payer               `json:"receiver"`
+	Receiver      *payer                `json:"receiver"`
 }
 
-type _payer struct {
-	Name           *string          `json:"name"`
-	DocumentNumber *_documentNumber `json:"documentNumber"`
+type payer struct {
+	Name           *string         `json:"name"`
+	DocumentNumber *documentNumber `json:"documentNumber"`
 }
 
-type _documentNumber struct {
+type documentNumber struct {
 	Type  string `json:"type"`
 	Value string `json:"value"`
 }
 
-type _resultType string
+type resultType string
 
 const (
-	Credit _resultType = "CREDIT"
-	Debit  _resultType = "DEBIT"
+	Credit resultType = "CREDIT"
+	Debit  resultType = "DEBIT"
 )
 
 func (c *Client) ListTransactionsByUserID(
 	userID string,
 	from, to time.Time,
 ) ([]entity.Transaction, error) {
-	conn := c.conns[userID]
+	conn, ok := c.conns[userID]
+	if !ok {
+		return nil, entity.NewErr("connection not found for user " + userID)
+	}
 
 	jobsCount := len(conn.accountIDs)
-	ch := make(chan _listTransactionsResponse, jobsCount)
+	ch := make(chan listTransactionsResponse, jobsCount)
 	errCh := make(chan error, jobsCount)
 	wg := sync.WaitGroup{}
 	wg.Add(jobsCount)
@@ -116,7 +119,7 @@ func (c *Client) ListTransactionsByUserID(
 			}
 
 			decoder := json.NewDecoder(res.Body)
-			data := _listTransactionsResponse{}
+			data := listTransactionsResponse{}
 			if err := decoder.Decode(&data); err != nil {
 				errCh <- entity.NewErr(err)
 				return
@@ -149,7 +152,7 @@ func (c *Client) ListTransactionsByUserID(
 }
 
 func (c *Client) parseRequestToTransactions(
-	data _listTransactionsResponse,
+	data listTransactionsResponse,
 ) []entity.Transaction {
 	transactions := []entity.Transaction{}
 
@@ -176,13 +179,13 @@ loop:
 			transaction.Category = *r.Category
 		}
 
-		accountType := entity.CreditCard
+		accountType := entity.AccountTypeCreditCard
 		if r.PaymentData != nil {
-			accountType = entity.BankAccount
+			accountType = entity.AccountTypeBank
 		}
 
 		switch accountType {
-		case entity.BankAccount:
+		case entity.AccountTypeBank:
 			if r.PaymentData == nil {
 				slog.Error("PaymentData is nil", "result", r)
 				continue loop
@@ -218,9 +221,9 @@ loop:
 				goto appendTransaction
 			}
 
-		case entity.CreditCard:
+		case entity.AccountTypeCreditCard:
 			transaction.Name = r.Description
-			transaction.PaymentMethod = "CREDIT CARD"
+			transaction.PaymentMethod = entity.PaymentMethodCreditCard
 		}
 
 	appendTransaction:

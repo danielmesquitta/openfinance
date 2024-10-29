@@ -53,7 +53,7 @@ func (e *Env) loadEnv() error {
 		return err
 	}
 
-	if err := e.validateEnvFile(e.EnvFileData); err != nil {
+	if err := e.validateEnvFile(); err != nil {
 		return err
 	}
 
@@ -61,7 +61,7 @@ func (e *Env) loadEnv() error {
 		return err
 	}
 
-	if err := e.validateJSONFile(e.JSONFileData); err != nil {
+	if err := e.validateJSONFile(); err != nil {
 		return err
 	}
 
@@ -78,7 +78,7 @@ func (e *Env) loadDataFromEnvFile() error {
 		return err
 	}
 
-	if err := viper.Unmarshal(e); err != nil {
+	if err := viper.Unmarshal(&e.EnvFileData); err != nil {
 		return err
 	}
 
@@ -103,13 +103,13 @@ func (e *Env) loadDataFromJSON() error {
 		return err
 	}
 
-	e.Users = users
+	e.JSONFileData.Users = users
 
 	return nil
 }
 
-func (e *Env) validateEnvFile(data EnvFileData) error {
-	if err := e.val.Validate(data); err != nil {
+func (e *Env) validateEnvFile() error {
+	if err := e.val.Validate(e.EnvFileData); err != nil {
 		return err
 	}
 	if e.Environment == "" {
@@ -118,8 +118,8 @@ func (e *Env) validateEnvFile(data EnvFileData) error {
 	return nil
 }
 
-func (e *Env) validateJSONFile(data JSONFileData) error {
-	if err := e.val.Validate(data); err != nil {
+func (e *Env) validateJSONFile() error {
+	if err := e.val.Validate(e.JSONFileData); err != nil {
 		return err
 	}
 	if e.Environment == "" {

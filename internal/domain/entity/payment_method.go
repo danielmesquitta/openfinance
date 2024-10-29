@@ -3,7 +3,8 @@ package entity
 type PaymentMethod string
 
 const (
-	Boleto PaymentMethod = "BOLETO"
-	Pix    PaymentMethod = "PIX"
-	Ted    PaymentMethod = "TED"
+	PaymentMethodBoleto     PaymentMethod = "BOLETO"
+	PaymentMethodPix        PaymentMethod = "PIX"
+	PaymentMethodTed        PaymentMethod = "TED"
+	PaymentMethodCreditCard PaymentMethod = "CREDIT CARD"
 )
