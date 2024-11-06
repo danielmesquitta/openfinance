@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/danielmesquitta/openfinance/internal/config"
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
@@ -30,6 +31,8 @@ func (sa *SyncAll) Execute(
 	dto SyncDTO,
 ) error {
 	setDefaultValues(&dto)
+
+	fmt.Println("dto", dto.StartDate, dto.EndDate)
 
 	if err := sa.val.Validate(dto); err != nil {
 		return err

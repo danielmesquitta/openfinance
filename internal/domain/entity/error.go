@@ -47,6 +47,12 @@ func newErr(err any, errType ErrType) *Err {
 			StackTrace: string(debug.Stack()),
 			Type:       errType,
 		}
+	case []byte:
+		return &Err{
+			Message:    string(v),
+			StackTrace: string(debug.Stack()),
+			Type:       errType,
+		}
 	default:
 		panic("trying to create an Err with an unsupported type")
 	}

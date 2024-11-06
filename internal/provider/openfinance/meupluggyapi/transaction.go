@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log/slog"
 	"math"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -80,47 +79,28 @@ func (c *Client) ListTransactionsByUserID(
 	for _, accountID := range conn.accountIDs {
 		go func() {
 			defer wg.Done()
-
-			url := c.baseURL
-			url.Path = "/transactions"
-			query := url.Query()
-
-			query.Add("pageSize", "500")
-			query.Add("from", from.Format(time.DateOnly))
-			query.Add("to", to.Format(time.DateOnly))
-
-			query.Add("accountId", accountID)
-
-			fullURL := url.String() + "?" + query.Encode()
-
-			req, err := http.NewRequest("GET", fullURL, nil)
+			res, err := c.client.R().
+				SetQueryParams(map[string]string{
+					"pageSize":  "500",
+					"from":      from.Format(time.DateOnly),
+					"to":        to.Format(time.DateOnly),
+					"accountId": accountID,
+				}).
+				SetHeader("X-API-KEY", conn.accessToken).
+				Get("/transactions")
 			if err != nil {
 				errCh <- entity.NewErr(err)
 				return
 			}
-
-			req.Header.Add("accept", "application/json")
-			req.Header.Add("X-API-KEY", conn.accessToken)
-
-			res, err := http.DefaultClient.Do(req)
-			if err != nil {
-				errCh <- entity.NewErr(err)
-				return
-			}
-			if res == nil {
-				errCh <- entity.NewErr("response is nil")
-				return
-			}
-			defer res.Body.Close()
-
-			if res.StatusCode != 200 {
-				errCh <- parseResError(res)
+			body := res.Body()
+			if statusCode := res.StatusCode(); statusCode < 200 ||
+				statusCode >= 300 {
+				errCh <- entity.NewErr(body)
 				return
 			}
 
-			decoder := json.NewDecoder(res.Body)
 			data := listTransactionsResponse{}
-			if err := decoder.Decode(&data); err != nil {
+			if err := json.Unmarshal(body, &data); err != nil {
 				errCh <- entity.NewErr(err)
 				return
 			}
@@ -137,7 +117,6 @@ func (c *Client) ListTransactionsByUserID(
 	for e := range errCh {
 		err = errors.Join(err, e)
 	}
-
 	if err != nil {
 		return nil, entity.NewErr(err)
 	}

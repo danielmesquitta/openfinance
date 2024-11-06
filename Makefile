@@ -1,4 +1,4 @@
-.PHONY: default run install generate test lint update build copy clear zip deploy
+.PHONY: default run install test lint update build copy clear zip deploy
 
 default: run
 

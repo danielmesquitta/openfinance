@@ -1,14 +1,11 @@
 package meupluggyapi
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/url"
 	"sync"
 
+	"github.com/go-resty/resty/v2"
+
 	"github.com/danielmesquitta/openfinance/internal/config"
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/provider/openfinance"
 )
 
@@ -18,20 +15,18 @@ type conn struct {
 }
 
 type Client struct {
-	baseURL url.URL
-	conns   map[string]conn
+	client *resty.Client
+	conns  map[string]conn
 }
 
 func NewClient(env *config.Env) *Client {
-	baseURL := url.URL{
-		Scheme: "https",
-		Host:   "api.pluggy.ai",
-	}
+	client := resty.New().SetBaseURL("https//api.pluggy.ai")
 
 	c := &Client{
-		baseURL: baseURL,
+		client: client,
 	}
 
+	mu := sync.Mutex{}
 	jobsCount := len(env.Users)
 	conns := make(map[string]conn, jobsCount)
 	wg := sync.WaitGroup{}
@@ -47,10 +42,12 @@ func NewClient(env *config.Env) *Client {
 			if err != nil {
 				panic(err)
 			}
+			mu.Lock()
 			conns[user.ID] = conn{
 				accessToken: token,
 				accountIDs:  user.MeuPluggyAccountIDs,
 			}
+			mu.Unlock()
 		}()
 	}
 
@@ -59,32 +56,6 @@ func NewClient(env *config.Env) *Client {
 	c.conns = conns
 
 	return c
-}
-
-type _errorMessage struct {
-	Code            int    `json:"code"`
-	Message         string `json:"message"`
-	CodeDescription string `json:"codeDescription"`
-	Data            any    `json:"data"`
-}
-
-func parseResError(res *http.Response) error {
-	jsonData := _errorMessage{}
-	decoder := json.NewDecoder(res.Body)
-	if err := decoder.Decode(&jsonData); err != nil {
-		return entity.NewErr(fmt.Sprintf(
-			"error requesting %s: %s",
-			res.Request.URL,
-			res.Status,
-		))
-	}
-
-	return entity.NewErr(fmt.Sprintf(
-		"error requesting %s: %s %v",
-		res.Request.URL,
-		res.Status,
-		jsonData,
-	))
 }
 
 var _ openfinance.APIProvider = (*Client)(nil)
