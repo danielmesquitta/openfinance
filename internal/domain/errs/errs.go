@@ -1,4 +1,4 @@
-package entity
+package errs
 
 import (
 	"runtime/debug"
@@ -23,11 +23,11 @@ func (e Err) Error() string {
 	return e.Message
 }
 
-// NewErr creates a new Err instance from either an error or a string,
+// New creates a new Err instance from either an error or a string,
 // and sets the Type flag to unknown. This is useful when you want to
 // create an error that is not expected to happen, and you want to
 // log it with stack tracing.
-func NewErr(err any) *Err {
+func New(err any) *Err {
 	return newErr(err, ErrTypeUnknown)
 }
 

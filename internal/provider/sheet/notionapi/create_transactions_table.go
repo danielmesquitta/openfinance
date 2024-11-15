@@ -1,9 +1,9 @@
 package notionapi
 
 import (
-	"net/http"
+	"encoding/json"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 )
 
@@ -25,12 +25,11 @@ type notionNewTableReqParent struct {
 }
 
 type notionNewTableReqProperties struct {
-	Name          notionNewTableReqName        `json:"Name"`
-	Description   notionNewTableReqDescription `json:"Description"`
-	Category      notionNewTableReqCategory    `json:"Category"`
-	Amount        notionNewTableReqAmount      `json:"Amount"`
-	PaymentMethod notionNewTableReqCategory    `json:"Payment Method"`
-	Date          notionNewTableReqDate        `json:"Date"`
+	Name          notionNewTableReqName     `json:"Name"`
+	Category      notionNewTableReqCategory `json:"Category"`
+	Amount        notionNewTableReqAmount   `json:"Amount"`
+	PaymentMethod notionNewTableReqCategory `json:"Payment Method"`
+	Date          notionNewTableReqDate     `json:"Date"`
 }
 
 type notionNewTableReqAmount struct {
@@ -58,10 +57,6 @@ type notionNewTableReqDate struct {
 	Date struct{} `json:"date"`
 }
 
-type notionNewTableReqDescription struct {
-	RichText struct{} `json:"rich_text"`
-}
-
 type notionNewTableReqName struct {
 	Title struct{} `json:"title"`
 }
@@ -81,11 +76,8 @@ func (c *Client) CreateTransactionsTable(
 ) (*sheet.Table, error) {
 	conn, ok := c.conns[userID]
 	if !ok {
-		return nil, entity.NewErr("connection not found for user " + userID)
+		return nil, errs.New("connection not found for user " + userID)
 	}
-
-	url := c.baseURL
-	url.Path = "/v1/databases"
 
 	categoryOptions := make(
 		[]notionNewTableReqSelectOption,
@@ -123,9 +115,6 @@ func (c *Client) CreateTransactionsTable(
 			Name: notionNewTableReqName{
 				Title: struct{}{},
 			},
-			Description: notionNewTableReqDescription{
-				RichText: struct{}{},
-			},
 			Category: notionNewTableReqCategory{
 				Select: notionNewTableReqSelect{
 					Options: categoryOptions,
@@ -152,16 +141,24 @@ func (c *Client) CreateTransactionsTable(
 		},
 	}
 
-	responseData := &sheet.Table{}
-	if err := c.doRequest(
-		http.MethodPost,
-		url.String(),
-		conn.accessToken,
-		requestData,
-		responseData,
-	); err != nil {
-		return nil, entity.NewErr(err)
+	res, err := c.client.R().
+		SetHeader("Authorization", "Bearer "+conn.accessToken).
+		SetBody(requestData).
+		Post("/v1/databases")
+
+	if err != nil {
+		return nil, errs.New(err)
 	}
 
-	return responseData, nil
+	body := res.Body()
+	if statusCode := res.StatusCode(); statusCode < 200 || statusCode >= 300 {
+		return nil, errs.New(body)
+	}
+
+	data := &sheet.Table{}
+	if err := json.Unmarshal(res.Body(), &data); err != nil {
+		return nil, errs.New(err)
+	}
+
+	return data, nil
 }

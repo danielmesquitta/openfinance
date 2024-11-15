@@ -1,9 +1,9 @@
-package meupluggyapi
+package pluggyapi
 
 import (
 	"encoding/json"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 )
 
 type authResponse struct {
@@ -25,21 +25,21 @@ func (c *Client) authenticate(
 
 	res, err := c.client.R().SetBody(authRequest).Post("/auth")
 	if err != nil {
-		return "", entity.NewErr(err)
+		return "", errs.New(err)
 	}
 
 	body := res.Body()
 	if statusCode := res.StatusCode(); statusCode < 200 || statusCode >= 300 {
-		return "", entity.NewErr(body)
+		return "", errs.New(body)
 	}
 
 	data := authResponse{}
 	if err := json.Unmarshal(res.Body(), &data); err != nil {
-		return "", entity.NewErr(err)
+		return "", errs.New(err)
 	}
 
 	if data.APIKey == "" {
-		return "", entity.NewErr("api key is empty")
+		return "", errs.New("api key is empty")
 	}
 
 	return data.APIKey, nil

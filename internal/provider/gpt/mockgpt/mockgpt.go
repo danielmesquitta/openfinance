@@ -1,7 +1,7 @@
 package mockgpt
 
 import (
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
 )
 
@@ -18,7 +18,7 @@ func NewMockGPT(completionsByMessage map[string]string) *MockGPT {
 func (m MockGPT) CreateChatCompletion(message string) (string, error) {
 	completion, ok := m.CompletionsByMessage[message]
 	if !ok {
-		return "", entity.NewErr("message not found")
+		return "", errs.New("message not found")
 	}
 
 	return completion, nil

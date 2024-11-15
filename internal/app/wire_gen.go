@@ -12,7 +12,7 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
 	"github.com/danielmesquitta/openfinance/internal/provider/companyapi/brasilapi"
 	"github.com/danielmesquitta/openfinance/internal/provider/gpt/openai"
-	"github.com/danielmesquitta/openfinance/internal/provider/openfinance/meupluggyapi"
+	"github.com/danielmesquitta/openfinance/internal/provider/openfinance/pluggyapi"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet/notionapi"
 )
 
@@ -24,8 +24,8 @@ func NewSyncAllUseCase() *usecase.SyncAll {
 	client := brasilapi.NewClient()
 	openAIClient := openai.NewOpenAIClient(env)
 	notionapiClient := notionapi.NewClient(env)
-	meupluggyapiClient := meupluggyapi.NewClient(env)
-	syncOne := usecase.NewSyncOne(validatorValidator, client, openAIClient, notionapiClient, meupluggyapiClient)
+	pluggyapiClient := pluggyapi.NewClient(env)
+	syncOne := usecase.NewSyncOne(validatorValidator, client, openAIClient, notionapiClient, pluggyapiClient)
 	syncAll := usecase.NewSyncAll(validatorValidator, env, syncOne)
 	return syncAll
 }

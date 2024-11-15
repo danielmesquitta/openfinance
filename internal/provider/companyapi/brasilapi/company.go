@@ -2,39 +2,26 @@ package brasilapi
 
 import (
 	"encoding/json"
-	"net/http"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 )
 
 func (c *Client) GetCompanyByID(id string) (entity.Company, error) {
-	url := c.BaseURL.String() + "/api/cnpj/v1/" + id
+	res, err := c.R().Get("/api/cnpj/v1/" + id)
 
-	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return entity.Company{}, entity.NewErr(err)
+		return entity.Company{}, errs.New(err)
 	}
 
-	req.Header.Add("accept", "application/json")
-	req.Header.Add("content-type", "application/json")
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return entity.Company{}, entity.NewErr(err)
-	}
-	if res == nil {
-		return entity.Company{}, entity.NewErr("response is nil")
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != 200 {
-		return entity.Company{}, parseResError(res)
+	body := res.Body()
+	if statusCode := res.StatusCode(); statusCode < 200 || statusCode >= 300 {
+		return entity.Company{}, errs.New(body)
 	}
 
-	decoder := json.NewDecoder(res.Body)
 	data := entity.Company{}
-	if err := decoder.Decode(&data); err != nil {
-		return entity.Company{}, entity.NewErr(err)
+	if err := json.Unmarshal(body, &data); err != nil {
+		return entity.Company{}, errs.New(err)
 	}
 
 	return data, nil

@@ -3,7 +3,7 @@ package docutil
 import (
 	"regexp"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 )
 
 func CleanDocument(doc string) string {
@@ -31,5 +31,5 @@ func MaskDocument(doc string) (string, error) {
 		return doc[:3] + "." + doc[3:6] + "." + doc[6:9] + "-" + doc[9:], nil
 	}
 
-	return "", entity.NewErr("invalid document")
+	return "", errs.New("invalid document")
 }

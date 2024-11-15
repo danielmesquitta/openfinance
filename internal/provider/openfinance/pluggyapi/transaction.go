@@ -1,16 +1,16 @@
-package meupluggyapi
+package pluggyapi
 
 import (
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"math"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
+	"github.com/sourcegraph/conc/iter"
 )
 
 type listTransactionsResponse struct {
@@ -67,62 +67,45 @@ func (c *Client) ListTransactionsByUserID(
 ) ([]entity.Transaction, error) {
 	conn, ok := c.conns[userID]
 	if !ok {
-		return nil, entity.NewErr("connection not found for user " + userID)
+		return nil, errs.New("connection not found for user " + userID)
 	}
 
-	jobsCount := len(conn.accountIDs)
-	ch := make(chan listTransactionsResponse, jobsCount)
-	errCh := make(chan error, jobsCount)
-	wg := sync.WaitGroup{}
-	wg.Add(jobsCount)
-
-	for _, accountID := range conn.accountIDs {
-		go func() {
-			defer wg.Done()
+	resTransactions, err := iter.MapErr(
+		conn.accountIDs,
+		func(accountID *string) (listTransactionsResponse, error) {
 			res, err := c.client.R().
 				SetQueryParams(map[string]string{
 					"pageSize":  "500",
 					"from":      from.Format(time.DateOnly),
 					"to":        to.Format(time.DateOnly),
-					"accountId": accountID,
+					"accountId": *accountID,
 				}).
 				SetHeader("X-API-KEY", conn.accessToken).
 				Get("/transactions")
 			if err != nil {
-				errCh <- entity.NewErr(err)
-				return
+				return listTransactionsResponse{}, errs.New(err)
 			}
 			body := res.Body()
 			if statusCode := res.StatusCode(); statusCode < 200 ||
 				statusCode >= 300 {
-				errCh <- entity.NewErr(body)
-				return
+				return listTransactionsResponse{}, errs.New(body)
 			}
 
 			data := listTransactionsResponse{}
 			if err := json.Unmarshal(body, &data); err != nil {
-				errCh <- entity.NewErr(err)
-				return
+				return listTransactionsResponse{}, errs.New(body)
 			}
 
-			ch <- data
-		}()
-	}
+			return data, nil
+		},
+	)
 
-	wg.Wait()
-	close(errCh)
-	close(ch)
-
-	var err error
-	for e := range errCh {
-		err = errors.Join(err, e)
-	}
 	if err != nil {
-		return nil, entity.NewErr(err)
+		return nil, errs.New(err)
 	}
 
 	transactions := []entity.Transaction{}
-	for data := range ch {
+	for _, data := range resTransactions {
 		t := c.parseRequestToTransactions(data)
 		transactions = append(transactions, t...)
 	}
@@ -176,7 +159,11 @@ loop:
 			}
 
 			transaction.PaymentMethod = *r.PaymentData.PaymentMethod
-			transaction.Description = r.Description
+
+			if r.Description != "" {
+				transaction.Name = r.Description
+				goto appendTransaction
+			}
 
 			if hasReceiver := (r.PaymentData.Receiver != nil); !hasReceiver {
 				goto appendTransaction

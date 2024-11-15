@@ -12,7 +12,7 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
 	"github.com/danielmesquitta/openfinance/internal/provider/gpt/openai"
 	"github.com/danielmesquitta/openfinance/internal/provider/openfinance"
-	"github.com/danielmesquitta/openfinance/internal/provider/openfinance/meupluggyapi"
+	"github.com/danielmesquitta/openfinance/internal/provider/openfinance/pluggyapi"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet/notionapi"
 	"github.com/google/wire"
@@ -32,8 +32,8 @@ func NewSyncAllUseCase() *usecase.SyncAll {
 		wire.Bind(new(sheet.Provider), new(*notionapi.Client)),
 		notionapi.NewClient,
 
-		wire.Bind(new(openfinance.APIProvider), new(*meupluggyapi.Client)),
-		meupluggyapi.NewClient,
+		wire.Bind(new(openfinance.APIProvider), new(*pluggyapi.Client)),
+		pluggyapi.NewClient,
 
 		usecase.NewSyncOne,
 		usecase.NewSyncAll,

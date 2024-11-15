@@ -1,10 +1,11 @@
 package notionapi
 
 import (
-	"net/http"
+	"encoding/json"
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 )
 
@@ -18,12 +19,11 @@ type insertRowReqParent struct {
 }
 
 type insertRowReqProperties struct {
-	Name          insertRowReqName        `json:"Name"`
-	Description   insertRowReqDescription `json:"Description"`
-	Category      insertRowReqSelector    `json:"Category"`
-	Amount        insertRowReqNumber      `json:"Amount"`
-	PaymentMethod insertRowReqSelector    `json:"Payment Method"`
-	Date          insertRowReqDate        `json:"Date"`
+	Name          insertRowReqName     `json:"Name"`
+	Category      insertRowReqSelector `json:"Category"`
+	Amount        insertRowReqNumber   `json:"Amount"`
+	PaymentMethod insertRowReqSelector `json:"Payment Method"`
+	Date          insertRowReqDate     `json:"Date"`
 }
 
 type insertRowReqNumber struct {
@@ -46,10 +46,6 @@ type insertRowReqSubDate struct {
 	Start string `json:"start"`
 }
 
-type insertRowReqDescription struct {
-	RichText []insertRowReqRichText `json:"rich_text"`
-}
-
 type insertRowReqRichText struct {
 	Text insertRowReqText `json:"text"`
 }
@@ -68,11 +64,8 @@ func (c *Client) InsertTransaction(
 ) (*sheet.Table, error) {
 	conn, ok := c.conns[userID]
 	if !ok {
-		return nil, entity.NewErr("connection not found for user " + userID)
+		return nil, errs.New("connection not found for user " + userID)
 	}
-
-	url := c.baseURL
-	url.Path = "/v1/pages"
 
 	requestData := insertRowReq{
 		Parent: insertRowReqParent{
@@ -84,15 +77,6 @@ func (c *Client) InsertTransaction(
 					{
 						Text: insertRowReqText{
 							Content: transaction.Name,
-						},
-					},
-				},
-			},
-			Description: insertRowReqDescription{
-				RichText: []insertRowReqRichText{
-					{
-						Text: insertRowReqText{
-							Content: transaction.Description,
 						},
 					},
 				},
@@ -126,16 +110,23 @@ func (c *Client) InsertTransaction(
 		}
 	}
 
-	responseData := &sheet.Table{}
-	if err := c.doRequest(
-		http.MethodPost,
-		url.String(),
-		conn.accessToken,
-		requestData,
-		responseData,
-	); err != nil {
-		return nil, entity.NewErr(err)
+	res, err := c.client.R().
+		SetHeader("Authorization", "Bearer "+conn.accessToken).
+		SetBody(requestData).
+		Post("/v1/pages")
+	if err != nil {
+		return nil, errs.New(err)
 	}
 
-	return responseData, nil
+	body := res.Body()
+	if statusCode := res.StatusCode(); statusCode < 200 || statusCode >= 300 {
+		return nil, errs.New(body)
+	}
+
+	data := &sheet.Table{}
+	if err := json.Unmarshal(res.Body(), &data); err != nil {
+		return nil, errs.New(err)
+	}
+
+	return data, nil
 }

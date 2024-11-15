@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/danielmesquitta/openfinance/internal/config"
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
 	"github.com/sashabaranov/go-openai"
 )
@@ -36,7 +36,7 @@ func (o *OpenAIClient) CreateChatCompletion(message string) (string, error) {
 	)
 
 	if err != nil {
-		return "", entity.NewErr(err)
+		return "", errs.New(err)
 	}
 
 	return resp.Choices[0].Message.Content, nil

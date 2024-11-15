@@ -3,7 +3,7 @@ package usecase
 import (
 	"time"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 )
 
 type SyncDTO struct {
@@ -46,7 +46,7 @@ func setDefaultValues(
 func parseDates(
 	dto SyncDTO,
 ) (startDate time.Time, endDate time.Time, err error) {
-	invalidDateErr := entity.ErrValidation
+	invalidDateErr := errs.ErrValidation
 	invalidDateErr.Message = "invalid date"
 
 	startDate, err = time.Parse(time.RFC3339, dto.StartDate)

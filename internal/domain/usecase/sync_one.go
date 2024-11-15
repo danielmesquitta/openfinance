@@ -3,13 +3,15 @@ package usecase
 import (
 	"cmp"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"strings"
-	"sync"
+	"log/slog"
+
+	"github.com/sourcegraph/conc/iter"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
+	"github.com/danielmesquitta/openfinance/internal/pkg/jsonutil"
 	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
 	"github.com/danielmesquitta/openfinance/internal/provider/companyapi"
 	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
@@ -63,47 +65,28 @@ func (so *SyncOne) Execute(
 	)
 
 	if err != nil {
-		return entity.NewErr(err)
+		return errs.New(err)
 	}
 
-	jobsCount := len(transactions)
-	errCh := make(chan error, jobsCount)
-	wg := sync.WaitGroup{}
-	wg.Add(jobsCount)
-
-	for i, t := range transactions {
-		go func() {
-			defer wg.Done()
-			if !docutil.IsCNPJ(t.Name) {
-				return
-			}
-
-			document := docutil.CleanDocument(t.Name)
-
-			company, err := so.companyAPIProvider.GetCompanyByID(document)
-			if err != nil {
-				errCh <- err
-				return
-			}
-
-			transactions[i].Name = cmp.Or(
-				company.TradingName,
-				company.Name,
-				transactions[i].Name,
+	iter.ForEachIdx(transactions, func(i int, t *entity.Transaction) {
+		if !docutil.IsCNPJ(t.Name) {
+			return
+		}
+		document := docutil.CleanDocument(t.Name)
+		company, err := so.companyAPIProvider.GetCompanyByID(document)
+		if err != nil {
+			slog.Error("failed to get company by document",
+				"document", document,
+				"error", err,
 			)
-		}()
-	}
-
-	wg.Wait()
-	close(errCh)
-
-	for e := range errCh {
-		err = errors.Join(err, e)
-	}
-
-	if err != nil {
-		return entity.NewErr(err)
-	}
+			return
+		}
+		transactions[i].Name = cmp.Or(
+			company.TradingName,
+			company.Name,
+			transactions[i].Name,
+		)
+	})
 
 	uniqueTransactionNames := map[string]struct{}{}
 	for _, t := range transactions {
@@ -120,7 +103,7 @@ func (so *SyncOne) Execute(
 
 	jsonBytes, err := json.Marshal(transactionNames)
 	if err != nil {
-		return entity.NewErr(err)
+		return errs.New(err)
 	}
 
 	gptMessage := fmt.Sprintf(
@@ -146,17 +129,17 @@ func (so *SyncOne) Execute(
 
 	rawResponse, err := so.gptProvider.CreateChatCompletion(gptMessage)
 	if err != nil {
-		return entity.NewErr(err)
+		return errs.New(err)
 	}
 
-	jsonResponse, err := fmtRawGPTResponseToJSON(rawResponse)
-	if err != nil {
-		return entity.NewErr(err)
+	jsonResponse := jsonutil.ExtractJSONFromText(rawResponse)
+	if len(jsonResponse) != 1 {
+		return errs.New("invalid JSON response")
 	}
 
 	categoryByTransaction := map[string]string{}
-	if err := json.Unmarshal([]byte(jsonResponse), &categoryByTransaction); err != nil {
-		return entity.NewErr(err)
+	if err := json.Unmarshal([]byte(jsonResponse[0]), &categoryByTransaction); err != nil {
+		return errs.New(err)
 	}
 
 	uniqueCategories := map[string]struct{}{}
@@ -188,46 +171,24 @@ func (so *SyncOne) Execute(
 		},
 	)
 	if err != nil {
-		return entity.NewErr(err)
+		return errs.New(err)
 	}
 
-	jobsCount = len(transactions)
-	errCh = make(chan error)
-
+	// @TODO: Do a batch insert
 	for _, transaction := range transactions {
-		go func() {
-			_, err := so.sheetProvider.InsertTransaction(
-				userID,
-				newTableResponse.ID,
-				transaction,
+		_, err := so.sheetProvider.InsertTransaction(
+			userID,
+			newTableResponse.ID,
+			transaction,
+		)
+		if err != nil {
+			slog.Error(
+				"failed to insert transaction into database",
+				"error",
+				err,
 			)
-			errCh <- err
-		}()
-	}
-
-	for i := 0; i < jobsCount; i++ {
-		err = errors.Join(err, <-errCh)
-	}
-
-	close(errCh)
-
-	if err != nil {
-		return entity.NewErr(err)
+		}
 	}
 
 	return nil
-}
-
-func fmtRawGPTResponseToJSON(s string) (string, error) {
-	split := strings.Split(s, "{")
-	if len(split) != 2 {
-		return "", entity.NewErr("invalid GPT response")
-	}
-
-	split = strings.Split(split[1], "}")
-	if len(split) != 2 {
-		return "", entity.NewErr("invalid GPT response")
-	}
-
-	return fmt.Sprintf("{%s}", split[0]), nil
 }

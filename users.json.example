@@ -3,23 +3,23 @@
     "id": "johndoe@email.com",
     "notion_token": "notion_token",
     "notion_page_id": "notion_page_id",
-    "meu_pluggy_client_id": "meu_pluggy_client_id",
-    "meu_pluggy_client_secret": "meu_pluggy_client_secret",
-    "meu_pluggy_account_ids": [
-      "meu_pluggy_account_id_1",
-      "meu_pluggy_account_id_2"
+    "pluggy_client_id": "pluggy_client_id",
+    "pluggy_client_secret": "pluggy_client_secret",
+    "pluggy_account_ids": [
+      "pluggy_account_id_1",
+      "pluggy_account_id_2"
     ]
   },
   {
     "id": "janedoe@email.com",
     "notion_token": "notion_token",
     "notion_page_id": "notion_page_id",
-    "meu_pluggy_client_id": "meu_pluggy_client_id",
-    "meu_pluggy_client_secret": "meu_pluggy_client_secret",
-    "meu_pluggy_account_ids": [
-      "meu_pluggy_account_id_1",
-      "meu_pluggy_account_id_2",
-      "meu_pluggy_account_id_3"
+    "pluggy_client_id": "pluggy_client_id",
+    "pluggy_client_secret": "pluggy_client_secret",
+    "pluggy_account_ids": [
+      "pluggy_account_id_1",
+      "pluggy_account_id_2",
+      "pluggy_account_id_3"
     ]
   }
 ]

@@ -1,11 +1,11 @@
 package usecase
 
 import (
-	"errors"
-	"fmt"
+	"github.com/sourcegraph/conc/iter"
 
 	"github.com/danielmesquitta/openfinance/internal/config"
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
 )
 
@@ -32,34 +32,23 @@ func (sa *SyncAll) Execute(
 ) error {
 	setDefaultValues(&dto)
 
-	fmt.Println("dto", dto.StartDate, dto.EndDate)
-
 	if err := sa.val.Validate(dto); err != nil {
 		return err
 	}
 
-	jobsCount := len(sa.env.Users)
-	errCh := make(chan error)
-
-	for _, user := range sa.env.Users {
-		go func() {
+	_, err := iter.MapErr(
+		sa.env.Users,
+		func(user *entity.User) (*struct{}, error) {
 			err := sa.syncOneUseCase.Execute(
 				user.ID,
 				dto,
 			)
-			errCh <- err
-		}()
-	}
-
-	var err error
-	for i := 0; i < jobsCount; i++ {
-		err = errors.Join(err, <-errCh)
-	}
-
-	close(errCh)
+			return nil, err
+		},
+	)
 
 	if err != nil {
-		return entity.NewErr(err)
+		return errs.New(err)
 	}
 
 	return nil
