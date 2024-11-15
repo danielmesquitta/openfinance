@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/sourcegraph/conc/iter"
 
@@ -68,6 +69,7 @@ func (so *SyncOne) Execute(
 		return errs.New(err)
 	}
 
+	mu := sync.Mutex{}
 	iter.ForEachIdx(transactions, func(i int, t *entity.Transaction) {
 		if !docutil.IsCNPJ(t.Name) {
 			return
@@ -81,11 +83,14 @@ func (so *SyncOne) Execute(
 			)
 			return
 		}
+
+		mu.Lock()
 		transactions[i].Name = cmp.Or(
 			company.TradingName,
 			company.Name,
 			transactions[i].Name,
 		)
+		mu.Unlock()
 	})
 
 	uniqueTransactionNames := map[string]struct{}{}

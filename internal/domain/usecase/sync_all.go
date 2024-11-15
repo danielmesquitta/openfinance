@@ -31,7 +31,6 @@ func (sa *SyncAll) Execute(
 	dto SyncDTO,
 ) error {
 	setDefaultValues(&dto)
-
 	if err := sa.val.Validate(dto); err != nil {
 		return err
 	}
