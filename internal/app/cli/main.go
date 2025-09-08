@@ -37,16 +37,9 @@ var (
 )
 
 func init() {
-	startOfMonth := time.Date(
-		time.Now().Year(),
-		time.Now().Month(),
-		1,
-		0,
-		0,
-		0,
-		0,
-		time.Local,
-	)
+	now := time.Now()
+
+	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
 
 	endOfMonth := startOfMonth.AddDate(0, 1, -1)
 
@@ -54,11 +47,13 @@ func init() {
 	endDate = rootCmd.Flags().TimeP("end-date", "e", endOfMonth, timeFormats, "End date")
 }
 
-func Execute() {
+func Execute() error {
 	err := rootCmd.Execute()
 	if err != nil {
-		log.Fatalln(err)
+		return fmt.Errorf("failed to execute root command: %w", err)
 	}
+
+	return nil
 }
 
 var rootCmd = &cobra.Command{
@@ -78,7 +73,8 @@ func run(_ *cobra.Command, _ []string) {
 		EndDate:   endDate.Format(time.RFC3339),
 	})
 	if err != nil {
-		log.Fatalln(err)
+		log.Printf("failed to execute sync all: %v", err)
+		return
 	}
 
 	fmt.Println("Sync completed successfully")

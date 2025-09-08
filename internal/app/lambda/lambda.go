@@ -52,7 +52,7 @@ func Handler(
 	}
 
 	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
+		StatusCode: http.StatusOK,
 		Headers:    map[string]string{"Content-Type": "application/json"},
 	}, nil
 }

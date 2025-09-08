@@ -123,12 +123,12 @@ func (c *Client) InsertTransaction(
 	}
 
 	body := res.Body()
-	if statusCode := res.StatusCode(); statusCode < 200 || statusCode >= 300 {
+	if res.IsError() {
 		return nil, fmt.Errorf("error response while inserting transaction: %+v", body)
 	}
 
 	data := &sheet.Table{}
-	if err := json.Unmarshal(res.Body(), &data); err != nil {
+	if err := json.Unmarshal(body, &data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal while inserting transaction: %w", err)
 	}
 

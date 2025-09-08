@@ -13,7 +13,7 @@ import (
 
 // EnvFileData is the data for the .env file.
 type EnvFileData struct {
-	OpenAIToken string `mapstructure:"OPEN_AI_TOKEN"   json:"open_ai_token"   validate:"required"`
+	OpenAIToken string `mapstructure:"OPEN_AI_TOKEN" json:"open_ai_token" validate:"required"`
 }
 
 // JSONFileData is the data for the users.json file.
@@ -44,19 +44,19 @@ func NewEnv(val *validator.Validator) *Env {
 
 func (e *Env) loadEnv() error {
 	if err := e.loadDataFromEnvFile(); err != nil {
-		return err
+		return fmt.Errorf("failed to load data from env file: %w", err)
 	}
 
 	if err := e.validateEnvFile(); err != nil {
-		return err
+		return fmt.Errorf("failed to validate env file: %w", err)
 	}
 
 	if err := e.loadDataFromJSON(); err != nil {
-		return err
+		return fmt.Errorf("failed to load data from users file: %w", err)
 	}
 
 	if err := e.validateJSONFile(); err != nil {
-		return err
+		return fmt.Errorf("failed to validate users file: %w", err)
 	}
 
 	return nil

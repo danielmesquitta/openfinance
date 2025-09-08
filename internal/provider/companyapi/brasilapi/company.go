@@ -16,7 +16,7 @@ func (c *Client) GetCompanyByID(id string) (entity.Company, error) {
 	}
 
 	body := res.Body()
-	if statusCode := res.StatusCode(); statusCode < 200 || statusCode >= 300 {
+	if res.IsError() {
 		return entity.Company{}, fmt.Errorf("failed to get company by id: %+v", body)
 	}
 

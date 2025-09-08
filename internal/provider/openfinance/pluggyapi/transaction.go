@@ -63,6 +63,8 @@ const (
 	Debit  resultType = "DEBIT"
 )
 
+const resultLogField = "result"
+
 func (c *Client) ListTransactionsByUserID(
 	ctx context.Context,
 	userID string,
@@ -73,41 +75,10 @@ func (c *Client) ListTransactionsByUserID(
 		return nil, errors.New("connection not found for user " + userID)
 	}
 
-	resTransactions := make([]listTransactionsResponse, len(conn.accountIDs))
-	var eg errgroup.Group
-	for i, accountID := range conn.accountIDs {
-		eg.Go(func() error {
-			res, err := c.client.R().
-				SetContext(ctx).
-				SetQueryParams(map[string]string{
-					"pageSize":  "500",
-					"from":      from.Format(time.DateOnly),
-					"to":        to.Format(time.DateOnly),
-					"accountId": accountID,
-				}).
-				SetHeader("X-API-KEY", conn.accessToken).
-				Get("/transactions")
-			if err != nil {
-				return fmt.Errorf("failed to list transactions: %w", err)
-			}
-			body := res.Body()
-			if statusCode := res.StatusCode(); statusCode < 200 ||
-				statusCode >= 300 {
-				return fmt.Errorf("error response while listing transactions: %+v", body)
-			}
-
-			data := listTransactionsResponse{}
-			if err := json.Unmarshal(body, &data); err != nil {
-				return fmt.Errorf("failed to unmarshal while listing transactions: %w", err)
-			}
-
-			resTransactions[i] = data
-			return nil
-		})
-	}
-
-	if err := eg.Wait(); err != nil {
-		return nil, fmt.Errorf("failed to wait for listing transactions: %w", err)
+	resTransactions, err := c.fetchAllAccountTransactions(
+		ctx, conn.accountIDs, conn.accessToken, from, to)
+	if err != nil {
+		return nil, err
 	}
 
 	transactions := []entity.Transaction{}
@@ -119,87 +90,173 @@ func (c *Client) ListTransactionsByUserID(
 	return transactions, nil
 }
 
+func (c *Client) fetchAccountTransactions(
+	ctx context.Context,
+	accountID, accessToken string,
+	from, to time.Time,
+) (listTransactionsResponse, error) {
+	res, err := c.client.R().
+		SetContext(ctx).
+		SetQueryParams(map[string]string{
+			"pageSize":  "500",
+			"from":      from.Format(time.DateOnly),
+			"to":        to.Format(time.DateOnly),
+			"accountId": accountID,
+		}).
+		SetHeader("X-API-KEY", accessToken).
+		Get("/transactions")
+	if err != nil {
+		return listTransactionsResponse{}, fmt.Errorf("failed to list transactions: %w", err)
+	}
+
+	body := res.Body()
+	if res.IsError() {
+		return listTransactionsResponse{}, fmt.Errorf(
+			"error response while listing transactions: %+v", body)
+	}
+
+	data := listTransactionsResponse{}
+	if err := json.Unmarshal(body, &data); err != nil {
+		return listTransactionsResponse{}, fmt.Errorf(
+			"failed to unmarshal while listing transactions: %w", err)
+	}
+
+	return data, nil
+}
+
+func (c *Client) fetchAllAccountTransactions(
+	ctx context.Context,
+	accountIDs []string,
+	accessToken string,
+	from, to time.Time,
+) ([]listTransactionsResponse, error) {
+	resTransactions := make([]listTransactionsResponse, len(accountIDs))
+	g, gCtx := errgroup.WithContext(ctx)
+
+	for i, accountID := range accountIDs {
+		g.Go(func() error {
+			data, err := c.fetchAccountTransactions(gCtx, accountID, accessToken, from, to)
+			if err != nil {
+				return err
+			}
+			resTransactions[i] = data
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, fmt.Errorf("failed to wait for listing transactions: %w", err)
+	}
+
+	return resTransactions, nil
+}
+
+func (c *Client) shouldSkipTransaction(r result) bool {
+	if isInvestment := (r.Category != nil && *r.Category == "Investments") ||
+		strings.Contains(r.Description, "Aplicação"); isInvestment {
+		return true
+	}
+	if isReceivingMoney := r.Type == Credit; isReceivingMoney {
+		return true
+	}
+	if isCreditCardBillPayment := r.
+		Description == "Pagamento de fatura"; isCreditCardBillPayment {
+		return true
+	}
+	return false
+}
+
+func (c *Client) setTransactionNameFromReceiver(transaction *entity.Transaction, r result) bool {
+	if hasReceiver := (r.PaymentData.Receiver != nil); !hasReceiver {
+		return false
+	}
+
+	if hasReceiverName := r.PaymentData.Receiver.Name != nil; hasReceiverName {
+		transaction.Name = *r.PaymentData.Receiver.Name
+		return false
+	}
+
+	if hasReceiverDocument := r.PaymentData.Receiver.DocumentNumber != nil; hasReceiverDocument {
+		document, err := docutil.MaskDocument(r.PaymentData.Receiver.DocumentNumber.Value)
+		if err != nil {
+			slog.Error("error masking document", "error", err)
+			return true
+		}
+		transaction.Name = document
+		return false
+	}
+
+	return false
+}
+
+func (c *Client) handleBankTransaction(transaction *entity.Transaction, r result) bool {
+	if r.PaymentData == nil {
+		slog.Error("PaymentData is nil", resultLogField, r)
+		return true
+	}
+
+	if r.PaymentData.PaymentMethod == nil {
+		slog.Error("PaymentMethod is nil", resultLogField, r)
+		return true
+	}
+
+	transaction.PaymentMethod = *r.PaymentData.PaymentMethod
+
+	if r.Description != "" {
+		transaction.Name = r.Description
+		return false
+	}
+
+	return c.setTransactionNameFromReceiver(transaction, r)
+}
+
+func (c *Client) processSingleResult(r result) (*entity.Transaction, bool) {
+	transaction := entity.Transaction{
+		Amount: math.Abs(r.Amount),
+		Date:   r.Date,
+	}
+
+	if r.Category != nil {
+		transaction.Category = *r.Category
+	}
+
+	accountType := entity.AccountTypeCreditCard
+	if r.PaymentData != nil {
+		accountType = entity.AccountTypeBank
+	}
+
+	switch accountType {
+	case entity.AccountTypeBank:
+		if shouldContinue := c.handleBankTransaction(&transaction, r); shouldContinue {
+			return nil, true
+		}
+	case entity.AccountTypeCreditCard:
+		transaction.Name = r.Description
+		transaction.PaymentMethod = entity.PaymentMethodCreditCard
+	default:
+		slog.Error("unknown account type", "accountType", accountType, resultLogField, r)
+		return nil, true
+	}
+
+	return &transaction, false
+}
+
 func (c *Client) parseRequestToTransactions(
 	data listTransactionsResponse,
 ) []entity.Transaction {
 	transactions := []entity.Transaction{}
 
-loop:
 	for _, r := range data.Results {
-		if isInvestment := (r.Category != nil && *r.Category == "Investments") ||
-			strings.Contains(r.Description, "Aplicação"); isInvestment {
-			continue
-		}
-		if isReceivingMoney := r.Type == Credit; isReceivingMoney {
-			continue
-		}
-		if isCreditCardBillPayment := r.
-			Description == "Pagamento de fatura"; isCreditCardBillPayment {
+		if c.shouldSkipTransaction(r) {
 			continue
 		}
 
-		transaction := entity.Transaction{
-			Amount: math.Abs(r.Amount),
-			Date:   r.Date,
+		transaction, shouldSkip := c.processSingleResult(r)
+		if shouldSkip {
+			continue
 		}
 
-		if r.Category != nil {
-			transaction.Category = *r.Category
-		}
-
-		accountType := entity.AccountTypeCreditCard
-		if r.PaymentData != nil {
-			accountType = entity.AccountTypeBank
-		}
-
-		switch accountType {
-		case entity.AccountTypeBank:
-			if r.PaymentData == nil {
-				slog.Error("PaymentData is nil", "result", r)
-				continue loop
-			}
-
-			if r.PaymentData.PaymentMethod == nil {
-				slog.Error("PaymentMethod is nil", "result", r)
-				continue loop
-			}
-
-			transaction.PaymentMethod = *r.PaymentData.PaymentMethod
-
-			if r.Description != "" {
-				transaction.Name = r.Description
-				goto appendTransaction
-			}
-
-			if hasReceiver := (r.PaymentData.Receiver != nil); !hasReceiver {
-				goto appendTransaction
-			}
-
-			if hasReceiverName := r.PaymentData.
-				Receiver.Name != nil; hasReceiverName {
-				transaction.Name = *r.PaymentData.Receiver.Name
-				goto appendTransaction
-			}
-
-			if hasReceiverDocument := r.PaymentData.
-				Receiver.DocumentNumber != nil; hasReceiverDocument {
-				document, err := docutil.MaskDocument(r.PaymentData.Receiver.DocumentNumber.Value)
-				if err != nil {
-					slog.Error("error masking document", "error", err)
-					continue loop
-				}
-
-				transaction.Name = document
-				goto appendTransaction
-			}
-
-		case entity.AccountTypeCreditCard:
-			transaction.Name = r.Description
-			transaction.PaymentMethod = entity.PaymentMethodCreditCard
-		}
-
-	appendTransaction:
-		transactions = append(transactions, transaction)
+		transactions = append(transactions, *transaction)
 	}
 
 	return transactions

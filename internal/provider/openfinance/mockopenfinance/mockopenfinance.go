@@ -22,13 +22,13 @@ func (m MockOpenFinance) ListTransactionsByUserID(
 	transactions := []entity.Transaction{
 		{
 			Name:          "99app *99app",
-			Amount:        11.70,
+			Amount:        11.70, //revive:disable-line
 			PaymentMethod: entity.PaymentMethodCreditCard,
 			Date:          time.Now(),
 		},
 		{
 			Name:          "Uber *Uber *Trip",
-			Amount:        10.90,
+			Amount:        10.90, //revive:disable-line
 			PaymentMethod: entity.PaymentMethodCreditCard,
 			Date:          time.Now(),
 		},

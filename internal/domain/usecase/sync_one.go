@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
 	"github.com/danielmesquitta/openfinance/internal/pkg/jsonutil"
 	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
@@ -60,45 +62,54 @@ func (so *SyncOne) Execute(
 		return fmt.Errorf("failed to parse dates: %w", err)
 	}
 
+	transactions, err := so.fetchTransactions(ctx, userID, startDate, endDate)
+	if err != nil {
+		return fmt.Errorf("failed to fetch transactions: %w", err)
+	}
+
+	if err := so.enrichTransactionNames(ctx, transactions); err != nil {
+		return fmt.Errorf("failed to enrich transaction names: %w", err)
+	}
+
+	if err := so.categorizeTransactions(transactions); err != nil {
+		return fmt.Errorf("failed to categorize transactions: %w", err)
+	}
+
+	if err := so.createAndPopulateTable(ctx, userID, transactions, startDate); err != nil {
+		return fmt.Errorf("failed to create and populate table: %w", err)
+	}
+
+	return nil
+}
+
+func (so *SyncOne) fetchTransactions(
+	ctx context.Context,
+	userID string,
+	startDate, endDate time.Time,
+) ([]entity.Transaction, error) {
 	transactions, err := so.openFinanceAPIProvider.ListTransactionsByUserID(
 		ctx,
 		userID,
 		startDate,
 		endDate,
 	)
-
 	if err != nil {
-		return fmt.Errorf("failed to list transactions by user id: %w", err)
+		return nil, fmt.Errorf("failed to list transactions by user id: %w", err)
 	}
 
+	return transactions, nil
+}
+
+func (so *SyncOne) enrichTransactionNames(
+	ctx context.Context,
+	transactions []entity.Transaction,
+) error {
 	mu := sync.Mutex{}
-	g, gCtx := errgroup.WithContext(ctx)
+	g, _ := errgroup.WithContext(ctx)
 
 	for i, t := range transactions {
 		g.Go(func() error {
-			if !docutil.IsCNPJ(t.Name) {
-				return nil
-			}
-
-			document := docutil.CleanDocument(t.Name)
-			company, err := so.companyAPIProvider.GetCompanyByID(document)
-			if err != nil {
-				slog.Error("failed to get company by document",
-					"document", document,
-					"error", err,
-				)
-				return nil
-			}
-
-			mu.Lock()
-			transactions[i].Name = cmp.Or(
-				company.TradingName,
-				company.Name,
-				transactions[i].Name,
-			)
-			mu.Unlock()
-
-			return nil
+			return so.enrichSingleTransactionName(t, i, transactions, &mu)
 		})
 	}
 
@@ -106,6 +117,54 @@ func (so *SyncOne) Execute(
 		return fmt.Errorf("failed while getting company by document: %w", err)
 	}
 
+	return nil
+}
+
+func (so *SyncOne) enrichSingleTransactionName(
+	transaction entity.Transaction,
+	index int,
+	transactions []entity.Transaction,
+	mu *sync.Mutex,
+) error {
+	if !docutil.IsCNPJ(transaction.Name) {
+		return nil
+	}
+
+	document := docutil.CleanDocument(transaction.Name)
+	company, err := so.companyAPIProvider.GetCompanyByID(document)
+	if err != nil {
+		slog.Error("failed to get company by document",
+			"document", document,
+			"error", err,
+		)
+		return nil
+	}
+
+	mu.Lock()
+	transactions[index].Name = cmp.Or(
+		company.TradingName,
+		company.Name,
+		transactions[index].Name,
+	)
+	mu.Unlock()
+
+	return nil
+}
+
+func (so *SyncOne) categorizeTransactions(transactions []entity.Transaction) error {
+	transactionNames := so.extractUniqueTransactionNames(transactions)
+
+	categoryByTransaction, err := so.getCategoriesFromGPT(transactionNames)
+	if err != nil {
+		return fmt.Errorf("failed to get categories from GPT: %w", err)
+	}
+
+	so.applyCategoriestoTransactions(transactions, categoryByTransaction)
+
+	return nil
+}
+
+func (*SyncOne) extractUniqueTransactionNames(transactions []entity.Transaction) []string {
 	uniqueTransactionNames := map[string]struct{}{}
 	for _, t := range transactions {
 		uniqueTransactionNames[t.Name] = struct{}{}
@@ -119,9 +178,13 @@ func (so *SyncOne) Execute(
 		transactionNames = append(transactionNames, name)
 	}
 
+	return transactionNames
+}
+
+func (so *SyncOne) getCategoriesFromGPT(transactionNames []string) (map[string]string, error) {
 	jsonBytes, err := json.Marshal(transactionNames)
 	if err != nil {
-		return fmt.Errorf("failed to marshal transactions: %w", err)
+		return nil, fmt.Errorf("failed to marshal transactions: %w", err)
 	}
 
 	gptMessage := fmt.Sprintf(
@@ -147,39 +210,44 @@ func (so *SyncOne) Execute(
 
 	rawResponse, err := so.gptProvider.CreateChatCompletion(gptMessage)
 	if err != nil {
-		return fmt.Errorf("failed to create chat completion: %w", err)
+		return nil, fmt.Errorf("failed to create chat completion: %w", err)
 	}
 
+	const expectedJSONResponseCount = 1
 	jsonResponse := jsonutil.ExtractJSONFromText(rawResponse)
-	if len(jsonResponse) != 1 {
-		return errors.New("invalid JSON response")
+	if len(jsonResponse) != expectedJSONResponseCount {
+		return nil, errors.New("invalid JSON response")
 	}
 
 	categoryByTransaction := map[string]string{}
 	if err := json.Unmarshal([]byte(jsonResponse[0]), &categoryByTransaction); err != nil {
-		return fmt.Errorf("failed to unmarshal transactions: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal transactions: %w", err)
 	}
 
-	uniqueCategories := map[string]struct{}{}
+	return categoryByTransaction, nil
+}
+
+func (*SyncOne) applyCategoriestoTransactions(
+	transactions []entity.Transaction,
+	categoryByTransaction map[string]string,
+) {
 	for i, t := range transactions {
 		category, ok := categoryByTransaction[t.Name]
 		if !ok {
 			category = string(sheet.CategoryUnknown)
 		}
-
 		transactions[i].Category = category
-		uniqueCategories[category] = struct{}{}
 	}
+}
 
-	categories := []sheet.Category{}
-	for category := range uniqueCategories {
-		categories = append(categories, sheet.Category(category))
-	}
-
-	year, month, _ := startDate.Date()
-
-	monthAbbreviation := month.String()[0:3]
-	title := fmt.Sprintf("%s %d", monthAbbreviation, year)
+func (so *SyncOne) createAndPopulateTable(
+	ctx context.Context,
+	userID string,
+	transactions []entity.Transaction,
+	startDate time.Time,
+) error {
+	categories := so.extractUniqueCategories(transactions)
+	title := startDate.Format("Jan 2006")
 
 	newTableResponse, err := so.sheetProvider.CreateTransactionsTable(
 		ctx,
@@ -193,17 +261,46 @@ func (so *SyncOne) Execute(
 		return fmt.Errorf("failed to create transactions table: %w", err)
 	}
 
+	if err := so.insertTransactionsInParallel(ctx, userID, newTableResponse.ID, transactions); err != nil {
+		return fmt.Errorf("failed to insert transactions: %w", err)
+	}
+
+	return nil
+}
+
+func (*SyncOne) extractUniqueCategories(transactions []entity.Transaction) []sheet.Category {
+	uniqueCategories := map[string]struct{}{}
+	for _, t := range transactions {
+		uniqueCategories[t.Category] = struct{}{}
+	}
+
+	categories := []sheet.Category{}
+	for category := range uniqueCategories {
+		categories = append(categories, sheet.Category(category))
+	}
+
+	return categories
+}
+
+func (so *SyncOne) insertTransactionsInParallel(
+	ctx context.Context,
+	userID, tableID string,
+	transactions []entity.Transaction,
+) error {
 	// TODO: Do a batch insert
-	g, gCtx = errgroup.WithContext(ctx)
+	g, gCtx := errgroup.WithContext(ctx)
 	for _, transaction := range transactions {
 		g.Go(func() error {
 			_, err := so.sheetProvider.InsertTransaction(
 				gCtx,
 				userID,
-				newTableResponse.ID,
+				tableID,
 				transaction,
 			)
-			return err
+			if err != nil {
+				return fmt.Errorf("failed to insert transaction: %w", err)
+			}
+			return nil
 		})
 	}
 

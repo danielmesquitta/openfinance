@@ -8,7 +8,7 @@ import (
 	"github.com/go-playground/locales/en"
 	ut "github.com/go-playground/universal-translator"
 	"github.com/go-playground/validator/v10"
-	enTranslations "github.com/go-playground/validator/v10/translations/en"
+	entrans "github.com/go-playground/validator/v10/translations/en"
 )
 
 type Validator struct {
@@ -25,7 +25,7 @@ func NewValidator() *Validator {
 		panic("translator not found")
 	}
 
-	if err := enTranslations.
+	if err := entrans.
 		RegisterDefaultTranslations(validate, trans); err != nil {
 		panic(err)
 	}

@@ -16,6 +16,21 @@ linters:
           disabled: true
         - name: package-comments
           disabled: true
+        - name: line-length-limit
+          arguments:
+            - 120
+        - name: add-constant
+          arguments:
+            - allow-strs: '""'
+              allow-ints: "0,1"
+              allow-floats: "0.0"
+              ignore-funcs: "time.Date,time.AddDate"
+        - name: unused-receiver
+          disabled: true
+        - name: nested-structs
+          disabled: true
+        - name: function-length
+          disabled: true
 formatters:
   enable:
     - gofmt
