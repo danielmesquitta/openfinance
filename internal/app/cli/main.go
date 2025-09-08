@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/danielmesquitta/openfinance/internal/app"
-	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
 )
 
@@ -57,10 +56,7 @@ func init() {
 
 func Execute() {
 	err := rootCmd.Execute()
-	switch v := err.(type) {
-	case *errs.Err:
-		log.Fatalln(v, v.StackTrace)
-	default:
+	if err != nil {
 		log.Fatalln(err)
 	}
 }

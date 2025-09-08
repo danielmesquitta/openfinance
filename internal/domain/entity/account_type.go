@@ -3,6 +3,6 @@ package entity
 type AccountType int
 
 const (
-	AccountTypeBank AccountType = iota
+	AccountTypeBank AccountType = iota + 1
 	AccountTypeCreditCard
 )

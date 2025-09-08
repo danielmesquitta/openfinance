@@ -3,8 +3,9 @@ package notionapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 )
 
@@ -78,7 +79,7 @@ func (c *Client) CreateTransactionsTable(
 ) (*sheet.Table, error) {
 	conn, ok := c.conns[userID]
 	if !ok {
-		return nil, errs.New("connection not found for user " + userID)
+		return nil, errors.New("connection not found for user " + userID)
 	}
 
 	categoryOptions := make(
@@ -150,17 +151,17 @@ func (c *Client) CreateTransactionsTable(
 		Post("/v1/databases")
 
 	if err != nil {
-		return nil, errs.New(err)
+		return nil, fmt.Errorf("failed to create transactions table: %w", err)
 	}
 
 	body := res.Body()
 	if statusCode := res.StatusCode(); statusCode < 200 || statusCode >= 300 {
-		return nil, errs.New(body)
+		return nil, fmt.Errorf("error response while creating transactions table: %+v", body)
 	}
 
 	data := &sheet.Table{}
 	if err := json.Unmarshal(res.Body(), &data); err != nil {
-		return nil, errs.New(err)
+		return nil, fmt.Errorf("failed to unmarshal while creating transactions table: %w", err)
 	}
 
 	return data, nil

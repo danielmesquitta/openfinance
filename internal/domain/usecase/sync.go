@@ -1,9 +1,8 @@
 package usecase
 
 import (
+	"fmt"
 	"time"
-
-	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 )
 
 type SyncDTO struct {
@@ -46,17 +45,14 @@ func setDefaultValues(
 func parseDates(
 	dto SyncDTO,
 ) (startDate time.Time, endDate time.Time, err error) {
-	invalidDateErr := errs.ErrValidation
-	invalidDateErr.Message = "invalid date"
-
 	startDate, err = time.Parse(time.RFC3339, dto.StartDate)
 	if err != nil {
-		return time.Time{}, time.Time{}, invalidDateErr
+		return time.Time{}, time.Time{}, fmt.Errorf("invalid start date: %w", err)
 	}
 
 	endDate, err = time.Parse(time.RFC3339, dto.EndDate)
 	if err != nil {
-		return time.Time{}, time.Time{}, invalidDateErr
+		return time.Time{}, time.Time{}, fmt.Errorf("invalid end date: %w", err)
 	}
 
 	return startDate, endDate, nil

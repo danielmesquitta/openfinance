@@ -3,8 +3,8 @@ package pluggyapi
 import (
 	"context"
 	"encoding/json"
-
-	"github.com/danielmesquitta/openfinance/internal/domain/errs"
+	"errors"
+	"fmt"
 )
 
 type authResponse struct {
@@ -27,21 +27,21 @@ func (c *Client) authenticate(
 
 	res, err := c.client.R().SetContext(ctx).SetBody(authRequest).Post("/auth")
 	if err != nil {
-		return "", errs.New(err)
+		return "", fmt.Errorf("failed to authenticate: %w", err)
 	}
 
 	body := res.Body()
 	if statusCode := res.StatusCode(); statusCode < 200 || statusCode >= 300 {
-		return "", errs.New(body)
+		return "", fmt.Errorf("error response while authenticating: %+v", body)
 	}
 
 	data := authResponse{}
 	if err := json.Unmarshal(res.Body(), &data); err != nil {
-		return "", errs.New(err)
+		return "", fmt.Errorf("failed to unmarshal while authenticating: %w", err)
 	}
 
 	if data.APIKey == "" {
-		return "", errs.New("api key is empty")
+		return "", errors.New("api key is empty")
 	}
 
 	return data.APIKey, nil

@@ -2,9 +2,9 @@ package openai
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/danielmesquitta/openfinance/internal/config"
-	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
 	"github.com/sashabaranov/go-openai"
 )
@@ -36,7 +36,7 @@ func (o *OpenAIClient) CreateChatCompletion(message string) (string, error) {
 	)
 
 	if err != nil {
-		return "", errs.New(err)
+		return "", fmt.Errorf("failed to create chat completion: %w", err)
 	}
 
 	return resp.Choices[0].Message.Content, nil

@@ -1,12 +1,23 @@
-linters-settings:
-  govet:
-    shadow: true
+version: "2"
 linters:
   enable:
     - goconst
-    - gofmt
-    - goimports
     - revive
     - unconvert
     - unparam
     - lll
+    - errorlint
+    - wrapcheck
+  settings:
+    revive:
+      enable-all-rules: true
+      rules:
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+formatters:
+  enable:
+    - gofmt
+    - goimports
+    - golines

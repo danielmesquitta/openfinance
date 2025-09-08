@@ -1,34 +1,27 @@
 package config
 
 import (
-	"cmp"
+	"bytes"
 	"encoding/json"
-	"io"
-	"os"
+	"fmt"
 
+	root "github.com/danielmesquitta/openfinance"
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
 	"github.com/spf13/viper"
 )
 
-type Environment string
-
-const (
-	DevelopmentEnv Environment = "development"
-	TestEnv        Environment = "test"
-	ProductionEnv  Environment = "production"
-)
-
+// EnvFileData is the data for the .env file.
 type EnvFileData struct {
-	Environment   Environment `mapstructure:"ENVIRONMENT"     json:"environment"`
-	OpenAIToken   string      `mapstructure:"OPEN_AI_TOKEN"   json:"open_ai_token"   validate:"required"`
-	UsersFilePath string      `mapstructure:"USERS_FILE_PATH" json:"users_file_path" validate:"required"`
+	OpenAIToken string `mapstructure:"OPEN_AI_TOKEN"   json:"open_ai_token"   validate:"required"`
 }
 
+// JSONFileData is the data for the users.json file.
 type JSONFileData struct {
 	Users []entity.User `json:"users" validate:"required"`
 }
 
+// Env is the environment variables.
 type Env struct {
 	val *validator.Validator
 
@@ -36,6 +29,7 @@ type Env struct {
 	JSONFileData
 }
 
+// NewEnv creates a new Env.
 func NewEnv(val *validator.Validator) *Env {
 	e := &Env{
 		val: val,
@@ -69,17 +63,21 @@ func (e *Env) loadEnv() error {
 }
 
 func (e *Env) loadDataFromEnvFile() error {
-	envFilepath := cmp.Or(os.Getenv("ENV_FILEPATH"), ".env")
-
-	viper.SetConfigFile(envFilepath)
-	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err != nil {
-		return err
+	envFile, err := root.EnvFile.ReadFile(".env")
+	if err != nil {
+		return fmt.Errorf("failed to read env file: %w", err)
 	}
 
+	viper.SetConfigType("env")
+
+	if err := viper.ReadConfig(bytes.NewBuffer(envFile)); err != nil {
+		return fmt.Errorf("failed to read env file: %w", err)
+	}
+
+	viper.AutomaticEnv()
+
 	if err := viper.Unmarshal(&e.EnvFileData); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal env file: %w", err)
 	}
 
 	return nil
@@ -88,42 +86,30 @@ func (e *Env) loadDataFromEnvFile() error {
 func (e *Env) loadDataFromJSON() error {
 	users := []entity.User{}
 
-	file, err := os.Open(e.UsersFilePath)
+	data, err := root.UsersFile.ReadFile("users.json")
 	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return err
+		return fmt.Errorf("failed to read users file: %w", err)
 	}
 
 	if err = json.Unmarshal(data, &users); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal users file: %w", err)
 	}
 
-	e.JSONFileData.Users = users
+	e.Users = users
 
 	return nil
 }
 
 func (e *Env) validateEnvFile() error {
 	if err := e.val.Validate(e.EnvFileData); err != nil {
-		return err
-	}
-	if e.Environment == "" {
-		e.Environment = DevelopmentEnv
+		return fmt.Errorf("failed to validate env file: %w", err)
 	}
 	return nil
 }
 
 func (e *Env) validateJSONFile() error {
 	if err := e.val.Validate(e.JSONFileData); err != nil {
-		return err
-	}
-	if e.Environment == "" {
-		e.Environment = DevelopmentEnv
+		return fmt.Errorf("failed to validate users file: %w", err)
 	}
 	return nil
 }

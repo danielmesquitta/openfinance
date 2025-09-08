@@ -2,6 +2,7 @@ package validator
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/go-playground/locales/en"
@@ -45,9 +46,9 @@ func (v *Validator) Validate(
 		return nil
 	}
 
-	validationErrs, ok := err.(validator.ValidationErrors)
-	if !ok {
-		return err
+	var validationErrs validator.ValidationErrors
+	if ok := errors.As(err, &validationErrs); !ok {
+		return fmt.Errorf("failed to validate data: %w", err)
 	}
 
 	strErrs := make([]string, len(validationErrs))

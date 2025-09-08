@@ -3,10 +3,11 @@ package notionapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
-	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 )
 
@@ -66,7 +67,7 @@ func (c *Client) InsertTransaction(
 ) (*sheet.Table, error) {
 	conn, ok := c.conns[userID]
 	if !ok {
-		return nil, errs.New("connection not found for user " + userID)
+		return nil, errors.New("connection not found for user " + userID)
 	}
 
 	requestData := insertRowReq{
@@ -118,17 +119,17 @@ func (c *Client) InsertTransaction(
 		SetBody(requestData).
 		Post("/v1/pages")
 	if err != nil {
-		return nil, errs.New(err)
+		return nil, fmt.Errorf("failed to insert transaction: %w", err)
 	}
 
 	body := res.Body()
 	if statusCode := res.StatusCode(); statusCode < 200 || statusCode >= 300 {
-		return nil, errs.New(body)
+		return nil, fmt.Errorf("error response while inserting transaction: %+v", body)
 	}
 
 	data := &sheet.Table{}
 	if err := json.Unmarshal(res.Body(), &data); err != nil {
-		return nil, errs.New(err)
+		return nil, fmt.Errorf("failed to unmarshal while inserting transaction: %w", err)
 	}
 
 	return data, nil

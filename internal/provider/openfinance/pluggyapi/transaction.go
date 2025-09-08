@@ -3,13 +3,14 @@ package pluggyapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"math"
 	"strings"
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
-	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
 	"golang.org/x/sync/errgroup"
 )
@@ -69,7 +70,7 @@ func (c *Client) ListTransactionsByUserID(
 ) ([]entity.Transaction, error) {
 	conn, ok := c.conns[userID]
 	if !ok {
-		return nil, errs.New("connection not found for user " + userID)
+		return nil, errors.New("connection not found for user " + userID)
 	}
 
 	resTransactions := make([]listTransactionsResponse, len(conn.accountIDs))
@@ -87,17 +88,17 @@ func (c *Client) ListTransactionsByUserID(
 				SetHeader("X-API-KEY", conn.accessToken).
 				Get("/transactions")
 			if err != nil {
-				return errs.New(err)
+				return fmt.Errorf("failed to list transactions: %w", err)
 			}
 			body := res.Body()
 			if statusCode := res.StatusCode(); statusCode < 200 ||
 				statusCode >= 300 {
-				return errs.New(body)
+				return fmt.Errorf("error response while listing transactions: %+v", body)
 			}
 
 			data := listTransactionsResponse{}
 			if err := json.Unmarshal(body, &data); err != nil {
-				return errs.New(body)
+				return fmt.Errorf("failed to unmarshal while listing transactions: %w", err)
 			}
 
 			resTransactions[i] = data
@@ -106,7 +107,7 @@ func (c *Client) ListTransactionsByUserID(
 	}
 
 	if err := eg.Wait(); err != nil {
-		return nil, errs.New(err)
+		return nil, fmt.Errorf("failed to wait for listing transactions: %w", err)
 	}
 
 	transactions := []entity.Transaction{}

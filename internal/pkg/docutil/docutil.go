@@ -1,9 +1,8 @@
 package docutil
 
 import (
+	"errors"
 	"regexp"
-
-	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 )
 
 func CleanDocument(doc string) string {
@@ -31,5 +30,5 @@ func MaskDocument(doc string) (string, error) {
 		return doc[:3] + "." + doc[3:6] + "." + doc[6:9] + "-" + doc[9:], nil
 	}
 
-	return "", errs.New("invalid document")
+	return "", errors.New("invalid document")
 }

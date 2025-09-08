@@ -4,13 +4,13 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
 	"github.com/danielmesquitta/openfinance/internal/pkg/jsonutil"
 	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
@@ -52,12 +52,12 @@ func (so *SyncOne) Execute(
 	setDefaultValues(&dto)
 
 	if err := so.val.Validate(dto); err != nil {
-		return err
+		return fmt.Errorf("failed to validate dto: %w", err)
 	}
 
 	startDate, endDate, err := parseDates(dto)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse dates: %w", err)
 	}
 
 	transactions, err := so.openFinanceAPIProvider.ListTransactionsByUserID(
@@ -68,7 +68,7 @@ func (so *SyncOne) Execute(
 	)
 
 	if err != nil {
-		return errs.New(err)
+		return fmt.Errorf("failed to list transactions by user id: %w", err)
 	}
 
 	mu := sync.Mutex{}
@@ -103,7 +103,7 @@ func (so *SyncOne) Execute(
 	}
 
 	if err := g.Wait(); err != nil {
-		return errs.New(err)
+		return fmt.Errorf("failed while getting company by document: %w", err)
 	}
 
 	uniqueTransactionNames := map[string]struct{}{}
@@ -121,7 +121,7 @@ func (so *SyncOne) Execute(
 
 	jsonBytes, err := json.Marshal(transactionNames)
 	if err != nil {
-		return errs.New(err)
+		return fmt.Errorf("failed to marshal transactions: %w", err)
 	}
 
 	gptMessage := fmt.Sprintf(
@@ -147,17 +147,17 @@ func (so *SyncOne) Execute(
 
 	rawResponse, err := so.gptProvider.CreateChatCompletion(gptMessage)
 	if err != nil {
-		return errs.New(err)
+		return fmt.Errorf("failed to create chat completion: %w", err)
 	}
 
 	jsonResponse := jsonutil.ExtractJSONFromText(rawResponse)
 	if len(jsonResponse) != 1 {
-		return errs.New("invalid JSON response")
+		return errors.New("invalid JSON response")
 	}
 
 	categoryByTransaction := map[string]string{}
 	if err := json.Unmarshal([]byte(jsonResponse[0]), &categoryByTransaction); err != nil {
-		return errs.New(err)
+		return fmt.Errorf("failed to unmarshal transactions: %w", err)
 	}
 
 	uniqueCategories := map[string]struct{}{}
@@ -190,7 +190,7 @@ func (so *SyncOne) Execute(
 		},
 	)
 	if err != nil {
-		return errs.New(err)
+		return fmt.Errorf("failed to create transactions table: %w", err)
 	}
 
 	// TODO: Do a batch insert
@@ -208,7 +208,7 @@ func (so *SyncOne) Execute(
 	}
 
 	if err := g.Wait(); err != nil {
-		return errs.New(err)
+		return fmt.Errorf("failed while inserting transactions: %w", err)
 	}
 
 	return nil

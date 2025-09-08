@@ -29,18 +29,14 @@ update:
 build:
 	@GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build -tags lambda.norpc -ldflags="-w -s" -o ./tmp/bootstrap ./cmd/lambda/main.go
 
-.PHONY: copy
-copy:
-	@cp .env ./tmp/.env && cp users.json ./tmp/users.json
-
 .PHONY: clear
 clear:
-	@rm ./tmp/.env && rm ./tmp/users.json && rm ./tmp/bootstrap
+	@rm ./tmp/bootstrap
 
 .PHONY: zip
 zip:
-	@zip -j ./tmp/lambda.zip ./tmp/bootstrap ./tmp/.env ./tmp/users.json
+	@zip -j ./tmp/lambda.zip ./tmp/bootstrap
 
 .PHONY: deploy
 deploy:
-	@make build && make copy && make zip && make clear
+	@make build && make zip && make clear

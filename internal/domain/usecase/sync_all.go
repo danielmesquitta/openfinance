@@ -2,11 +2,11 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 
 	"golang.org/x/sync/errgroup"
 
 	"github.com/danielmesquitta/openfinance/internal/config"
-	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
 )
 
@@ -50,7 +50,7 @@ func (sa *SyncAll) Execute(
 	}
 
 	if err := g.Wait(); err != nil {
-		return errs.New(err)
+		return fmt.Errorf("failed to wait for sync all: %w", err)
 	}
 
 	return nil
