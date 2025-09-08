@@ -1,6 +1,7 @@
 package notionapi
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
@@ -59,6 +60,7 @@ type insertRowReqName struct {
 }
 
 func (c *Client) InsertTransaction(
+	ctx context.Context,
 	userID, tableID string,
 	transaction entity.Transaction,
 ) (*sheet.Table, error) {
@@ -111,6 +113,7 @@ func (c *Client) InsertTransaction(
 	}
 
 	res, err := c.client.R().
+		SetContext(ctx).
 		SetHeader("Authorization", "Bearer "+conn.accessToken).
 		SetBody(requestData).
 		Post("/v1/pages")

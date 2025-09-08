@@ -2,14 +2,14 @@ package usecase
 
 import (
 	"cmp"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
 
-	"github.com/sourcegraph/conc/iter"
+	"golang.org/x/sync/errgroup"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
 	"github.com/danielmesquitta/openfinance/internal/pkg/jsonutil"
@@ -45,6 +45,7 @@ func NewSyncOne(
 }
 
 func (so *SyncOne) Execute(
+	ctx context.Context,
 	userID string,
 	dto SyncDTO,
 ) error {
@@ -60,6 +61,7 @@ func (so *SyncOne) Execute(
 	}
 
 	transactions, err := so.openFinanceAPIProvider.ListTransactionsByUserID(
+		ctx,
 		userID,
 		startDate,
 		endDate,
@@ -70,28 +72,39 @@ func (so *SyncOne) Execute(
 	}
 
 	mu := sync.Mutex{}
-	iter.ForEachIdx(transactions, func(i int, t *entity.Transaction) {
-		if !docutil.IsCNPJ(t.Name) {
-			return
-		}
-		document := docutil.CleanDocument(t.Name)
-		company, err := so.companyAPIProvider.GetCompanyByID(document)
-		if err != nil {
-			slog.Error("failed to get company by document",
-				"document", document,
-				"error", err,
-			)
-			return
-		}
+	g, gCtx := errgroup.WithContext(ctx)
 
-		mu.Lock()
-		transactions[i].Name = cmp.Or(
-			company.TradingName,
-			company.Name,
-			transactions[i].Name,
-		)
-		mu.Unlock()
-	})
+	for i, t := range transactions {
+		g.Go(func() error {
+			if !docutil.IsCNPJ(t.Name) {
+				return nil
+			}
+
+			document := docutil.CleanDocument(t.Name)
+			company, err := so.companyAPIProvider.GetCompanyByID(document)
+			if err != nil {
+				slog.Error("failed to get company by document",
+					"document", document,
+					"error", err,
+				)
+				return nil
+			}
+
+			mu.Lock()
+			transactions[i].Name = cmp.Or(
+				company.TradingName,
+				company.Name,
+				transactions[i].Name,
+			)
+			mu.Unlock()
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return errs.New(err)
+	}
 
 	uniqueTransactionNames := map[string]struct{}{}
 	for _, t := range transactions {
@@ -169,6 +182,7 @@ func (so *SyncOne) Execute(
 	title := fmt.Sprintf("%s %d", monthAbbreviation, year)
 
 	newTableResponse, err := so.sheetProvider.CreateTransactionsTable(
+		ctx,
 		userID,
 		sheet.CreateTransactionsTableDTO{
 			Title:      title,
@@ -179,20 +193,22 @@ func (so *SyncOne) Execute(
 		return errs.New(err)
 	}
 
-	// @TODO: Do a batch insert
+	// TODO: Do a batch insert
+	g, gCtx = errgroup.WithContext(ctx)
 	for _, transaction := range transactions {
-		_, err := so.sheetProvider.InsertTransaction(
-			userID,
-			newTableResponse.ID,
-			transaction,
-		)
-		if err != nil {
-			slog.Error(
-				"failed to insert transaction into database",
-				"error",
-				err,
+		g.Go(func() error {
+			_, err := so.sheetProvider.InsertTransaction(
+				gCtx,
+				userID,
+				newTableResponse.ID,
+				transaction,
 			)
-		}
+			return err
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return errs.New(err)
 	}
 
 	return nil

@@ -1,9 +1,11 @@
 package lambda
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/danielmesquitta/openfinance/internal/app"
@@ -15,7 +17,28 @@ func Handler(
 ) (events.APIGatewayProxyResponse, error) {
 	syncAllUseCase := app.NewSyncAllUseCase()
 
-	err := syncAllUseCase.Execute(usecase.SyncDTO{})
+	ctx := context.Background()
+
+	startOfLastMonth := time.Date(
+		time.Now().Year(),
+		time.Now().Month()-1,
+		1,
+		0,
+		0,
+		0,
+		0,
+		time.Local,
+	)
+	endOfLastMonth := startOfLastMonth.AddDate(
+		0,
+		1,
+		-1,
+	)
+
+	err := syncAllUseCase.Execute(ctx, usecase.SyncDTO{
+		StartDate: startOfLastMonth.Format(time.RFC3339),
+		EndDate:   endOfLastMonth.Format(time.RFC3339),
+	})
 	if err != nil {
 		slog.Error(
 			err.Error(),

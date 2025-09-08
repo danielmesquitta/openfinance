@@ -1,13 +1,13 @@
 package pluggyapi
 
 import (
+	"context"
 	"sync"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/sourcegraph/conc/iter"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/danielmesquitta/openfinance/internal/config"
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/provider/openfinance"
 )
 
@@ -30,22 +30,29 @@ func NewClient(env *config.Env) *Client {
 
 	mu := sync.Mutex{}
 	conns := map[string]conn{}
+	g, ctx := errgroup.WithContext(context.Background())
 
-	iter.ForEach(env.Users, func(user *entity.User) {
-		token, err := c.authenticate(
-			user.PluggyClientID,
-			user.PluggyClientSecret,
-		)
-		if err != nil {
-			panic(err)
-		}
-		mu.Lock()
-		conns[user.ID] = conn{
-			accessToken: token,
-			accountIDs:  user.PluggyAccountIDs,
-		}
-		mu.Unlock()
-	})
+	for _, user := range env.Users {
+		g.Go(func() error {
+			token, err := c.authenticate(
+				ctx,
+				user.PluggyClientID,
+				user.PluggyClientSecret,
+			)
+			if err != nil {
+				return err
+			}
+
+			mu.Lock()
+			conns[user.ID] = conn{
+				accessToken: token,
+				accountIDs:  user.PluggyAccountIDs,
+			}
+			mu.Unlock()
+
+			return nil
+		})
+	}
 
 	c.conns = conns
 

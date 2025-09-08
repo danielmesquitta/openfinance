@@ -1,6 +1,7 @@
 package notionapi
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/errs"
@@ -71,6 +72,7 @@ type notionNewTableReqText struct {
 }
 
 func (c *Client) CreateTransactionsTable(
+	ctx context.Context,
 	userID string,
 	dto sheet.CreateTransactionsTableDTO,
 ) (*sheet.Table, error) {
@@ -142,6 +144,7 @@ func (c *Client) CreateTransactionsTable(
 	}
 
 	res, err := c.client.R().
+		SetContext(ctx).
 		SetHeader("Authorization", "Bearer "+conn.accessToken).
 		SetBody(requestData).
 		Post("/v1/databases")

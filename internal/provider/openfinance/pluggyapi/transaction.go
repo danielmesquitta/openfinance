@@ -1,6 +1,7 @@
 package pluggyapi
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"math"
@@ -10,7 +11,7 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
-	"github.com/sourcegraph/conc/iter"
+	"golang.org/x/sync/errgroup"
 )
 
 type listTransactionsResponse struct {
@@ -62,6 +63,7 @@ const (
 )
 
 func (c *Client) ListTransactionsByUserID(
+	ctx context.Context,
 	userID string,
 	from, to time.Time,
 ) ([]entity.Transaction, error) {
@@ -70,37 +72,40 @@ func (c *Client) ListTransactionsByUserID(
 		return nil, errs.New("connection not found for user " + userID)
 	}
 
-	resTransactions, err := iter.MapErr(
-		conn.accountIDs,
-		func(accountID *string) (listTransactionsResponse, error) {
+	resTransactions := make([]listTransactionsResponse, len(conn.accountIDs))
+	var eg errgroup.Group
+	for i, accountID := range conn.accountIDs {
+		eg.Go(func() error {
 			res, err := c.client.R().
+				SetContext(ctx).
 				SetQueryParams(map[string]string{
 					"pageSize":  "500",
 					"from":      from.Format(time.DateOnly),
 					"to":        to.Format(time.DateOnly),
-					"accountId": *accountID,
+					"accountId": accountID,
 				}).
 				SetHeader("X-API-KEY", conn.accessToken).
 				Get("/transactions")
 			if err != nil {
-				return listTransactionsResponse{}, errs.New(err)
+				return errs.New(err)
 			}
 			body := res.Body()
 			if statusCode := res.StatusCode(); statusCode < 200 ||
 				statusCode >= 300 {
-				return listTransactionsResponse{}, errs.New(body)
+				return errs.New(body)
 			}
 
 			data := listTransactionsResponse{}
 			if err := json.Unmarshal(body, &data); err != nil {
-				return listTransactionsResponse{}, errs.New(body)
+				return errs.New(body)
 			}
 
-			return data, nil
-		},
-	)
+			resTransactions[i] = data
+			return nil
+		})
+	}
 
-	if err != nil {
+	if err := eg.Wait(); err != nil {
 		return nil, errs.New(err)
 	}
 

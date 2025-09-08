@@ -1,6 +1,7 @@
 package pluggyapi
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/errs"
@@ -16,6 +17,7 @@ type authRequest struct {
 }
 
 func (c *Client) authenticate(
+	ctx context.Context,
 	clientID, clientSecret string,
 ) (string, error) {
 	authRequest := authRequest{
@@ -23,7 +25,7 @@ func (c *Client) authenticate(
 		ClientSecret: clientSecret,
 	}
 
-	res, err := c.client.R().SetBody(authRequest).Post("/auth")
+	res, err := c.client.R().SetContext(ctx).SetBody(authRequest).Post("/auth")
 	if err != nil {
 		return "", errs.New(err)
 	}

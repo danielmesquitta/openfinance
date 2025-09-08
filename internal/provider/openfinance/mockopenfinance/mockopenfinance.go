@@ -1,6 +1,7 @@
 package mockopenfinance
 
 import (
+	"context"
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
@@ -14,8 +15,9 @@ func NewMockOpenFinance() *MockOpenFinance {
 }
 
 func (m MockOpenFinance) ListTransactionsByUserID(
-	userID string,
-	from, to time.Time,
+	_ context.Context,
+	_ string,
+	_, _ time.Time,
 ) ([]entity.Transaction, error) {
 	transactions := []entity.Transaction{
 		{

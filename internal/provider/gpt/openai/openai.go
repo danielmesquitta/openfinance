@@ -25,7 +25,7 @@ func (o *OpenAIClient) CreateChatCompletion(message string) (string, error) {
 	resp, err := o.client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model: openai.GPT4oMini,
+			Model: openai.GPT5Mini,
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleUser,

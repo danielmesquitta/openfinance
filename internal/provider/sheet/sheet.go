@@ -1,6 +1,10 @@
 package sheet
 
-import "github.com/danielmesquitta/openfinance/internal/domain/entity"
+import (
+	"context"
+
+	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+)
 
 type Table struct {
 	ID  string `json:"id"`
@@ -20,10 +24,12 @@ type CreateTransactionsTableDTO struct {
 
 type Provider interface {
 	CreateTransactionsTable(
+		ctx context.Context,
 		userID string,
 		dto CreateTransactionsTableDTO,
 	) (*Table, error)
 	InsertTransaction(
+		ctx context.Context,
 		userID string,
 		tableID string,
 		transaction entity.Transaction,

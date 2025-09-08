@@ -1,10 +1,11 @@
 package usecase
 
 import (
-	"github.com/sourcegraph/conc/iter"
+	"context"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/danielmesquitta/openfinance/internal/config"
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/domain/errs"
 	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
 )
@@ -28,6 +29,7 @@ func NewSyncAll(
 }
 
 func (sa *SyncAll) Execute(
+	ctx context.Context,
 	dto SyncDTO,
 ) error {
 	setDefaultValues(&dto)
@@ -35,18 +37,19 @@ func (sa *SyncAll) Execute(
 		return err
 	}
 
-	_, err := iter.MapErr(
-		sa.env.Users,
-		func(user *entity.User) (*struct{}, error) {
-			err := sa.syncOneUseCase.Execute(
+	g, gCtx := errgroup.WithContext(ctx)
+
+	for _, user := range sa.env.Users {
+		g.Go(func() error {
+			return sa.syncOneUseCase.Execute(
+				gCtx,
 				user.ID,
 				dto,
 			)
-			return nil, err
-		},
-	)
+		})
+	}
 
-	if err != nil {
+	if err := g.Wait(); err != nil {
 		return errs.New(err)
 	}
 
