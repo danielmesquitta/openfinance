@@ -1,9 +1,12 @@
 default: run
 include .env
 
+MONTH ?= 0
+YEAR ?= 0
+
 .PHONY: run
 run:
-	@go run ./cmd/cli/main.go
+	@go run ./cmd/cli/main.go $(if $(MONTH),--month $(MONTH),) $(if $(YEAR),--year $(YEAR),)
 
 .PHONY: install
 install:

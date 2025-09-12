@@ -54,6 +54,10 @@ func NewClient(env *config.Env) *Client {
 		})
 	}
 
+	if err := g.Wait(); err != nil {
+		panic(err)
+	}
+
 	c.conns = conns
 
 	return c

@@ -82,20 +82,40 @@ func (c *Client) CreateTransactionsTable(
 		return nil, errors.New("connection not found for user " + userID)
 	}
 
-	categoryOptions := make(
-		[]notionNewTableReqSelectOption,
-		len(dto.Categories)+1,
-	)
-	for i, category := range dto.Categories {
-		categoryOptions[i] = notionNewTableReqSelectOption{
-			Name:  formatSelectOption(string(category)),
-			Color: colors[i%len(colors)],
-		}
+	requestData := c.getRequestData(conn, dto)
+
+	res, err := c.client.R().
+		SetContext(ctx).
+		SetHeader("Authorization", "Bearer "+conn.accessToken).
+		SetBody(requestData).
+		Post("/v1/databases")
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transactions table: %w", err)
 	}
-	categoryOptions[len(dto.Categories)] = notionNewTableReqSelectOption{
-		Name:  string(sheet.CategoryUnknown),
-		Color: Gray,
+
+	body := res.Body()
+	if res.IsError() {
+		return nil, fmt.Errorf(
+			"request creating transactions table %+v failed with response: %s",
+			requestData,
+			body,
+		)
 	}
+
+	data := &sheet.Table{}
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal while creating transactions table: %w", err)
+	}
+
+	return data, nil
+}
+
+func (c *Client) getRequestData(
+	conn conn,
+	dto sheet.CreateTransactionsTableDTO,
+) notionNewTableReq {
+	categoryOptions := c.getCategoryOptions(dto.Categories)
 
 	requestData := notionNewTableReq{
 		Parent: notionNewTableReqParent{
@@ -144,25 +164,32 @@ func (c *Client) CreateTransactionsTable(
 		},
 	}
 
-	res, err := c.client.R().
-		SetContext(ctx).
-		SetHeader("Authorization", "Bearer "+conn.accessToken).
-		SetBody(requestData).
-		Post("/v1/databases")
+	return requestData
+}
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to create transactions table: %w", err)
+func (c *Client) getCategoryOptions(categories []sheet.Category) []notionNewTableReqSelectOption {
+	categoryOptions := make(
+		[]notionNewTableReqSelectOption,
+		0,
+		len(categories)+1, // +1 for unknown category, if not exists
+	)
+
+	for i, category := range categories {
+		categoryName := formatSelectOption(string(category))
+		if categoryName == string(sheet.CategoryUnknown) {
+			continue
+		}
+
+		categoryOptions = append(categoryOptions, notionNewTableReqSelectOption{
+			Name:  categoryName,
+			Color: colors[i%len(colors)],
+		})
 	}
 
-	body := res.Body()
-	if res.IsError() {
-		return nil, fmt.Errorf("error response while creating transactions table: %+v", body)
-	}
+	categoryOptions = append(categoryOptions, notionNewTableReqSelectOption{
+		Name:  string(sheet.CategoryUnknown),
+		Color: Gray,
+	})
 
-	data := &sheet.Table{}
-	if err := json.Unmarshal(body, &data); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal while creating transactions table: %w", err)
-	}
-
-	return data, nil
+	return categoryOptions
 }

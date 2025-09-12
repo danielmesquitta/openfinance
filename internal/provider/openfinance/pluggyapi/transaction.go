@@ -112,7 +112,7 @@ func (c *Client) fetchAccountTransactions(
 	body := res.Body()
 	if res.IsError() {
 		return listTransactionsResponse{}, fmt.Errorf(
-			"error response while listing transactions: %+v", body)
+			"error response while listing transactions: %s", body)
 	}
 
 	data := listTransactionsResponse{}

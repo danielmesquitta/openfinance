@@ -31,20 +31,24 @@ var timeFormats = []string{
 	time.DateOnly,
 }
 
-var (
-	startDate *time.Time
-	endDate   *time.Time
+const (
+	monthFlag     = "month"
+	yearFlag      = "year"
+	startDateFlag = "start-date"
+	endDateFlag   = "end-date"
 )
 
 func init() {
 	now := time.Now()
 
+	rootCmd.Flags().IntP(monthFlag, "m", int(now.Month()), "Month (1-12)")
+	rootCmd.Flags().IntP(yearFlag, "y", now.Year(), "Year (YYYY)")
+
 	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
+	endOfMonth := startOfMonth.AddDate(0, 1, 0).Add(-time.Nanosecond)
 
-	endOfMonth := startOfMonth.AddDate(0, 1, -1)
-
-	startDate = rootCmd.Flags().TimeP("start-date", "s", startOfMonth, timeFormats, "Start date")
-	endDate = rootCmd.Flags().TimeP("end-date", "e", endOfMonth, timeFormats, "End date")
+	rootCmd.Flags().TimeP(startDateFlag, "s", startOfMonth, timeFormats, "Start date")
+	rootCmd.Flags().TimeP(endDateFlag, "e", endOfMonth, timeFormats, "End date")
 }
 
 func Execute() error {
@@ -63,14 +67,31 @@ var rootCmd = &cobra.Command{
 	Run:   run,
 }
 
-func run(_ *cobra.Command, _ []string) {
+func run(cmd *cobra.Command, _ []string) {
+	monthVal, _ := cmd.Flags().GetInt(monthFlag)
+	yearVal, _ := cmd.Flags().GetInt(yearFlag)
+	startDateVal, _ := cmd.Flags().GetTime(startDateFlag)
+	endDateVal, _ := cmd.Flags().GetTime(endDateFlag)
+
+	// If month/year were explicitly set, recalculate start and end dates
+	if cmd.Flags().Changed(monthFlag) || cmd.Flags().Changed(yearFlag) {
+		month := time.Month(monthVal)
+		year := yearVal
+
+		startOfMonth := time.Date(year, month, 1, 0, 0, 0, 0, time.Local)
+		endOfMonth := startOfMonth.AddDate(0, 1, 0).Add(-time.Nanosecond)
+
+		startDateVal = startOfMonth
+		endDateVal = endOfMonth
+	}
+
 	syncAllUseCase := app.NewSyncAllUseCase()
 
 	ctx := context.Background()
 
 	err := syncAllUseCase.Execute(ctx, usecase.SyncDTO{
-		StartDate: startDate.Format(time.RFC3339),
-		EndDate:   endDate.Format(time.RFC3339),
+		StartDate: startDateVal.Format(time.RFC3339),
+		EndDate:   endDateVal.Format(time.RFC3339),
 	})
 	if err != nil {
 		log.Printf("failed to execute sync all: %v", err)

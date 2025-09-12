@@ -124,7 +124,7 @@ func (c *Client) InsertTransaction(
 
 	body := res.Body()
 	if res.IsError() {
-		return nil, fmt.Errorf("error response while inserting transaction: %+v", body)
+		return nil, fmt.Errorf("error response while inserting transaction: %s", body)
 	}
 
 	data := &sheet.Table{}

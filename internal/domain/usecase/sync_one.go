@@ -159,7 +159,7 @@ func (so *SyncOne) categorizeTransactions(transactions []entity.Transaction) err
 		return fmt.Errorf("failed to get categories from GPT: %w", err)
 	}
 
-	so.applyCategoriestoTransactions(transactions, categoryByTransaction)
+	so.applyCategoriesToTransactions(transactions, categoryByTransaction)
 
 	return nil
 }
@@ -200,8 +200,9 @@ func (so *SyncOne) getCategoriesFromGPT(transactionNames []string) (map[string]s
        "ESTADO DE MINAS GERAIS": "Taxes",
        "RECEITA FEDERAL": "Taxes",
        "CEMIG D": "Energy"
-     }, return "%s" for unknown categories.
-     Be direct and return only the JSON
+     }
+     Return "%s" for unknown categories.
+     Be direct and return only the JSON.
      %s
     `,
 		sheet.CategoryUnknown,
@@ -227,7 +228,7 @@ func (so *SyncOne) getCategoriesFromGPT(transactionNames []string) (map[string]s
 	return categoryByTransaction, nil
 }
 
-func (*SyncOne) applyCategoriestoTransactions(
+func (*SyncOne) applyCategoriesToTransactions(
 	transactions []entity.Transaction,
 	categoryByTransaction map[string]string,
 ) {

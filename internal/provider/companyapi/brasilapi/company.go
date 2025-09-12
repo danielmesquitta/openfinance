@@ -17,7 +17,7 @@ func (c *Client) GetCompanyByID(id string) (entity.Company, error) {
 
 	body := res.Body()
 	if res.IsError() {
-		return entity.Company{}, fmt.Errorf("failed to get company by id: %+v", body)
+		return entity.Company{}, fmt.Errorf("failed to get company by id: %s", body)
 	}
 
 	data := entity.Company{}

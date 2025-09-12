@@ -32,7 +32,7 @@ func (c *Client) authenticate(
 
 	body := res.Body()
 	if res.IsError() {
-		return "", fmt.Errorf("error response while authenticating: %+v", body)
+		return "", fmt.Errorf("error response while authenticating: %s", body)
 	}
 
 	data := authResponse{}
