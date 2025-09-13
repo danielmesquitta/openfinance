@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/danielmesquitta/openfinance/internal/config"
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
 	"github.com/danielmesquitta/openfinance/internal/pkg/jsonutil"
@@ -23,6 +24,7 @@ import (
 )
 
 type SyncOne struct {
+	env                    *config.Env
 	val                    *validator.Validator
 	companyAPIProvider     companyapi.APIProvider
 	gptProvider            gpt.Provider
@@ -31,6 +33,7 @@ type SyncOne struct {
 }
 
 func NewSyncOne(
+	env *config.Env,
 	val *validator.Validator,
 	companyAPIProvider companyapi.APIProvider,
 	gptProvider gpt.Provider,
@@ -38,6 +41,7 @@ func NewSyncOne(
 	openFinanceAPIProvider openfinance.APIProvider,
 ) *SyncOne {
 	return &SyncOne{
+		env:                    env,
 		val:                    val,
 		companyAPIProvider:     companyAPIProvider,
 		gptProvider:            gptProvider,
@@ -166,16 +170,13 @@ func (so *SyncOne) categorizeTransactions(transactions []entity.Transaction) err
 
 func (*SyncOne) extractUniqueTransactionNames(transactions []entity.Transaction) []string {
 	uniqueTransactionNames := map[string]struct{}{}
-	for _, t := range transactions {
-		uniqueTransactionNames[t.Name] = struct{}{}
-	}
-
 	transactionNames := []string{}
-	for name := range uniqueTransactionNames {
-		if name == "" {
+	for _, t := range transactions {
+		if _, ok := uniqueTransactionNames[t.Name]; ok {
 			continue
 		}
-		transactionNames = append(transactionNames, name)
+		uniqueTransactionNames[t.Name] = struct{}{}
+		transactionNames = append(transactionNames, t.Name)
 	}
 
 	return transactionNames
@@ -190,22 +191,16 @@ func (so *SyncOne) getCategoriesFromGPT(transactionNames []string) (map[string]s
 	gptMessage := fmt.Sprintf(
 		`Read the text below and return in JSON format,
      with key as the transaction name and value as the category name.
+     Use the categories from the following list: %s
      Here is an example response:
-     {
-       "TAPAJOS EMPREENDIMENTOS IMOBILIARIOS LTDA": "Real state",
-       "GROWTH SUPPLEMENTS": "Health and fitness",
-       "ALGAR TELECOM": "Telecommunications",
-       "Uber *Uber *Trip": "Transportation",
-       "99app *99app": "Transportation",
-       "ESTADO DE MINAS GERAIS": "Taxes",
-       "RECEITA FEDERAL": "Taxes",
-       "CEMIG D": "Energy"
-     }
+     %s
      Return "%s" for unknown categories.
      Be direct and return only the JSON.
      %s
     `,
-		sheet.CategoryUnknown,
+		so.env.JSONCategories,
+		so.env.JSONMappings,
+		entity.CategoryUnknown,
 		jsonBytes,
 	)
 
@@ -235,9 +230,9 @@ func (*SyncOne) applyCategoriesToTransactions(
 	for i, t := range transactions {
 		category, ok := categoryByTransaction[t.Name]
 		if !ok {
-			category = string(sheet.CategoryUnknown)
+			category = string(entity.CategoryUnknown)
 		}
-		transactions[i].Category = category
+		transactions[i].Category = entity.Category(category)
 	}
 }
 
@@ -247,43 +242,25 @@ func (so *SyncOne) createAndPopulateTable(
 	transactions []entity.Transaction,
 	startDate time.Time,
 ) error {
-	categories := so.extractUniqueCategories(transactions)
 	title := startDate.Format("Jan 2006")
 
 	newTableResponse, err := so.sheetProvider.CreateTransactionsTable(
 		ctx,
 		userID,
-		sheet.CreateTransactionsTableDTO{
-			Title:      title,
-			Categories: categories,
-		},
+		title,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create transactions table: %w", err)
 	}
 
-	if err := so.insertTransactionsInParallel(ctx, userID, newTableResponse.ID, transactions); err != nil {
+	if err := so.insertTransactions(ctx, userID, newTableResponse.ID, transactions); err != nil {
 		return fmt.Errorf("failed to insert transactions: %w", err)
 	}
 
 	return nil
 }
 
-func (*SyncOne) extractUniqueCategories(transactions []entity.Transaction) []sheet.Category {
-	uniqueCategories := map[string]struct{}{}
-	for _, t := range transactions {
-		uniqueCategories[t.Category] = struct{}{}
-	}
-
-	categories := []sheet.Category{}
-	for category := range uniqueCategories {
-		categories = append(categories, sheet.Category(category))
-	}
-
-	return categories
-}
-
-func (so *SyncOne) insertTransactionsInParallel(
+func (so *SyncOne) insertTransactions(
 	ctx context.Context,
 	userID, tableID string,
 	transactions []entity.Transaction,

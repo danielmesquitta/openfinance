@@ -25,7 +25,7 @@ func NewSyncAllUseCase() *usecase.SyncAll {
 	openAIClient := openai.NewOpenAIClient(env)
 	notionapiClient := notionapi.NewClient(env)
 	pluggyapiClient := pluggyapi.NewClient(env)
-	syncOne := usecase.NewSyncOne(validatorValidator, client, openAIClient, notionapiClient, pluggyapiClient)
+	syncOne := usecase.NewSyncOne(env, validatorValidator, client, openAIClient, notionapiClient, pluggyapiClient)
 	syncAll := usecase.NewSyncAll(validatorValidator, env, syncOne)
 	return syncAll
 }

@@ -8,40 +8,13 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-type Color string
-
-const (
-	Blue      Color = "blue"
-	Brown     Color = "brown"
-	Gray      Color = "default"
-	LightGray Color = "gray"
-	Green     Color = "green"
-	Orange    Color = "orange"
-	Pink      Color = "pink"
-	Purple    Color = "purple"
-	Red       Color = "red"
-	Yellow    Color = "yellow"
-)
-
-var colors = []Color{
-	Blue,
-	Red,
-	Green,
-	Purple,
-	Yellow,
-	Pink,
-	Orange,
-	LightGray,
-	Brown,
-	Gray,
-}
-
 type conn struct {
 	accessToken string
 	pageID      string
 }
 
 type Client struct {
+	env    *config.Env
 	client *resty.Client
 	conns  map[string]conn
 }
@@ -60,6 +33,7 @@ func NewClient(env *config.Env) *Client {
 	}
 
 	return &Client{
+		env:    env,
 		client: client,
 		conns:  conns,
 	}

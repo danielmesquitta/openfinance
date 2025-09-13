@@ -1,0 +1,16 @@
+{
+  "Education": "blue",
+  "Energy": "green",
+  "Fitness": "yellow",
+  "Food & dining": "red",
+  "Girlfriend": "pink",
+  "Groceries": "orange",
+  "Health": "purple",
+  "Real state": "brown",
+  "Shopping": "red",
+  "Subscription": "blue",
+  "Taxes": "orange",
+  "Telecommunications": "brown",
+  "Transportation": "gray",
+  "Others": "default"
+}

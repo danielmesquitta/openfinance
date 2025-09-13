@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 )
 
@@ -51,8 +52,8 @@ type notionNewTableReqSelect struct {
 }
 
 type notionNewTableReqSelectOption struct {
-	Name  string `json:"name"`
-	Color Color  `json:"color"`
+	Name  string       `json:"name"`
+	Color entity.Color `json:"color"`
 }
 
 type notionNewTableReqDate struct {
@@ -75,14 +76,14 @@ type notionNewTableReqText struct {
 func (c *Client) CreateTransactionsTable(
 	ctx context.Context,
 	userID string,
-	dto sheet.CreateTransactionsTableDTO,
+	title string,
 ) (*sheet.Table, error) {
 	conn, ok := c.conns[userID]
 	if !ok {
 		return nil, errors.New("connection not found for user " + userID)
 	}
 
-	requestData := c.getRequestData(conn, dto)
+	requestData := c.getRequestData(conn, title)
 
 	res, err := c.client.R().
 		SetContext(ctx).
@@ -113,9 +114,9 @@ func (c *Client) CreateTransactionsTable(
 
 func (c *Client) getRequestData(
 	conn conn,
-	dto sheet.CreateTransactionsTableDTO,
+	title string,
 ) notionNewTableReq {
-	categoryOptions := c.getCategoryOptions(dto.Categories)
+	categoryOptions := c.getCategoryOptions()
 
 	requestData := notionNewTableReq{
 		Parent: notionNewTableReqParent{
@@ -130,7 +131,7 @@ func (c *Client) getRequestData(
 			{
 				Type: "text",
 				Text: notionNewTableReqText{
-					Content: dto.Title,
+					Content: title,
 				},
 			},
 		},
@@ -151,10 +152,10 @@ func (c *Client) getRequestData(
 			PaymentMethod: notionNewTableReqCategory{
 				Select: notionNewTableReqSelect{
 					Options: []notionNewTableReqSelectOption{
-						{Name: "BOLETO", Color: Yellow},
-						{Name: "PIX", Color: Blue},
-						{Name: "TED", Color: Green},
-						{Name: "CREDIT CARD", Color: Purple},
+						{Name: "BOLETO", Color: entity.Yellow},
+						{Name: "PIX", Color: entity.Blue},
+						{Name: "TED", Color: entity.Green},
+						{Name: "CREDIT CARD", Color: entity.Purple},
 					},
 				},
 			},
@@ -167,29 +168,20 @@ func (c *Client) getRequestData(
 	return requestData
 }
 
-func (c *Client) getCategoryOptions(categories []sheet.Category) []notionNewTableReqSelectOption {
+func (c *Client) getCategoryOptions() []notionNewTableReqSelectOption {
 	categoryOptions := make(
 		[]notionNewTableReqSelectOption,
 		0,
-		len(categories)+1, // +1 for unknown category, if not exists
+		len(c.env.ColorsByCategory),
 	)
 
-	for i, category := range categories {
+	for category, color := range c.env.ColorsByCategory {
 		categoryName := formatSelectOption(string(category))
-		if categoryName == string(sheet.CategoryUnknown) {
-			continue
-		}
-
 		categoryOptions = append(categoryOptions, notionNewTableReqSelectOption{
 			Name:  categoryName,
-			Color: colors[i%len(colors)],
+			Color: color,
 		})
 	}
-
-	categoryOptions = append(categoryOptions, notionNewTableReqSelectOption{
-		Name:  string(sheet.CategoryUnknown),
-		Color: Gray,
-	})
 
 	return categoryOptions
 }

@@ -86,7 +86,7 @@ func (c *Client) InsertTransaction(
 			},
 			Category: insertRowReqSelector{
 				Select: insertRowReqSelect{
-					Name: "Others",
+					Name: string(entity.CategoryUnknown),
 				},
 			},
 			Amount: insertRowReqNumber{
@@ -105,10 +105,10 @@ func (c *Client) InsertTransaction(
 		},
 	}
 
-	if transaction.Category != "" {
+	if transaction.Category != "" && transaction.Category != entity.CategoryUnknown {
 		requestData.Properties.Category = insertRowReqSelector{
 			Select: insertRowReqSelect{
-				Name: formatSelectOption(transaction.Category),
+				Name: formatSelectOption(string(transaction.Category)),
 			},
 		}
 	}

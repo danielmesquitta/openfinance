@@ -1,7 +1,9 @@
 .env*
 !.env.example
 
-users.json
+config/users.json
+config/categories.json
+config/mappings.json
 
 tmp/*
 

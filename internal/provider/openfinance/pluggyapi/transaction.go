@@ -217,7 +217,7 @@ func (c *Client) processSingleResult(r result) (*entity.Transaction, bool) {
 	}
 
 	if r.Category != nil {
-		transaction.Category = *r.Category
+		transaction.Category = entity.Category(*r.Category)
 	}
 
 	accountType := entity.AccountTypeCreditCard

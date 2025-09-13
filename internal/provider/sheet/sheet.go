@@ -11,22 +11,11 @@ type Table struct {
 	URL string `json:"url"`
 }
 
-type Category string
-
-const (
-	CategoryUnknown Category = "Others"
-)
-
-type CreateTransactionsTableDTO struct {
-	Title      string
-	Categories []Category
-}
-
 type Provider interface {
 	CreateTransactionsTable(
 		ctx context.Context,
 		userID string,
-		dto CreateTransactionsTableDTO,
+		title string,
 	) (*Table, error)
 	InsertTransaction(
 		ctx context.Context,

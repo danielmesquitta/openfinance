@@ -31,6 +31,9 @@ linters:
           disabled: true
         - name: function-length
           disabled: true
+        - name: cognitive-complexity
+          disabled: true
+          arguments: [12]
 formatters:
   enable:
     - gofmt
