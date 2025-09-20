@@ -116,7 +116,6 @@ func (e *Env) loadCategories() (uniqueCategories map[entity.Category]struct{}, e
 	}
 
 	uniqueCategories = map[entity.Category]struct{}{}
-	uniqueColors := map[entity.Color]struct{}{}
 	categories := make([]entity.Category, 0, len(e.ColorsByCategory))
 	for category, color := range e.ColorsByCategory {
 		if _, ok := uniqueCategories[category]; ok {
@@ -125,11 +124,7 @@ func (e *Env) loadCategories() (uniqueCategories map[entity.Category]struct{}, e
 		if _, ok := entity.ColorsMap[color]; !ok {
 			return nil, fmt.Errorf("color %s is not valid", color)
 		}
-		if _, ok := uniqueColors[color]; ok {
-			return nil, fmt.Errorf("color %s is not unique", color)
-		}
 		uniqueCategories[category] = struct{}{}
-		uniqueColors[color] = struct{}{}
 		categories = append(categories, category)
 	}
 

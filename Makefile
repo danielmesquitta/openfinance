@@ -5,8 +5,11 @@ MONTH ?= 0
 YEAR ?= 0
 
 .PHONY: run
-run:
-	@go run ./cmd/cli/main.go $(if $(MONTH),--month $(MONTH),) $(if $(YEAR),--year $(YEAR),)
+current-year:
+	@.bin/current-year.sh
+
+current-month:
+	@.bin/current-month.sh
 
 .PHONY: install
 install:

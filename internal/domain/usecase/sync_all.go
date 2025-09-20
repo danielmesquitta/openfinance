@@ -38,7 +38,6 @@ func (sa *SyncAll) Execute(
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-
 	for _, user := range sa.env.Users {
 		g.Go(func() error {
 			return sa.syncOneUseCase.Execute(

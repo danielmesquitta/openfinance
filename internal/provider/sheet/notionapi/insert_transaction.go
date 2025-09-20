@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/pkg/ptr"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 )
 
@@ -21,11 +22,12 @@ type insertRowReqParent struct {
 }
 
 type insertRowReqProperties struct {
-	Name          insertRowReqName     `json:"Name"`
-	Category      insertRowReqSelector `json:"Category"`
-	Amount        insertRowReqNumber   `json:"Amount"`
-	PaymentMethod insertRowReqSelector `json:"Payment Method"`
-	Date          insertRowReqDate     `json:"Date"`
+	Name           insertRowReqName             `json:"Name"`
+	Category       insertRowReqSelector         `json:"Category"`
+	Amount         insertRowReqNumber           `json:"Amount"`
+	PaymentMethod  insertRowReqSelector         `json:"Payment Method"`
+	CardLastDigits insertRowReqRichTextProperty `json:"Card Last Digits"`
+	Date           insertRowReqDate             `json:"Date"`
 }
 
 type insertRowReqNumber struct {
@@ -58,6 +60,10 @@ type insertRowReqText struct {
 
 type insertRowReqName struct {
 	Title []insertRowReqRichText `json:"title"`
+}
+
+type insertRowReqRichTextProperty struct {
+	RichText []insertRowReqRichText `json:"rich_text"`
 }
 
 func (c *Client) InsertTransaction(
@@ -97,6 +103,15 @@ func (c *Client) InsertTransaction(
 					Name: string(transaction.PaymentMethod),
 				},
 			},
+			CardLastDigits: insertRowReqRichTextProperty{
+				RichText: []insertRowReqRichText{
+					{
+						Text: insertRowReqText{
+							Content: ptr.Deref(transaction.CardLastDigits),
+						},
+					},
+				},
+			},
 			Date: insertRowReqDate{
 				Date: insertRowReqSubDate{
 					Start: transaction.Date.Format(time.RFC3339),
@@ -119,12 +134,20 @@ func (c *Client) InsertTransaction(
 		SetBody(requestData).
 		Post("/v1/pages")
 	if err != nil {
-		return nil, fmt.Errorf("failed to insert transaction: %w", err)
+		return nil, fmt.Errorf(
+			"failed to insert transaction with request data %+v: %w",
+			requestData,
+			err,
+		)
 	}
 
 	body := res.Body()
 	if res.IsError() {
-		return nil, fmt.Errorf("error response while inserting transaction: %s", body)
+		return nil, fmt.Errorf(
+			"failed to insert transaction with request data %+v and response %s",
+			requestData,
+			body,
+		)
 	}
 
 	data := &sheet.Table{}

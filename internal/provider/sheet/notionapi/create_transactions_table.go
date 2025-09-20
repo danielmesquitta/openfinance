@@ -28,11 +28,12 @@ type notionNewTableReqParent struct {
 }
 
 type notionNewTableReqProperties struct {
-	Name          notionNewTableReqName     `json:"Name"`
-	Category      notionNewTableReqCategory `json:"Category"`
-	Amount        notionNewTableReqAmount   `json:"Amount"`
-	PaymentMethod notionNewTableReqCategory `json:"Payment Method"`
-	Date          notionNewTableReqDate     `json:"Date"`
+	Name           notionNewTableReqName     `json:"Name"`
+	Category       notionNewTableReqCategory `json:"Category"`
+	Amount         notionNewTableReqAmount   `json:"Amount"`
+	PaymentMethod  notionNewTableReqCategory `json:"Payment Method"`
+	CardLastDigits notionNewTableReqRichText `json:"Card Last Digits"`
+	Date           notionNewTableReqDate     `json:"Date"`
 }
 
 type notionNewTableReqAmount struct {
@@ -64,6 +65,10 @@ type notionNewTableReqName struct {
 	Title struct{} `json:"title"`
 }
 
+type notionNewTableReqRichText struct {
+	RichText struct{} `json:"rich_text"`
+}
+
 type notionNewTableReqTitle struct {
 	Type string                `json:"type"`
 	Text notionNewTableReqText `json:"text"`
@@ -92,13 +97,17 @@ func (c *Client) CreateTransactionsTable(
 		Post("/v1/databases")
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transactions table: %w", err)
+		return nil, fmt.Errorf(
+			"failed to create transactions table with request data %+v: %w",
+			requestData,
+			err,
+		)
 	}
 
 	body := res.Body()
 	if res.IsError() {
 		return nil, fmt.Errorf(
-			"request creating transactions table %+v failed with response: %s",
+			"request creating transactions table %+v failed with response %s",
 			requestData,
 			body,
 		)
@@ -116,8 +125,6 @@ func (c *Client) getRequestData(
 	conn conn,
 	title string,
 ) notionNewTableReq {
-	categoryOptions := c.getCategoryOptions()
-
 	requestData := notionNewTableReq{
 		Parent: notionNewTableReqParent{
 			Type:   "page_id",
@@ -136,12 +143,10 @@ func (c *Client) getRequestData(
 			},
 		},
 		Properties: notionNewTableReqProperties{
-			Name: notionNewTableReqName{
-				Title: struct{}{},
-			},
+			Name: notionNewTableReqName{},
 			Category: notionNewTableReqCategory{
 				Select: notionNewTableReqSelect{
-					Options: categoryOptions,
+					Options: c.getCategoryOptions(),
 				},
 			},
 			Amount: notionNewTableReqAmount{
@@ -159,9 +164,8 @@ func (c *Client) getRequestData(
 					},
 				},
 			},
-			Date: notionNewTableReqDate{
-				Date: struct{}{},
-			},
+			CardLastDigits: notionNewTableReqRichText{},
+			Date:           notionNewTableReqDate{},
 		},
 	}
 

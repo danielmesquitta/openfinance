@@ -63,7 +63,10 @@ const (
 	Debit  resultType = "DEBIT"
 )
 
-const resultLogField = "result"
+const (
+	samePersonTransfer = "Same person transfer"
+	resultLogField     = "result"
+)
 
 func (c *Client) ListTransactionsByUserID(
 	ctx context.Context,
@@ -112,13 +115,23 @@ func (c *Client) fetchAccountTransactions(
 	body := res.Body()
 	if res.IsError() {
 		return listTransactionsResponse{}, fmt.Errorf(
-			"error response while listing transactions: %s", body)
+			"failed to list transactions with account id %s and date range %s to %s: %s",
+			accountID,
+			from,
+			to,
+			body,
+		)
 	}
 
 	data := listTransactionsResponse{}
 	if err := json.Unmarshal(body, &data); err != nil {
 		return listTransactionsResponse{}, fmt.Errorf(
-			"failed to unmarshal while listing transactions: %w", err)
+			"failed to unmarshal while listing transactions with account id %s and date range %s to %s: %w",
+			accountID,
+			from,
+			to,
+			err,
+		)
 	}
 
 	return data, nil
@@ -161,6 +174,9 @@ func (c *Client) shouldSkipTransaction(r result) bool {
 	}
 	if isCreditCardBillPayment := r.
 		Description == "Pagamento de fatura"; isCreditCardBillPayment {
+		return true
+	}
+	if r.Category != nil && *r.Category == samePersonTransfer {
 		return true
 	}
 	return false
@@ -233,6 +249,10 @@ func (c *Client) processSingleResult(r result) (*entity.Transaction, bool) {
 	case entity.AccountTypeCreditCard:
 		transaction.Name = r.Description
 		transaction.PaymentMethod = entity.PaymentMethodCreditCard
+		if r.CreditCardMetadata != nil && r.CreditCardMetadata.CardNumber != nil {
+			transaction.CardLastDigits = r.CreditCardMetadata.CardNumber
+		}
+
 	default:
 		slog.Error("unknown account type", "accountType", accountType, resultLogField, r)
 		return nil, true

@@ -10,19 +10,26 @@ import (
 // GetCompanyByID gets a company by id.
 func (c *Client) GetCompanyByID(id string) (entity.Company, error) {
 	res, err := c.R().Get("/api/cnpj/v1/" + id)
-
 	if err != nil {
-		return entity.Company{}, fmt.Errorf("failed to get company by id: %w", err)
+		return entity.Company{}, fmt.Errorf("failed to get company by id %s: %w", id, err)
 	}
 
 	body := res.Body()
 	if res.IsError() {
-		return entity.Company{}, fmt.Errorf("failed to get company by id: %s", body)
+		return entity.Company{}, fmt.Errorf(
+			"failed to get company by id %s with response %s",
+			id,
+			body,
+		)
 	}
 
 	data := entity.Company{}
 	if err := json.Unmarshal(body, &data); err != nil {
-		return entity.Company{}, fmt.Errorf("failed to unmarshal company by id: %w", err)
+		return entity.Company{}, fmt.Errorf(
+			"failed to unmarshal company by id %s: %w",
+			id,
+			err,
+		)
 	}
 
 	return data, nil

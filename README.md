@@ -22,14 +22,12 @@ git clone https://github.com/danielmesquitta/openfinance
 
 ```bash
 make install
-
 ```
 
 4. Create your .env file
 
 ```bash
 cp .env.example .env
-
 ```
 
 5. Configure your .env file with your credentials
@@ -38,5 +36,4 @@ cp .env.example .env
 
 ```bash
 make
-
 ```
