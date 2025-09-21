@@ -8,6 +8,9 @@ current-year:
 current-month:
 	@.bin/current-month.sh
 
+last-15-days:
+	@.bin/last-15-days.sh
+
 .PHONY: install
 install:
 	@go mod download
