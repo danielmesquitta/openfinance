@@ -10,72 +10,83 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 )
 
-type notionNewTableReq struct {
-	Parent     notionNewTableReqParent     `json:"parent"`
-	Icon       notionNewTableReqIcon       `json:"icon"`
-	Title      []notionNewTableReqTitle    `json:"title"`
-	Properties notionNewTableReqProperties `json:"properties"`
+type createTransactionTableReq struct {
+	Parent     createTransactionTableReqParent     `json:"parent"`
+	Icon       createTransactionTableReqIcon       `json:"icon"`
+	Title      []createTransactionTableReqTitle    `json:"title"`
+	Properties createTransactionTableReqProperties `json:"properties"`
 }
 
-type notionNewTableReqIcon struct {
+type createTransactionTableReqIcon struct {
 	Type  string `json:"type"`
 	Emoji string `json:"emoji"`
 }
 
-type notionNewTableReqParent struct {
+type createTransactionTableReqParent struct {
 	Type   string `json:"type"`
 	PageID string `json:"page_id"`
 }
 
-type notionNewTableReqProperties struct {
-	Name           notionNewTableReqName     `json:"Name"`
-	Category       notionNewTableReqCategory `json:"Category"`
-	Amount         notionNewTableReqAmount   `json:"Amount"`
-	PaymentMethod  notionNewTableReqCategory `json:"Payment Method"`
-	CardLastDigits notionNewTableReqRichText `json:"Card Last Digits"`
-	Date           notionNewTableReqDate     `json:"Date"`
+type createTransactionTableReqProperties struct {
+	Name           createTransactionTableReqName     `json:"Name"`
+	Category       createTransactionTableReqCategory `json:"Category"`
+	Amount         createTransactionTableReqAmount   `json:"Amount"`
+	PaymentMethod  createTransactionTableReqCategory `json:"Payment Method"`
+	CardLastDigits createTransactionTableReqRichText `json:"Card Last Digits"`
+	Date           createTransactionTableReqDate     `json:"Date"`
 }
 
-type notionNewTableReqAmount struct {
-	Number notionNewTableReqNumber `json:"number"`
+type createTransactionTableReqAmount struct {
+	Number createTransactionTableReqNumber `json:"number"`
 }
 
-type notionNewTableReqNumber struct {
+type createTransactionTableReqNumber struct {
 	Format string `json:"format"`
 }
 
-type notionNewTableReqCategory struct {
-	Select notionNewTableReqSelect `json:"select"`
+type createTransactionTableReqCategory struct {
+	Select createTransactionTableReqSelect `json:"select"`
 }
 
-type notionNewTableReqSelect struct {
-	Options []notionNewTableReqSelectOption `json:"options"`
+type createTransactionTableReqSelect struct {
+	Options []createTransactionTableReqSelectOption `json:"options"`
 }
 
-type notionNewTableReqSelectOption struct {
+type createTransactionTableReqSelectOption struct {
 	Name  string       `json:"name"`
 	Color entity.Color `json:"color"`
 }
 
-type notionNewTableReqDate struct {
+type createTransactionTableReqDate struct {
 	Date struct{} `json:"date"`
 }
 
-type notionNewTableReqName struct {
+type createTransactionTableReqName struct {
 	Title struct{} `json:"title"`
 }
 
-type notionNewTableReqRichText struct {
+type createTransactionTableReqRichText struct {
 	RichText struct{} `json:"rich_text"`
 }
 
-type notionNewTableReqTitle struct {
-	Type string                `json:"type"`
-	Text notionNewTableReqText `json:"text"`
+type createTransactionTableReqTitle struct {
+	Type string                        `json:"type"`
+	Text createTransactionTableReqText `json:"text"`
 }
 
-type notionNewTableReqText struct {
+type createTransactionTableReqText struct {
 	Content string `json:"content"`
+}
+
+type createTransactionTableResp struct {
+	ID       string                            `json:"id"`
+	Title    []createTransactionTableRespTitle `json:"title"`
+	Archived bool                              `json:"archived"`
+	InTrash  bool                              `json:"in_trash"`
+}
+
+type createTransactionTableRespTitle struct {
+	PlainText string `json:"plain_text"`
 }
 
 func (c *Client) CreateTransactionsTable(
@@ -113,50 +124,61 @@ func (c *Client) CreateTransactionsTable(
 		)
 	}
 
-	data := &sheet.Table{}
+	data := &createTransactionTableResp{}
 	if err := json.Unmarshal(body, &data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal while creating transactions table: %w", err)
 	}
 
-	return data, nil
+	if len(data.Title) == 0 {
+		return nil, errors.New("title is empty")
+	}
+
+	table := &sheet.Table{
+		ID:       data.ID,
+		Title:    &data.Title[0].PlainText,
+		Archived: data.Archived,
+		InTrash:  data.InTrash,
+	}
+
+	return table, nil
 }
 
 func (c *Client) getRequestData(
 	conn conn,
 	title string,
-) notionNewTableReq {
-	requestData := notionNewTableReq{
-		Parent: notionNewTableReqParent{
+) createTransactionTableReq {
+	requestData := createTransactionTableReq{
+		Parent: createTransactionTableReqParent{
 			Type:   "page_id",
 			PageID: conn.pageID,
 		},
-		Icon: notionNewTableReqIcon{
+		Icon: createTransactionTableReqIcon{
 			Type:  "emoji",
 			Emoji: "💸",
 		},
-		Title: []notionNewTableReqTitle{
+		Title: []createTransactionTableReqTitle{
 			{
 				Type: "text",
-				Text: notionNewTableReqText{
+				Text: createTransactionTableReqText{
 					Content: title,
 				},
 			},
 		},
-		Properties: notionNewTableReqProperties{
-			Name: notionNewTableReqName{},
-			Category: notionNewTableReqCategory{
-				Select: notionNewTableReqSelect{
+		Properties: createTransactionTableReqProperties{
+			Name: createTransactionTableReqName{},
+			Category: createTransactionTableReqCategory{
+				Select: createTransactionTableReqSelect{
 					Options: c.getCategoryOptions(),
 				},
 			},
-			Amount: notionNewTableReqAmount{
-				Number: notionNewTableReqNumber{
+			Amount: createTransactionTableReqAmount{
+				Number: createTransactionTableReqNumber{
 					Format: "real",
 				},
 			},
-			PaymentMethod: notionNewTableReqCategory{
-				Select: notionNewTableReqSelect{
-					Options: []notionNewTableReqSelectOption{
+			PaymentMethod: createTransactionTableReqCategory{
+				Select: createTransactionTableReqSelect{
+					Options: []createTransactionTableReqSelectOption{
 						{Name: "BOLETO", Color: entity.Yellow},
 						{Name: "PIX", Color: entity.Blue},
 						{Name: "TED", Color: entity.Green},
@@ -164,24 +186,24 @@ func (c *Client) getRequestData(
 					},
 				},
 			},
-			CardLastDigits: notionNewTableReqRichText{},
-			Date:           notionNewTableReqDate{},
+			CardLastDigits: createTransactionTableReqRichText{},
+			Date:           createTransactionTableReqDate{},
 		},
 	}
 
 	return requestData
 }
 
-func (c *Client) getCategoryOptions() []notionNewTableReqSelectOption {
+func (c *Client) getCategoryOptions() []createTransactionTableReqSelectOption {
 	categoryOptions := make(
-		[]notionNewTableReqSelectOption,
+		[]createTransactionTableReqSelectOption,
 		0,
 		len(c.env.ColorsByCategory),
 	)
 
 	for category, color := range c.env.ColorsByCategory {
 		categoryName := formatSelectOption(string(category))
-		categoryOptions = append(categoryOptions, notionNewTableReqSelectOption{
+		categoryOptions = append(categoryOptions, createTransactionTableReqSelectOption{
 			Name:  categoryName,
 			Color: color,
 		})

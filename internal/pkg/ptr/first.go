@@ -7,5 +7,6 @@ func First[T any](ptrs ...*T) *T {
 			return ptr
 		}
 	}
+
 	return nil
 }

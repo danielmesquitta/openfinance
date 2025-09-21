@@ -20,6 +20,7 @@ func NewValidator() *Validator {
 	validate := validator.New()
 	english := en.New()
 	uni := ut.New(english, english)
+
 	trans, ok := uni.GetTranslator("en")
 	if !ok {
 		panic("translator not found")

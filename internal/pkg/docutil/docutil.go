@@ -16,16 +16,19 @@ const (
 func CleanDocument(doc string) string {
 	re := regexp.MustCompile("[^0-9]")
 	onlyDigitsDoc := re.ReplaceAllString(doc, "")
+
 	return onlyDigitsDoc
 }
 
 func IsCPF(doc string) bool {
 	cleanDoc := CleanDocument(doc)
+
 	return len(cleanDoc) == cpfLength
 }
 
 func IsCNPJ(doc string) bool {
 	cleanDoc := CleanDocument(doc)
+
 	return len(cleanDoc) == cnpjLength
 }
 
@@ -36,6 +39,7 @@ func MaskDocument(doc string) (string, error) {
 	case cnpjLength:
 		// CNPJ: XX.XXX.XXX/XXXX-XX
 		var b strings.Builder
+
 		b.Grow(cnpjFormattedLen)
 		b.WriteString(doc[:2])
 		b.WriteByte('.')
@@ -46,11 +50,13 @@ func MaskDocument(doc string) (string, error) {
 		b.WriteString(doc[8:12])
 		b.WriteByte('-')
 		b.WriteString(doc[12:])
+
 		return b.String(), nil
 
 	case cpfLength:
 		// CPF: XXX.XXX.XXX-XX
 		var b strings.Builder
+
 		b.Grow(cpfFormattedLen)
 		b.WriteString(doc[:3])
 		b.WriteByte('.')
@@ -59,6 +65,7 @@ func MaskDocument(doc string) (string, error) {
 		b.WriteString(doc[6:9])
 		b.WriteByte('-')
 		b.WriteString(doc[9:])
+
 		return b.String(), nil
 
 	default:

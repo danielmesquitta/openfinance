@@ -18,6 +18,7 @@ const (
 // ExtractJSONFromText scans the input text and returns a slice of detected JSON strings.
 func ExtractJSONFromText(text string) []string {
 	var jsonStrings []string
+
 	for i := 0; i < len(text); i++ {
 		if text[i] == openBrace || text[i] == openBracket {
 			jsonStr, endPos, err := extractJSON(text, i)
@@ -27,6 +28,7 @@ func ExtractJSONFromText(text string) []string {
 			}
 		}
 	}
+
 	return jsonStrings
 }
 
@@ -36,10 +38,11 @@ func extractJSON(text string, start int) (string, int, error) {
 		text:  text,
 		start: start,
 	}
+
 	return parser.parse()
 }
 
-// jsonParser handles JSON parsing state
+// jsonParser handles JSON parsing state.
 type jsonParser struct {
 	text     string
 	start    int
@@ -48,13 +51,14 @@ type jsonParser struct {
 	escape   bool
 }
 
-// parse extracts JSON from the text
+// parse extracts JSON from the text.
 func (p *jsonParser) parse() (string, int, error) {
 	for i := p.start; i < len(p.text); i++ {
 		jsonStr, shouldReturn, err := p.processCharacter(i)
 		if err != nil {
 			return "", i, err
 		}
+
 		if shouldReturn {
 			return jsonStr, i, nil
 		}
@@ -63,7 +67,7 @@ func (p *jsonParser) parse() (string, int, error) {
 	return "", len(p.text), errors.New("no matching closing brace found")
 }
 
-// processCharacter handles a single character during parsing
+// processCharacter handles a single character during parsing.
 func (p *jsonParser) processCharacter(pos int) (string, bool, error) {
 	c := p.text[pos]
 
@@ -90,40 +94,46 @@ func (p *jsonParser) processCharacter(pos int) (string, bool, error) {
 	return "", false, nil
 }
 
-// handleEscapeSequence processes escape characters
+// handleEscapeSequence processes escape characters.
 func (p *jsonParser) handleEscapeSequence(c byte) bool {
 	if p.escape {
 		p.escape = false
+
 		return true
 	}
 
 	if c == backslash {
 		p.escape = true
+
 		return true
 	}
 
 	return false
 }
 
-// handleStringToggle processes quote characters
+// handleStringToggle processes quote characters.
 func (p *jsonParser) handleStringToggle(c byte) bool {
 	if c == quote {
 		p.inString = !p.inString
+
 		return true
 	}
+
 	return false
 }
 
-// handleOpeningChar processes opening brackets and braces
+// handleOpeningChar processes opening brackets and braces.
 func (p *jsonParser) handleOpeningChar(c byte) bool {
 	if isOpeningChar(c) {
 		p.stack = append(p.stack, c)
+
 		return true
 	}
+
 	return false
 }
 
-// handleClosingChar processes closing brackets and braces
+// handleClosingChar processes closing brackets and braces.
 func (p *jsonParser) handleClosingChar(pos int, c byte) (string, bool, error) {
 	if len(p.stack) == 0 {
 		return "", false, fmt.Errorf("mismatched '%c' at position %d", c, pos)
@@ -146,17 +156,17 @@ func (p *jsonParser) handleClosingChar(pos int, c byte) (string, bool, error) {
 	return "", false, nil
 }
 
-// isOpeningChar checks if character is an opening bracket or brace
+// isOpeningChar checks if character is an opening bracket or brace.
 func isOpeningChar(c byte) bool {
 	return c == openBrace || c == openBracket
 }
 
-// isClosingChar checks if character is a closing bracket or brace
+// isClosingChar checks if character is a closing bracket or brace.
 func isClosingChar(c byte) bool {
 	return c == closeBrace || c == closeBracket
 }
 
-// getMatchingOpening returns the expected opening character for a closing character
+// getMatchingOpening returns the expected opening character for a closing character.
 func getMatchingOpening(closing byte) byte {
 	switch closing {
 	case closeBrace:
@@ -171,5 +181,6 @@ func getMatchingOpening(closing byte) byte {
 // isValidJSON checks if a string is valid JSON.
 func isValidJSON(s string) bool {
 	var js any
+
 	return json.Unmarshal([]byte(s), &js) == nil
 }

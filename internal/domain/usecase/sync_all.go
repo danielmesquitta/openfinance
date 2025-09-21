@@ -32,7 +32,6 @@ func (sa *SyncAll) Execute(
 	ctx context.Context,
 	dto SyncDTO,
 ) error {
-	setDefaultValues(&dto)
 	if err := sa.val.Validate(dto); err != nil {
 		return fmt.Errorf("failed to validate dto: %w", err)
 	}

@@ -73,7 +73,6 @@ func run(cmd *cobra.Command, _ []string) {
 	startDateVal, _ := cmd.Flags().GetTime(startDateFlag)
 	endDateVal, _ := cmd.Flags().GetTime(endDateFlag)
 
-	// If month/year were explicitly set, recalculate start and end dates
 	if cmd.Flags().Changed(monthFlag) || cmd.Flags().Changed(yearFlag) {
 		month := time.Month(monthVal)
 		year := yearVal
@@ -89,12 +88,16 @@ func run(cmd *cobra.Command, _ []string) {
 
 	ctx := context.Background()
 
+	startDateStr := startDateVal.Format(time.RFC3339)
+	endDateStr := endDateVal.Format(time.RFC3339)
+
 	err := syncAllUseCase.Execute(ctx, usecase.SyncDTO{
-		StartDate: startDateVal.Format(time.RFC3339),
-		EndDate:   endDateVal.Format(time.RFC3339),
+		StartDate: startDateStr,
+		EndDate:   endDateStr,
 	})
 	if err != nil {
 		log.Printf("failed to execute sync all: %v", err)
+
 		return
 	}
 

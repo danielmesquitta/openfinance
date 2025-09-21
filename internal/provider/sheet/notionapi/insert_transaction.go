@@ -12,58 +12,58 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 )
 
-type insertRowReq struct {
-	Parent     insertRowReqParent     `json:"parent"`
-	Properties insertRowReqProperties `json:"properties"`
+type insertTransactionReq struct {
+	Parent     insertTransactionReqParent     `json:"parent"`
+	Properties insertTransactionReqProperties `json:"properties"`
 }
 
-type insertRowReqParent struct {
+type insertTransactionReqParent struct {
 	DatabaseID string `json:"database_id"`
 }
 
-type insertRowReqProperties struct {
-	Name           insertRowReqName             `json:"Name"`
-	Category       insertRowReqSelector         `json:"Category"`
-	Amount         insertRowReqNumber           `json:"Amount"`
-	PaymentMethod  insertRowReqSelector         `json:"Payment Method"`
-	CardLastDigits insertRowReqRichTextProperty `json:"Card Last Digits"`
-	Date           insertRowReqDate             `json:"Date"`
+type insertTransactionReqProperties struct {
+	Name           insertTransactionReqName             `json:"Name"`
+	Category       insertTransactionReqSelector         `json:"Category"`
+	Amount         insertTransactionReqNumber           `json:"Amount"`
+	PaymentMethod  insertTransactionReqSelector         `json:"Payment Method"`
+	CardLastDigits insertTransactionReqRichTextProperty `json:"Card Last Digits"`
+	Date           insertTransactionReqDate             `json:"Date"`
 }
 
-type insertRowReqNumber struct {
+type insertTransactionReqNumber struct {
 	Number float64 `json:"number"`
 }
 
-type insertRowReqSelector struct {
-	Select insertRowReqSelect `json:"select"`
+type insertTransactionReqSelector struct {
+	Select insertTransactionReqSelect `json:"select"`
 }
 
-type insertRowReqSelect struct {
+type insertTransactionReqSelect struct {
 	Name string `json:"name"`
 }
 
-type insertRowReqDate struct {
-	Date insertRowReqSubDate `json:"date"`
+type insertTransactionReqDate struct {
+	Date insertTransactionReqSubDate `json:"date"`
 }
 
-type insertRowReqSubDate struct {
+type insertTransactionReqSubDate struct {
 	Start string `json:"start"`
 }
 
-type insertRowReqRichText struct {
-	Text insertRowReqText `json:"text"`
+type insertTransactionReqRichText struct {
+	Text insertTransactionReqText `json:"text"`
 }
 
-type insertRowReqText struct {
+type insertTransactionReqText struct {
 	Content string `json:"content"`
 }
 
-type insertRowReqName struct {
-	Title []insertRowReqRichText `json:"title"`
+type insertTransactionReqName struct {
+	Title []insertTransactionReqRichText `json:"title"`
 }
 
-type insertRowReqRichTextProperty struct {
-	RichText []insertRowReqRichText `json:"rich_text"`
+type insertTransactionReqRichTextProperty struct {
+	RichText []insertTransactionReqRichText `json:"rich_text"`
 }
 
 func (c *Client) InsertTransaction(
@@ -76,44 +76,44 @@ func (c *Client) InsertTransaction(
 		return nil, errors.New("connection not found for user " + userID)
 	}
 
-	requestData := insertRowReq{
-		Parent: insertRowReqParent{
+	requestData := insertTransactionReq{
+		Parent: insertTransactionReqParent{
 			DatabaseID: tableID,
 		},
-		Properties: insertRowReqProperties{
-			Name: insertRowReqName{
-				Title: []insertRowReqRichText{
+		Properties: insertTransactionReqProperties{
+			Name: insertTransactionReqName{
+				Title: []insertTransactionReqRichText{
 					{
-						Text: insertRowReqText{
+						Text: insertTransactionReqText{
 							Content: transaction.Name,
 						},
 					},
 				},
 			},
-			Category: insertRowReqSelector{
-				Select: insertRowReqSelect{
+			Category: insertTransactionReqSelector{
+				Select: insertTransactionReqSelect{
 					Name: string(entity.CategoryUnknown),
 				},
 			},
-			Amount: insertRowReqNumber{
+			Amount: insertTransactionReqNumber{
 				Number: transaction.Amount,
 			},
-			PaymentMethod: insertRowReqSelector{
-				Select: insertRowReqSelect{
+			PaymentMethod: insertTransactionReqSelector{
+				Select: insertTransactionReqSelect{
 					Name: string(transaction.PaymentMethod),
 				},
 			},
-			CardLastDigits: insertRowReqRichTextProperty{
-				RichText: []insertRowReqRichText{
+			CardLastDigits: insertTransactionReqRichTextProperty{
+				RichText: []insertTransactionReqRichText{
 					{
-						Text: insertRowReqText{
+						Text: insertTransactionReqText{
 							Content: ptr.Deref(transaction.CardLastDigits),
 						},
 					},
 				},
 			},
-			Date: insertRowReqDate{
-				Date: insertRowReqSubDate{
+			Date: insertTransactionReqDate{
+				Date: insertTransactionReqSubDate{
 					Start: transaction.Date.Format(time.RFC3339),
 				},
 			},
@@ -121,8 +121,8 @@ func (c *Client) InsertTransaction(
 	}
 
 	if transaction.Category != "" && transaction.Category != entity.CategoryUnknown {
-		requestData.Properties.Category = insertRowReqSelector{
-			Select: insertRowReqSelect{
+		requestData.Properties.Category = insertTransactionReqSelector{
+			Select: insertTransactionReqSelect{
 				Name: formatSelectOption(string(transaction.Category)),
 			},
 		}

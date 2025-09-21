@@ -13,7 +13,7 @@ import (
 
 // EnvFileData is the data for the .env file.
 type EnvFileData struct {
-	OpenAIToken string `mapstructure:"OPEN_AI_TOKEN" json:"open_ai_token" validate:"required"`
+	OpenAIToken string `json:"open_ai_token" mapstructure:"OPEN_AI_TOKEN" validate:"required"`
 }
 
 // JSONFileData is the data for the users.json file.
@@ -28,10 +28,10 @@ type JSONFileData struct {
 
 // Env is the environment variables.
 type Env struct {
-	val *validator.Validator
-
 	EnvFileData
 	JSONFileData
+
+	val *validator.Validator
 }
 
 // NewEnv creates a new Env.
@@ -117,14 +117,18 @@ func (e *Env) loadCategories() (uniqueCategories map[entity.Category]struct{}, e
 
 	uniqueCategories = map[entity.Category]struct{}{}
 	categories := make([]entity.Category, 0, len(e.ColorsByCategory))
+
 	for category, color := range e.ColorsByCategory {
 		if _, ok := uniqueCategories[category]; ok {
 			return nil, fmt.Errorf("category %s is not unique", category)
 		}
+
 		if _, ok := entity.ColorsMap[color]; !ok {
 			return nil, fmt.Errorf("color %s is not valid", color)
 		}
+
 		uniqueCategories[category] = struct{}{}
+
 		categories = append(categories, category)
 	}
 
@@ -177,6 +181,7 @@ func (e *Env) validateEnvFile() error {
 	if err := e.val.Validate(e.EnvFileData); err != nil {
 		return fmt.Errorf("failed to validate env file: %w", err)
 	}
+
 	return nil
 }
 
@@ -184,5 +189,6 @@ func (e *Env) validateJSONFile() error {
 	if err := e.val.Validate(e.JSONFileData); err != nil {
 		return fmt.Errorf("failed to validate users file: %w", err)
 	}
+
 	return nil
 }
