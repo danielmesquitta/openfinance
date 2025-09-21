@@ -1,9 +1,6 @@
 default: run
 include .env
 
-MONTH ?= 0
-YEAR ?= 0
-
 .PHONY: run
 current-year:
 	@.bin/current-year.sh
