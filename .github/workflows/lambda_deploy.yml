@@ -51,4 +51,4 @@ jobs:
 
     - name: Deploy to AWS Lambda
       run: |
-        aws lambda update-function-code --function-name openfinance-to-notion --zip-file fileb://lambda.zip
+        aws lambda update-function-code --function-name openfinance-to-notion --zip-file fileb://tmp/lambda.zip
