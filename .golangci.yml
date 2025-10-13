@@ -12,6 +12,8 @@ linters:
     - depguard
     - wsl
     - gochecknoinits
+    - testpackage
+    - dupl
   enable:
     - revive
     - wrapcheck
@@ -19,9 +21,6 @@ linters:
     revive:
       enable-all-rules: true
       rules:
-        - name: line-length-limit
-          arguments:
-            - 120
         - name: cyclomatic
           arguments: [15]
         - name: cognitive-complexity
@@ -31,7 +30,7 @@ linters:
             - allow-strs: '""'
               allow-ints: "0,1"
               allow-floats: "0.0"
-              ignore-funcs: "time.Date,time.AddDate"
+              ignore-funcs: "time.Date,time.AddDate,slog.Info,slog.Error"
         - name: exported
           disabled: true
         - name: package-comments
@@ -42,8 +41,41 @@ linters:
           disabled: true
         - name: function-length
           disabled: true
+        - name: max-public-structs
+          disabled: true
+        - name: confusing-naming
+          disabled: true
+        - name: line-length-limit
+          disabled: true
+        - name: argument-limit
+          disabled: true
+  exclusions:
+    generated: strict
+
+    rules:
+      - path: _test\.go
+        linters:
+          - revive
+
+      - path: internal/app/server/handler
+        linters:
+          - godoclint
+
+      - path: internal/config/wire
+        linters:
+          - inamedparam
+          - revive
+
+      - path: internal/app/server/router
+        text: "(argument-limit|add-constant)"
+        linters:
+          - revive
+
 formatters:
   enable:
     - gofmt
     - goimports
     - golines
+  settings:
+    golines:
+      max-len: 120

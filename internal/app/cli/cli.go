@@ -10,6 +10,7 @@ import (
 
 	"github.com/danielmesquitta/openfinance/internal/app"
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
+	"github.com/danielmesquitta/openfinance/internal/pkg/must"
 )
 
 var timeFormats = []string{
@@ -101,5 +102,5 @@ func run(cmd *cobra.Command, _ []string) {
 		return
 	}
 
-	fmt.Println("Sync completed successfully")
+	must.Must(fmt.Println("Sync completed successfully"))
 }

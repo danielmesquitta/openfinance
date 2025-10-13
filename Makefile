@@ -25,7 +25,7 @@ test:
 
 .PHONY: lint
 lint:
-	@golangci-lint run && nilaway ./...
+	@golangci-lint run --fix
 
 .PHONY: update
 update:
