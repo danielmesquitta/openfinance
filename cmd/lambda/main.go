@@ -6,14 +6,14 @@ import (
 	"log"
 
 	"github.com/aws/aws-lambda-go/events"
-	awslambda "github.com/aws/aws-lambda-go/lambda"
-	"github.com/danielmesquitta/openfinance/internal/app/lambda"
+	"github.com/aws/aws-lambda-go/lambda"
+	app "github.com/danielmesquitta/openfinance/internal/app/lambda"
 )
 
 func main() {
-	handler := lambda.NewLambdaHandler()
+	handler := app.NewLambdaHandler()
 
-	awslambda.Start(func(ctx context.Context, event any) (any, error) {
+	lambda.Start(func(ctx context.Context, event any) (any, error) {
 		switch e := event.(type) {
 		case events.APIGatewayProxyRequest:
 			return handler.Handle(ctx, e)
