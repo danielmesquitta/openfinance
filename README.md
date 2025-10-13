@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project provides a solution to fetch card and account information from Open Finance and automatically populate a Notion database using the Notion API. It's designed to help users effortlessly manage their financial data within a Notion workspace.
+This project provides a solution to fetch card and account information from Brazil's Open Finance and automatically populate a Notion database using the Notion API. It's designed to help users effortlessly manage their financial data within a Notion workspace.
 
 ## Dependencies
 
@@ -30,9 +30,17 @@ make install
 cp .env.example .env
 ```
 
-5. Configure your .env file with your credentials
+5. Create config files
 
-6. Execute the project
+```bash
+cp config/categories.json.example config/categories.json
+cp config/mappings.json.example config/mappings.json
+cp config/users.json.example config/users.json
+```
+
+5. Configure your .env file and the config files with your credentials
+
+6. Execute the script
 
 ```bash
 make

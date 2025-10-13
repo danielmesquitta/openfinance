@@ -42,7 +42,3 @@ clear:
 .PHONY: zip
 zip:
 	@zip -j ./tmp/lambda.zip ./tmp/bootstrap
-
-.PHONY: deploy
-deploy:
-	@make build && make zip && make clear
