@@ -20,10 +20,18 @@ jobs:
 
     - name: Set up env
       run: |
-        echo "${{ secrets.ENV }}" > .env
-        echo "${{ secrets.CATEGORIES_JSON }}" > config/categories.json
-        echo "${{ secrets.MAPPINGS_JSON }}" > config/mappings.json
-        echo "${{ secrets.USERS_JSON }}" > config/users.json
+        cat > .env << 'EOF'
+        ${{ secrets.ENV }}
+        EOF
+        cat > config/categories.json << 'EOF'
+        ${{ secrets.CATEGORIES_JSON }}
+        EOF
+        cat > config/mappings.json << 'EOF'
+        ${{ secrets.MAPPINGS_JSON }}
+        EOF
+        cat > config/users.json << 'EOF'
+        ${{ secrets.USERS_JSON }}
+        EOF
 
     - name: Install dependencies
       run: make install
@@ -39,7 +47,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: eu-east-1
+        aws-region: us-east-1
 
     - name: Deploy to AWS Lambda
       run: |
