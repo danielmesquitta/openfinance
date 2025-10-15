@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/danielmesquitta/openfinance/internal/app"
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
 )
@@ -46,13 +45,20 @@ type SuccessResponse struct {
 	Duration  string `json:"duration"`
 }
 
-func (h *LambdaHandler) Handle(
-	ctx context.Context,
-	_ events.APIGatewayProxyRequest,
-) (Response, error) {
+func (h *LambdaHandler) Handle(ctx context.Context) (Response, error) {
 	startTime := time.Now()
 
-	startDateStr, endDateStr, err := h.executeSync(ctx)
+	startDate, endDate := last15Days()
+
+	startDateStr := startDate.Format(time.RFC3339)
+	endDateStr := endDate.Format(time.RFC3339)
+
+	syncDTO := usecase.SyncDTO{
+		StartDate: startDateStr,
+		EndDate:   endDateStr,
+	}
+
+	err := h.syncAllUseCase.Execute(ctx, syncDTO)
 	if err != nil {
 		errorResponse := ErrorResponse{
 			Error:   "sync_failed",
@@ -106,37 +112,6 @@ func (h *LambdaHandler) Handle(
 		},
 		Body: string(body),
 	}, nil
-}
-
-func (h *LambdaHandler) HandleScheduledEvent(
-	ctx context.Context,
-	_ events.CloudWatchEvent,
-) error {
-	_, _, err := h.executeSync(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to execute sync: %w", err)
-	}
-
-	return nil
-}
-
-func (h *LambdaHandler) executeSync(ctx context.Context) (startDateStr, endDateStr string, err error) {
-	startDate, endDate := last15Days()
-
-	startDateStr = startDate.Format(time.RFC3339)
-	endDateStr = endDate.Format(time.RFC3339)
-
-	syncDTO := usecase.SyncDTO{
-		StartDate: startDateStr,
-		EndDate:   endDateStr,
-	}
-
-	err = h.syncAllUseCase.Execute(ctx, syncDTO)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to execute sync: %w", err)
-	}
-
-	return startDateStr, endDateStr, nil
 }
 
 func last15Days() (startDate time.Time, endDate time.Time) {
