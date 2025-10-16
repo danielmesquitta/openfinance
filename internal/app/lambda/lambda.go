@@ -48,7 +48,7 @@ type SuccessResponse struct {
 func (h *LambdaHandler) Handle(ctx context.Context) (Response, error) {
 	startTime := time.Now()
 
-	startDate, endDate := last15Days()
+	startDate, endDate := last7days()
 
 	startDateStr := startDate.Format(time.RFC3339)
 	endDateStr := endDate.Format(time.RFC3339)
@@ -114,9 +114,9 @@ func (h *LambdaHandler) Handle(ctx context.Context) (Response, error) {
 	}, nil
 }
 
-func last15Days() (startDate time.Time, endDate time.Time) {
+func last7days() (startDate time.Time, endDate time.Time) {
 	endDate = time.Now()
-	startDate = endDate.AddDate(0, 0, -15)
+	startDate = endDate.AddDate(0, 0, -7)
 
 	return startDate, endDate
 }

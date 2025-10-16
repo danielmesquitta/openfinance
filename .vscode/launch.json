@@ -7,6 +7,12 @@
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/cli/main.go",
+      "args": [
+        "--start-date",
+        "2025-09-15",
+        "--end-date",
+        "2025-10-15"
+      ],
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.env"
     }

@@ -2,7 +2,12 @@ package entity
 
 import (
 	"fmt"
+	"math"
 	"time"
+)
+
+const (
+	dateTimeWithoutSeconds = "2006-01-02 15:04"
 )
 
 type Transaction struct {
@@ -16,9 +21,9 @@ type Transaction struct {
 
 func (t *Transaction) ID() string {
 	return fmt.Sprintf(
-		"%s:%f:%s",
+		"%s:%d:%s",
 		t.Name,
-		t.Amount,
-		t.Date.Format(time.DateTime),
+		int64(math.Round(t.Amount*100)), // multiply by 100 to avoid floating point precision issues
+		t.Date.Format(dateTimeWithoutSeconds),
 	)
 }
