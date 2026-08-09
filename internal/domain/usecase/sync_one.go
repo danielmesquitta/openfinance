@@ -73,7 +73,7 @@ func (so *SyncOne) Execute(
 		return fmt.Errorf("failed to enrich transaction names: %w", err)
 	}
 
-	if err := so.categorizeTransactions(transactions); err != nil {
+	if err := so.categorizeTransactions(ctx, transactions); err != nil {
 		return fmt.Errorf("failed to categorize transactions: %w", err)
 	}
 
@@ -284,10 +284,10 @@ func (so *SyncOne) enrichSingleTransactionName(
 	return nil
 }
 
-func (so *SyncOne) categorizeTransactions(transactions []entity.Transaction) error {
+func (so *SyncOne) categorizeTransactions(ctx context.Context, transactions []entity.Transaction) error {
 	transactionNames := so.extractUniqueTransactionNames(transactions)
 
-	categoryByTransaction, err := so.getCategoriesFromGPT(transactionNames)
+	categoryByTransaction, err := so.getCategoriesFromGPT(ctx, transactionNames)
 	if err != nil {
 		return fmt.Errorf("failed to get categories from GPT: %w", err)
 	}
@@ -314,7 +314,7 @@ func (*SyncOne) extractUniqueTransactionNames(transactions []entity.Transaction)
 	return transactionNames
 }
 
-func (so *SyncOne) getCategoriesFromGPT(transactionNames []string) (map[string]string, error) {
+func (so *SyncOne) getCategoriesFromGPT(ctx context.Context, transactionNames []string) (map[string]string, error) {
 	jsonBytes, err := json.Marshal(transactionNames)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal transactions: %w", err)
@@ -336,7 +336,7 @@ func (so *SyncOne) getCategoriesFromGPT(transactionNames []string) (map[string]s
 		jsonBytes,
 	)
 
-	rawResponse, err := so.gptProvider.CreateChatCompletion(gptMessage)
+	rawResponse, err := so.gptProvider.CreateChatCompletion(ctx, gptMessage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chat completion: %w", err)
 	}

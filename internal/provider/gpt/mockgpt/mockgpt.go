@@ -1,6 +1,7 @@
 package mockgpt
 
 import (
+	"context"
 	"errors"
 
 	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
@@ -16,7 +17,7 @@ func NewMockGPT(completionsByMessage map[string]string) *MockGPT {
 	}
 }
 
-func (m MockGPT) CreateChatCompletion(message string) (string, error) {
+func (m MockGPT) CreateChatCompletion(ctx context.Context, message string) (string, error) {
 	completion, ok := m.CompletionsByMessage[message]
 	if !ok {
 		return "", errors.New("message not found")

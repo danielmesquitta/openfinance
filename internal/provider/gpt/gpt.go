@@ -1,5 +1,7 @@
 package gpt
 
+import "context"
+
 type Provider interface {
-	CreateChatCompletion(message string) (string, error)
+	CreateChatCompletion(ctx context.Context, message string) (string, error)
 }
