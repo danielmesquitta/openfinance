@@ -226,7 +226,14 @@ func TestSyncProcessesEveryMonthAndDeduplicates(t *testing.T) {
 		Return(nil).
 		Twice()
 
-	syncUseCase := NewSync(testMaxConcurrentOperations, testSettings("user"), noCompanyLookup(t), categorizer, store, source)
+	syncUseCase := NewSync(
+		testMaxConcurrentOperations,
+		testSettings("user"),
+		noCompanyLookup(t),
+		categorizer,
+		store,
+		source,
+	)
 	err := syncUseCase.Execute(context.Background(), SyncInput{
 		StartDate: janDate,
 		EndDate:   febDate,
@@ -365,7 +372,14 @@ func TestSyncEmptyRangeSkipsCategorizer(t *testing.T) {
 		Return(entity.Table{ID: "jan", Title: "Jan 2026"}, nil).
 		Once()
 
-	if err := NewSync(testMaxConcurrentOperations, testSettings("user"), noCompanyLookup(t), categorizer, store, source).Execute(
+	if err := NewSync(
+		testMaxConcurrentOperations,
+		testSettings("user"),
+		noCompanyLookup(t),
+		categorizer,
+		store,
+		source,
+	).Execute(
 		context.Background(),
 		SyncInput{StartDate: date, EndDate: date},
 	); err != nil {
@@ -481,7 +495,14 @@ func TestSyncPropagatesCategorizerAndStoreErrors(t *testing.T) {
 					Once()
 			}
 
-			err := NewSync(testMaxConcurrentOperations, testSettings("user"), noCompanyLookup(t), categorizer, store, source).Execute(
+			err := NewSync(
+				testMaxConcurrentOperations,
+				testSettings("user"),
+				noCompanyLookup(t),
+				categorizer,
+				store,
+				source,
+			).Execute(
 				context.Background(),
 				SyncInput{StartDate: date, EndDate: date},
 			)
@@ -616,7 +637,14 @@ func TestSyncBoundsInsertConcurrency(t *testing.T) {
 		}).
 		Times(len(transactions))
 
-	if err := NewSync(testMaxConcurrentOperations, testSettings("user"), noCompanyLookup(t), categorizer, store, source).Execute(
+	if err := NewSync(
+		testMaxConcurrentOperations,
+		testSettings("user"),
+		noCompanyLookup(t),
+		categorizer,
+		store,
+		source,
+	).Execute(
 		context.Background(),
 		SyncInput{StartDate: date, EndDate: date},
 	); err != nil {
