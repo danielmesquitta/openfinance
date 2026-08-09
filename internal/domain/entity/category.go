@@ -3,5 +3,5 @@ package entity
 type Category string
 
 const (
-	CategoryUnknown Category = "Others"
+	DefaultFallbackCategory Category = "Others"
 )

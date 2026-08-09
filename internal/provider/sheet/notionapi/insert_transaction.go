@@ -65,12 +65,12 @@ type insertTransactionReqRichTextProperty struct {
 
 func (c *Client) InsertTransaction(
 	ctx context.Context,
-	userID, tableID string,
+	syncProfileID, tableID string,
 	transaction entity.Transaction,
 ) error {
-	conn, ok := c.conns[userID]
+	conn, ok := c.conns[syncProfileID]
 	if !ok {
-		return errors.New("connection not found for user " + userID)
+		return errors.New("connection not found for sync profile " + syncProfileID)
 	}
 
 	cardLastDigits := ""
@@ -94,7 +94,7 @@ func (c *Client) InsertTransaction(
 			},
 			Category: insertTransactionReqSelector{
 				Select: insertTransactionReqSelect{
-					Name: string(entity.CategoryUnknown),
+					Name: formatSelectOption(string(transaction.Category)),
 				},
 			},
 			Amount: insertTransactionReqNumber{
@@ -120,14 +120,6 @@ func (c *Client) InsertTransaction(
 				},
 			},
 		},
-	}
-
-	if transaction.Category != "" && transaction.Category != entity.CategoryUnknown {
-		requestData.Properties.Category = insertTransactionReqSelector{
-			Select: insertTransactionReqSelect{
-				Name: formatSelectOption(string(transaction.Category)),
-			},
-		}
 	}
 
 	res, err := c.client.R().

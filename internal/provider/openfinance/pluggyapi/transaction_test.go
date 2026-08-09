@@ -13,7 +13,7 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 )
 
-func TestListTransactionsByUserIDPaginatesAndMaps(t *testing.T) {
+func TestListTransactionsBySyncProfileIDPaginatesAndMaps(t *testing.T) {
 	t.Parallel()
 
 	var requests atomic.Int32
@@ -63,19 +63,19 @@ func TestListTransactionsByUserIDPaginatesAndMaps(t *testing.T) {
 		client:                  resty.New().SetBaseURL(server.URL),
 		maxConcurrentOperations: 1,
 		conns: map[string]conn{
-			"user": {accessToken: "token", accountIDs: []string{"account"}},
+			"sync-profile": {accessToken: "token", accountIDs: []string{"account"}},
 		},
 		accountSlots: make(chan struct{}, 1),
 	}
 
-	transactions, err := client.ListTransactionsByUserID(
+	transactions, err := client.ListTransactionsBySyncProfileID(
 		t.Context(),
-		"user",
+		"sync-profile",
 		time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(2026, time.August, 31, 0, 0, 0, 0, time.UTC),
 	)
 	if err != nil {
-		t.Fatalf("ListTransactionsByUserID() error = %v", err)
+		t.Fatalf("ListTransactionsBySyncProfileID() error = %v", err)
 	}
 
 	if requests.Load() != 2 {

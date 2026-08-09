@@ -24,21 +24,21 @@ git clone https://github.com/danielmesquitta/openfinance
 make install
 ```
 
-4. Create your .env file
+3. Create your .env file
 
 ```bash
 cp .env.example .env
 ```
 
-5. Create config files
+4. Create the sync profiles config file
 
 ```bash
-cp config/categories.json.example config/categories.json
-cp config/mappings.json.example config/mappings.json
-cp config/users.json.example config/users.json
+cp config/sync_profiles.json.example config/sync_profiles.json
 ```
 
-5. Configure your .env file and the config files with your credentials
+5. Configure your `.env` and `config/sync_profiles.json` files with your credentials and per-sync-profile categorization settings.
+
+Each sync profile must define a non-empty `categories` object and a `mappings` object, which may be empty. The optional `fallback` defaults to `Others`. If the fallback is absent from `categories`, it is added automatically with Notion's default color.
 
 6. Execute the script
 

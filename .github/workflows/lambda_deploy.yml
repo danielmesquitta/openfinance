@@ -23,14 +23,8 @@ jobs:
         cat > .env << 'EOF'
         ${{ secrets.ENV }}
         EOF
-        cat > config/categories.json << 'EOF'
-        ${{ secrets.CATEGORIES_JSON }}
-        EOF
-        cat > config/mappings.json << 'EOF'
-        ${{ secrets.MAPPINGS_JSON }}
-        EOF
-        cat > config/users.json << 'EOF'
-        ${{ secrets.USERS_JSON }}
+        cat > config/sync_profiles.json << 'EOF'
+        ${{ secrets.SYNC_PROFILES_JSON }}
         EOF
 
     - name: Install dependencies

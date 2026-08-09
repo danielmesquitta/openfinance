@@ -103,11 +103,11 @@ type listTransactionsRespTitleProperty struct {
 
 func (c *Client) ListTransactions(
 	ctx context.Context,
-	userID, databaseID string,
+	syncProfileID, databaseID string,
 ) ([]entity.Transaction, error) {
-	conn, ok := c.conns[userID]
+	conn, ok := c.conns[syncProfileID]
 	if !ok {
-		return nil, errors.New("connection not found for user " + userID)
+		return nil, errors.New("connection not found for sync profile " + syncProfileID)
 	}
 
 	var allTransactions []entity.Transaction
@@ -195,8 +195,6 @@ func (c *Client) mapPageToTransaction(page listTransactionsRespPage) (entity.Tra
 
 	if page.Properties.Category.Select != nil && page.Properties.Category.Select.Name != "" {
 		transaction.Category = entity.Category(page.Properties.Category.Select.Name)
-	} else {
-		transaction.Category = entity.CategoryUnknown
 	}
 
 	if page.Properties.Amount.Number != nil {

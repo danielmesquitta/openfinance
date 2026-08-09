@@ -7,5 +7,5 @@ import (
 //go:embed .env*
 var EnvFile embed.FS
 
-//go:embed config/*.json
-var Config embed.FS
+//go:embed config/sync_profiles.json
+var SyncProfilesFile embed.FS

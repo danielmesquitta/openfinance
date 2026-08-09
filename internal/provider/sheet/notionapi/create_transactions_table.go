@@ -90,12 +90,12 @@ type createTransactionTableRespTitle struct {
 
 func (c *Client) CreateTransactionsTable(
 	ctx context.Context,
-	userID string,
+	syncProfileID string,
 	title string,
 ) (entity.Table, error) {
-	conn, ok := c.conns[userID]
+	conn, ok := c.conns[syncProfileID]
 	if !ok {
-		return entity.Table{}, errors.New("connection not found for user " + userID)
+		return entity.Table{}, errors.New("connection not found for sync profile " + syncProfileID)
 	}
 
 	requestData := c.getRequestData(conn, title)
@@ -165,7 +165,7 @@ func (c *Client) getRequestData(
 			Name: createTransactionTableReqName{},
 			Category: createTransactionTableReqCategory{
 				Select: createTransactionTableReqSelect{
-					Options: c.getCategoryOptions(),
+					Options: getCategoryOptions(conn.colorsByCategory),
 				},
 			},
 			Amount: createTransactionTableReqAmount{
@@ -198,14 +198,16 @@ func paymentMethodOptions() []createTransactionTableReqSelectOption {
 	return options
 }
 
-func (c *Client) getCategoryOptions() []createTransactionTableReqSelectOption {
+func getCategoryOptions(
+	colorsByCategory map[entity.Category]entity.Color,
+) []createTransactionTableReqSelectOption {
 	categoryOptions := make(
 		[]createTransactionTableReqSelectOption,
 		0,
-		len(c.env.ColorsByCategory),
+		len(colorsByCategory),
 	)
 
-	for category, color := range c.env.ColorsByCategory {
+	for category, color := range colorsByCategory {
 		categoryName := formatSelectOption(string(category))
 		categoryOptions = append(categoryOptions, createTransactionTableReqSelectOption{
 			Name:  categoryName,

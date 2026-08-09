@@ -50,14 +50,14 @@ type documentNumber struct {
 	Value string `json:"value"`
 }
 
-func (c *Client) ListTransactionsByUserID(
+func (c *Client) ListTransactionsBySyncProfileID(
 	ctx context.Context,
-	userID string,
+	syncProfileID string,
 	from, to time.Time,
 ) ([]entity.Transaction, error) {
-	connection, ok := c.conns[userID]
+	connection, ok := c.conns[syncProfileID]
 	if !ok {
-		return nil, errors.New("connection not found for user " + userID)
+		return nil, errors.New("connection not found for sync profile " + syncProfileID)
 	}
 
 	results, err := c.fetchAllAccountTransactions(

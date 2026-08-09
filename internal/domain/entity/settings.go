@@ -3,65 +3,86 @@ package entity
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 )
 
+type SyncProfileSettings struct {
+	ID               string
+	Categories       []Category
+	ColorsByCategory map[Category]Color
+	Mappings         map[string]Category
+	Fallback         Category
+}
+
 type SyncSettings struct {
-	UserIDs    []string
-	Categories []Category
-	Mappings   map[string]Category
-	Fallback   Category
+	SyncProfiles []SyncProfileSettings
 }
 
-func NewSyncSettings(
-	users []User,
-	colorsByCategory map[Category]Color,
-	mappings map[string]Category,
-) (SyncSettings, error) {
-	if err := ValidateUsers(users); err != nil {
+func NewSyncSettings(syncProfiles []SyncProfile) (SyncSettings, error) {
+	if err := ValidateSyncProfiles(syncProfiles); err != nil {
 		return SyncSettings{}, err
 	}
 
-	if err := ValidateCategories(colorsByCategory, mappings); err != nil {
-		return SyncSettings{}, err
+	syncProfileSettings := make([]SyncProfileSettings, 0, len(syncProfiles))
+	for _, syncProfile := range syncProfiles {
+		if len(syncProfile.Categories) == 0 {
+			return SyncSettings{}, fmt.Errorf("sync profile %q: at least one category is required", syncProfile.ID)
+		}
+		if syncProfile.Mappings == nil {
+			return SyncSettings{}, fmt.Errorf("sync profile %q: mappings are required", syncProfile.ID)
+		}
+
+		fallback := syncProfile.Fallback
+		if fallback == "" {
+			fallback = DefaultFallbackCategory
+		}
+
+		colorsByCategory := maps.Clone(syncProfile.Categories)
+		if _, exists := colorsByCategory[fallback]; !exists {
+			colorsByCategory[fallback] = Gray
+		}
+
+		if err := ValidateCategories(colorsByCategory, syncProfile.Mappings); err != nil {
+			return SyncSettings{}, fmt.Errorf("sync profile %q: %w", syncProfile.ID, err)
+		}
+
+		categories := make([]Category, 0, len(colorsByCategory))
+		for category := range colorsByCategory {
+			categories = append(categories, category)
+		}
+		slices.Sort(categories)
+
+		syncProfileSettings = append(syncProfileSettings, SyncProfileSettings{
+			ID:               syncProfile.ID,
+			Categories:       categories,
+			ColorsByCategory: colorsByCategory,
+			Mappings:         maps.Clone(syncProfile.Mappings),
+			Fallback:         fallback,
+		})
 	}
 
-	userIDs := make([]string, 0, len(users))
-	for _, user := range users {
-		userIDs = append(userIDs, user.ID)
-	}
-
-	categories := make([]Category, 0, len(colorsByCategory))
-	for category := range colorsByCategory {
-		categories = append(categories, category)
-	}
-	slices.Sort(categories)
-
-	return SyncSettings{
-		UserIDs:    userIDs,
-		Categories: categories,
-		Mappings:   mappings,
-		Fallback:   CategoryUnknown,
-	}, nil
+	return SyncSettings{SyncProfiles: syncProfileSettings}, nil
 }
 
-func ValidateUsers(users []User) error {
-	if len(users) == 0 {
-		return errors.New("at least one user is required")
+func ValidateSyncProfiles(syncProfiles []SyncProfile) error {
+	if len(syncProfiles) == 0 {
+		return errors.New("at least one sync profile is required")
 	}
 
-	userIDs := make(map[string]struct{}, len(users))
-	for _, user := range users {
-		if user.ID == "" || user.NotionToken == "" || user.NotionPageID == "" ||
-			user.PluggyClientID == "" || user.PluggyClientSecret == "" || len(user.PluggyAccountIDs) == 0 {
-			return fmt.Errorf("user %q has incomplete integration settings", user.ID)
+	syncProfileIDs := make(map[string]struct{}, len(syncProfiles))
+	for _, syncProfile := range syncProfiles {
+		if syncProfile.ID == "" || syncProfile.NotionToken == "" || syncProfile.NotionPageID == "" ||
+			syncProfile.PluggyClientID == "" || syncProfile.PluggyClientSecret == "" ||
+			len(syncProfile.PluggyAccountIDs) == 0 {
+			return fmt.Errorf("sync profile %q has incomplete integration settings", syncProfile.ID)
 		}
 
-		if _, exists := userIDs[user.ID]; exists {
-			return fmt.Errorf("user id %q is duplicated", user.ID)
+		if _, exists := syncProfileIDs[syncProfile.ID]; exists {
+			return fmt.Errorf("sync profile id %q is duplicated", syncProfile.ID)
 		}
 
-		userIDs[user.ID] = struct{}{}
+		syncProfileIDs[syncProfile.ID] = struct{}{}
 	}
 
 	return nil
@@ -73,10 +94,6 @@ func ValidateCategories(
 ) error {
 	if len(colorsByCategory) == 0 {
 		return errors.New("at least one category is required")
-	}
-
-	if _, ok := colorsByCategory[CategoryUnknown]; !ok {
-		return fmt.Errorf("fallback category %q is required", CategoryUnknown)
 	}
 
 	for category, color := range colorsByCategory {

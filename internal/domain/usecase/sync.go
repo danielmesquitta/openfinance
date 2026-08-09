@@ -22,7 +22,7 @@ import (
 const (
 	categorizationSystemMessage = "Categorize each transaction name using only the supplied categories. " +
 		"Return one JSON object whose keys are the exact transaction names and whose values are category names. " +
-		"Use the fallback when uncertain. Input:"
+		"Use the fallback when uncertain."
 )
 
 type SyncInput struct {
@@ -85,10 +85,10 @@ func (s *Sync) Execute(ctx context.Context, input SyncInput) error {
 	group, groupContext := errgroup.WithContext(ctx)
 	group.SetLimit(s.maxConcurrentOperations)
 
-	for _, userID := range s.settings.UserIDs {
+	for _, syncProfileSettings := range s.settings.SyncProfiles {
 		group.Go(func() error {
-			if err := s.syncUser(groupContext, userID, input); err != nil {
-				return fmt.Errorf("sync user %q: %w", userID, err)
+			if err := s.syncProfile(groupContext, syncProfileSettings, input); err != nil {
+				return fmt.Errorf("sync profile %q: %w", syncProfileSettings.ID, err)
 			}
 
 			return nil
@@ -96,16 +96,20 @@ func (s *Sync) Execute(ctx context.Context, input SyncInput) error {
 	}
 
 	if err := group.Wait(); err != nil {
-		return fmt.Errorf("sync users: %w", err)
+		return fmt.Errorf("sync profiles: %w", err)
 	}
 
 	return nil
 }
 
-func (s *Sync) syncUser(ctx context.Context, userID string, input SyncInput) error {
-	transactions, err := s.openFinanceAPIProvider.ListTransactionsByUserID(
+func (s *Sync) syncProfile(
+	ctx context.Context,
+	settings entity.SyncProfileSettings,
+	input SyncInput,
+) error {
+	transactions, err := s.openFinanceAPIProvider.ListTransactionsBySyncProfileID(
 		ctx,
-		userID,
+		settings.ID,
 		input.StartDate,
 		input.EndDate,
 	)
@@ -115,11 +119,11 @@ func (s *Sync) syncUser(ctx context.Context, userID string, input SyncInput) err
 
 	s.enrichTransactionNames(ctx, transactions)
 
-	if err := s.categorizeTransactions(ctx, transactions); err != nil {
+	if err := s.categorizeTransactions(ctx, settings, transactions); err != nil {
 		return fmt.Errorf("categorize transactions: %w", err)
 	}
 
-	tables, err := s.sheetProvider.ListTables(ctx, userID)
+	tables, err := s.sheetProvider.ListTables(ctx, settings.ID)
 	if err != nil {
 		return fmt.Errorf("list tables: %w", err)
 	}
@@ -136,20 +140,20 @@ func (s *Sync) syncUser(ctx context.Context, userID string, input SyncInput) err
 
 		table, exists := tableByTitle[title]
 		if !exists {
-			table, err = s.sheetProvider.CreateTransactionsTable(ctx, userID, title)
+			table, err = s.sheetProvider.CreateTransactionsTable(ctx, settings.ID, title)
 			if err != nil {
 				return fmt.Errorf("create table %q: %w", title, err)
 			}
 
 			tableByTitle[title] = table
 		} else {
-			monthTransactions, err = s.onlyNewTransactions(ctx, userID, table.ID, monthTransactions)
+			monthTransactions, err = s.onlyNewTransactions(ctx, settings.ID, table.ID, monthTransactions)
 			if err != nil {
 				return fmt.Errorf("filter transactions for table %q: %w", title, err)
 			}
 		}
 
-		if err := s.insertTransactions(ctx, userID, table.ID, monthTransactions); err != nil {
+		if err := s.insertTransactions(ctx, settings.ID, table.ID, monthTransactions); err != nil {
 			return fmt.Errorf("insert transactions into table %q: %w", title, err)
 		}
 	}
@@ -233,7 +237,11 @@ func applyCompanyNames(transactions []entity.Transaction, companyNameByDocument 
 	}
 }
 
-func (s *Sync) categorizeTransactions(ctx context.Context, transactions []entity.Transaction) error {
+func (s *Sync) categorizeTransactions(
+	ctx context.Context,
+	settings entity.SyncProfileSettings,
+	transactions []entity.Transaction,
+) error {
 	names := uniqueTransactionNames(transactions)
 	if len(names) == 0 {
 		return nil
@@ -246,9 +254,9 @@ func (s *Sync) categorizeTransactions(ctx context.Context, transactions []entity
 		Fallback         entity.Category            `json:"fallback"`
 	}{
 		TransactionNames: names,
-		Categories:       s.settings.Categories,
-		Mappings:         s.settings.Mappings,
-		Fallback:         s.settings.Fallback,
+		Categories:       settings.Categories,
+		Mappings:         settings.Mappings,
+		Fallback:         settings.Fallback,
 	})
 	if err != nil {
 		return fmt.Errorf("marshal categorization input: %w", err)
@@ -269,15 +277,15 @@ func (s *Sync) categorizeTransactions(ctx context.Context, transactions []entity
 		return fmt.Errorf("decode categorization chat completion: %w", err)
 	}
 
-	allowedCategories := make(map[entity.Category]struct{}, len(s.settings.Categories))
-	for _, category := range s.settings.Categories {
+	allowedCategories := make(map[entity.Category]struct{}, len(settings.Categories))
+	for _, category := range settings.Categories {
 		allowedCategories[category] = struct{}{}
 	}
 
 	for index := range transactions {
 		category, ok := categoryByName[transactions[index].Name]
 		if _, allowed := allowedCategories[category]; !ok || !allowed {
-			category = s.settings.Fallback
+			category = settings.Fallback
 		}
 
 		transactions[index].Category = category
@@ -325,10 +333,10 @@ func monthsInRange(startDate, endDate time.Time) []time.Time {
 
 func (s *Sync) onlyNewTransactions(
 	ctx context.Context,
-	userID, tableID string,
+	syncProfileID, tableID string,
 	transactions []entity.Transaction,
 ) ([]entity.Transaction, error) {
-	existingTransactions, err := s.sheetProvider.ListTransactions(ctx, userID, tableID)
+	existingTransactions, err := s.sheetProvider.ListTransactions(ctx, syncProfileID, tableID)
 	if err != nil {
 		return nil, fmt.Errorf("list existing transactions: %w", err)
 	}
@@ -354,7 +362,7 @@ func (s *Sync) onlyNewTransactions(
 
 func (s *Sync) insertTransactions(
 	ctx context.Context,
-	userID, tableID string,
+	syncProfileID, tableID string,
 	transactions []entity.Transaction,
 ) error {
 	group, groupContext := errgroup.WithContext(ctx)
@@ -364,7 +372,7 @@ func (s *Sync) insertTransactions(
 		group.Go(func() error {
 			if err := s.sheetProvider.InsertTransaction(
 				groupContext,
-				userID,
+				syncProfileID,
 				tableID,
 				transaction,
 			); err != nil {

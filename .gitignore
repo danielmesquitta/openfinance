@@ -1,9 +1,7 @@
 .env*
 !.env.example
 
-config/users.json
-config/categories.json
-config/mappings.json
+config/sync_profiles.json
 
 tmp/*
 

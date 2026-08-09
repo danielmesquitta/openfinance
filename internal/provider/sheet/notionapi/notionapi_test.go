@@ -1,6 +1,7 @@
 package notionapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -45,10 +46,10 @@ func TestListTablesPaginatesAndFiltersUnavailableTables(t *testing.T) {
 
 	client := &Client{
 		client: resty.New().SetBaseURL(server.URL),
-		conns:  map[string]conn{"user": {accessToken: "token", pageID: "page"}},
+		conns:  map[string]conn{"sync-profile": {accessToken: "token", pageID: "page"}},
 	}
 
-	tables, err := client.ListTables(t.Context(), "user")
+	tables, err := client.ListTables(t.Context(), "sync-profile")
 	if err != nil {
 		t.Fatalf("ListTables() error = %v", err)
 	}
@@ -95,5 +96,105 @@ func TestMapPageToTransaction(t *testing.T) {
 		transaction.Amount != amount || transaction.PaymentMethod != entity.PaymentMethodCreditCard ||
 		!transaction.Date.Equal(time.Date(2026, time.August, 9, 12, 0, 0, 0, time.UTC)) {
 		t.Fatalf("transaction = %#v", transaction)
+	}
+
+	page.Properties.Category.Select = nil
+	transaction, err = (&Client{}).mapPageToTransaction(page)
+	if err != nil {
+		t.Fatalf("mapPageToTransaction() without category error = %v", err)
+	}
+	if transaction.Category != "" {
+		t.Fatalf("missing category = %q, want empty", transaction.Category)
+	}
+}
+
+func TestCreateTransactionsTableRequestUsesConnectionCategories(t *testing.T) {
+	t.Parallel()
+
+	client := &Client{}
+	first := client.getRequestData(conn{
+		pageID: "page",
+		colorsByCategory: map[entity.Category]entity.Color{
+			"Food":   entity.Red,
+			"Others": entity.Gray,
+		},
+	}, "Jan 2026")
+	second := client.getRequestData(conn{
+		pageID: "page",
+		colorsByCategory: map[entity.Category]entity.Color{
+			"Transporte": entity.LightGray,
+			"Outros":     entity.Purple,
+		},
+	}, "Jan 2026")
+
+	assertCategoryOptions := func(
+		t *testing.T,
+		options []createTransactionTableReqSelectOption,
+		want map[string]entity.Color,
+	) {
+		t.Helper()
+
+		got := make(map[string]entity.Color, len(options))
+		for _, option := range options {
+			got[option.Name] = option.Color
+		}
+		if len(got) != len(want) {
+			t.Fatalf("category options = %#v, want %#v", got, want)
+		}
+		for category, color := range want {
+			if got[category] != color {
+				t.Fatalf("category options = %#v, want %#v", got, want)
+			}
+		}
+	}
+
+	assertCategoryOptions(t, first.Properties.Category.Select.Options, map[string]entity.Color{
+		"Food":   entity.Red,
+		"Others": entity.Gray,
+	})
+	assertCategoryOptions(t, second.Properties.Category.Select.Options, map[string]entity.Color{
+		"Transporte": entity.LightGray,
+		"Outros":     entity.Purple,
+	})
+}
+
+func TestInsertTransactionPersistsFallbackCategory(t *testing.T) {
+	t.Parallel()
+
+	for _, fallback := range []entity.Category{"Others", "Outros"} {
+		t.Run(string(fallback), func(t *testing.T) {
+			t.Parallel()
+
+			var requestData insertTransactionReq
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				if err := json.NewDecoder(request.Body).Decode(&requestData); err != nil {
+					t.Errorf("decode request: %v", err)
+				}
+				writer.Header().Set("Content-Type", "application/json")
+				_, _ = fmt.Fprint(writer, `{}`)
+			}))
+			t.Cleanup(server.Close)
+
+			client := &Client{
+				client: resty.New().SetBaseURL(server.URL),
+				conns:  map[string]conn{"sync-profile": {accessToken: "token"}},
+			}
+			err := client.InsertTransaction(t.Context(), "sync-profile", "table", entity.Transaction{
+				Name:     "Store",
+				Category: fallback,
+				Amount:   10,
+				Date:     time.Date(2026, time.August, 9, 12, 0, 0, 0, time.UTC),
+			})
+			if err != nil {
+				t.Fatalf("InsertTransaction() error = %v", err)
+			}
+			if requestData.Properties.Category.Select.Name != string(fallback) {
+				t.Fatalf(
+					"category = %q, want %q",
+					requestData.Properties.Category.Select.Name,
+					fallback,
+				)
+			}
+		})
 	}
 }

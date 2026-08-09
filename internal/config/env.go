@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"slices"
 
 	root "github.com/danielmesquitta/openfinance"
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
@@ -18,18 +17,15 @@ type EnvFileData struct {
 	MaxConcurrentOperations int    `json:"max_concurrent_operations" mapstructure:"MAX_CONCURRENT_OPERATIONS" validate:"required,gte=1"`
 }
 
-// JSONFileData is the data for the users.json file.
-type JSONFileData struct {
-	Users            []entity.User                    `json:"users"              validate:"required"`
-	ColorsByCategory map[entity.Category]entity.Color `json:"colors_by_category" validate:"required"`
-	Categories       []entity.Category                `json:"categories"         validate:"required"`
-	Mappings         map[string]entity.Category       `json:"mappings"           validate:"required"`
+// SyncProfilesFileData is the data for the sync_profiles.json file.
+type SyncProfilesFileData struct {
+	SyncProfiles []entity.SyncProfile `json:"sync_profiles" validate:"required"`
 }
 
 // Env is the environment variables.
 type Env struct {
 	EnvFileData
-	JSONFileData
+	SyncProfilesFileData
 
 	SyncSettings entity.SyncSettings
 
@@ -58,12 +54,12 @@ func (e *Env) loadEnv() error {
 		return fmt.Errorf("failed to validate env file: %w", err)
 	}
 
-	if err := e.loadDataFromJSON(); err != nil {
-		return fmt.Errorf("failed to load data from users file: %w", err)
+	if err := e.loadDataFromSyncProfilesFile(); err != nil {
+		return fmt.Errorf("failed to load data from sync profiles file: %w", err)
 	}
 
-	if err := e.validateJSONFile(); err != nil {
-		return fmt.Errorf("failed to validate users file: %w", err)
+	if err := e.validateSyncProfilesFile(); err != nil {
+		return fmt.Errorf("failed to validate sync profiles file: %w", err)
 	}
 
 	return nil
@@ -90,20 +86,12 @@ func (e *Env) loadDataFromEnvFile() error {
 	return nil
 }
 
-func (e *Env) loadDataFromJSON() error {
-	if err := e.loadCategories(); err != nil {
-		return fmt.Errorf("failed to load categories: %w", err)
+func (e *Env) loadDataFromSyncProfilesFile() error {
+	if err := e.loadSyncProfiles(); err != nil {
+		return fmt.Errorf("failed to load sync profiles: %w", err)
 	}
 
-	if err := e.loadMappings(); err != nil {
-		return fmt.Errorf("failed to load mappings: %w", err)
-	}
-
-	if err := e.loadUsers(); err != nil {
-		return fmt.Errorf("failed to load users: %w", err)
-	}
-
-	settings, err := entity.NewSyncSettings(e.Users, e.ColorsByCategory, e.Mappings)
+	settings, err := entity.NewSyncSettings(e.SyncProfiles)
 	if err != nil {
 		return fmt.Errorf("invalid domain settings: %w", err)
 	}
@@ -113,47 +101,14 @@ func (e *Env) loadDataFromJSON() error {
 	return nil
 }
 
-func (e *Env) loadCategories() error {
-	categoriesData, err := root.Config.ReadFile("config/categories.json")
+func (e *Env) loadSyncProfiles() (err error) {
+	syncProfilesData, err := root.SyncProfilesFile.ReadFile("config/sync_profiles.json")
 	if err != nil {
-		return fmt.Errorf("failed to read categories file: %w", err)
+		return fmt.Errorf("failed to read sync profiles file: %w", err)
 	}
 
-	if err = json.Unmarshal(categoriesData, &e.ColorsByCategory); err != nil {
-		return fmt.Errorf("failed to unmarshal categories file: %w", err)
-	}
-
-	categories := make([]entity.Category, 0, len(e.ColorsByCategory))
-	for category := range e.ColorsByCategory {
-		categories = append(categories, category)
-	}
-	slices.Sort(categories)
-	e.Categories = categories
-
-	return nil
-}
-
-func (e *Env) loadMappings() error {
-	mappingsData, err := root.Config.ReadFile("config/mappings.json")
-	if err != nil {
-		return fmt.Errorf("failed to read mappings file: %w", err)
-	}
-
-	if err = json.Unmarshal(mappingsData, &e.Mappings); err != nil {
-		return fmt.Errorf("failed to unmarshal mappings file: %w", err)
-	}
-
-	return nil
-}
-
-func (e *Env) loadUsers() (err error) {
-	usersData, err := root.Config.ReadFile("config/users.json")
-	if err != nil {
-		return fmt.Errorf("failed to read users file: %w", err)
-	}
-
-	if err = json.Unmarshal(usersData, &e.Users); err != nil {
-		return fmt.Errorf("failed to unmarshal users file: %w", err)
+	if err = json.Unmarshal(syncProfilesData, &e.SyncProfiles); err != nil {
+		return fmt.Errorf("failed to unmarshal sync profiles file: %w", err)
 	}
 
 	return nil
@@ -167,9 +122,9 @@ func (e *Env) validateEnvFile() error {
 	return nil
 }
 
-func (e *Env) validateJSONFile() error {
-	if err := e.val.Validate(e.JSONFileData); err != nil {
-		return fmt.Errorf("failed to validate users file: %w", err)
+func (e *Env) validateSyncProfilesFile() error {
+	if err := e.val.Validate(e.SyncProfilesFileData); err != nil {
+		return fmt.Errorf("failed to validate sync profiles file: %w", err)
 	}
 
 	return nil
