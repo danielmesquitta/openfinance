@@ -3,7 +3,10 @@ package entity
 import (
 	"fmt"
 	"math"
+	"strings"
 	"time"
+
+	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
 )
 
 const (
@@ -11,15 +14,110 @@ const (
 )
 
 type Transaction struct {
-	Name           string        `json:"name,omitzero"`
-	Category       Category      `json:"category,omitzero"`
-	Amount         float64       `json:"amount,omitzero"`
-	PaymentMethod  PaymentMethod `json:"payment_method,omitzero"`
-	Date           time.Time     `json:"date,omitzero"`
-	CardLastDigits *string       `json:"card_last_digits,omitzero"`
+	Name           string
+	Category       Category
+	Amount         float64
+	PaymentMethod  PaymentMethod
+	Date           time.Time
+	CardLastDigits *string
 }
 
-func (t *Transaction) ID() string {
+type TransactionDirection string
+
+const (
+	TransactionDirectionCredit TransactionDirection = "CREDIT"
+	TransactionDirectionDebit  TransactionDirection = "DEBIT"
+)
+
+type TransactionInput struct {
+	AccountType             AccountType
+	Description             string
+	Amount                  float64
+	AmountInAccountCurrency *float64
+	Date                    time.Time
+	SourceCategory          string
+	Direction               TransactionDirection
+	PaymentMethod           *PaymentMethod
+	ReceiverName            string
+	ReceiverDocument        string
+	CardLastDigits          *string
+}
+
+const (
+	investmentCategory         = "Investments"
+	samePersonTransferCategory = "Same person transfer"
+	creditCardBillPayment      = "Pagamento de fatura"
+)
+
+func NewTransaction(input TransactionInput) (Transaction, bool) {
+	if shouldIgnoreTransaction(input) {
+		return Transaction{}, false
+	}
+
+	amount := input.Amount
+	if input.AmountInAccountCurrency != nil && *input.AmountInAccountCurrency != 0 {
+		amount = *input.AmountInAccountCurrency
+	}
+
+	transaction := Transaction{
+		Amount:   math.Abs(amount),
+		Date:     input.Date,
+		Category: Category(input.SourceCategory),
+	}
+
+	switch input.AccountType {
+	case AccountTypeBank:
+		if input.PaymentMethod == nil {
+			return Transaction{}, false
+		}
+
+		transaction.PaymentMethod = *input.PaymentMethod
+		transaction.Name = bankTransactionName(input)
+	case AccountTypeCreditCard:
+		transaction.Name = strings.TrimSpace(input.Description)
+		transaction.PaymentMethod = PaymentMethodCreditCard
+		transaction.CardLastDigits = input.CardLastDigits
+	default:
+		return Transaction{}, false
+	}
+
+	if transaction.Name == "" {
+		return Transaction{}, false
+	}
+
+	return transaction, true
+}
+
+func shouldIgnoreTransaction(input TransactionInput) bool {
+	return input.Direction == TransactionDirectionCredit ||
+		input.SourceCategory == investmentCategory ||
+		strings.Contains(input.Description, "Aplicação") ||
+		input.Description == creditCardBillPayment ||
+		input.SourceCategory == samePersonTransferCategory
+}
+
+func bankTransactionName(input TransactionInput) string {
+	if description := strings.TrimSpace(input.Description); description != "" {
+		return description
+	}
+
+	if receiverName := strings.TrimSpace(input.ReceiverName); receiverName != "" {
+		return receiverName
+	}
+
+	if input.ReceiverDocument == "" {
+		return ""
+	}
+
+	document, err := docutil.MaskDocument(input.ReceiverDocument)
+	if err != nil {
+		return ""
+	}
+
+	return document
+}
+
+func (t Transaction) ID() string {
 	return fmt.Sprintf(
 		"%s:%d:%s",
 		t.Name,

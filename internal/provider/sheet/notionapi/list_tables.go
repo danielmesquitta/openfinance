@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
+	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 )
 
 type listTablesResp struct {
@@ -33,13 +33,13 @@ type listTablesChildDatabase struct {
 func (c *Client) ListTables(
 	ctx context.Context,
 	userID string,
-) ([]sheet.Table, error) {
+) ([]entity.Table, error) {
 	conn, ok := c.conns[userID]
 	if !ok {
 		return nil, errors.New("connection not found for user " + userID)
 	}
 
-	var allTables []sheet.Table
+	var allTables []entity.Table
 	var cursor string
 	hasMore := true
 
@@ -91,15 +91,13 @@ func (c *Client) fetchTablesPage(
 	return &data, nil
 }
 
-func (c *Client) extractTablesFromResults(results []listTablesResult) []sheet.Table {
-	var tables []sheet.Table
+func (c *Client) extractTablesFromResults(results []listTablesResult) []entity.Table {
+	var tables []entity.Table
 	for _, result := range results {
-		if result.ChildDatabase != nil {
-			table := sheet.Table{
-				ID:       result.ID,
-				Title:    &result.ChildDatabase.Title,
-				Archived: result.Archived,
-				InTrash:  result.InTrash,
+		if result.ChildDatabase != nil && !result.Archived && !result.InTrash {
+			table := entity.Table{
+				ID:    result.ID,
+				Title: result.ChildDatabase.Title,
 			}
 			tables = append(tables, table)
 		}

@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
-	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 )
 
 type createTransactionTableReq struct {
@@ -93,10 +92,10 @@ func (c *Client) CreateTransactionsTable(
 	ctx context.Context,
 	userID string,
 	title string,
-) (*sheet.Table, error) {
+) (entity.Table, error) {
 	conn, ok := c.conns[userID]
 	if !ok {
-		return nil, errors.New("connection not found for user " + userID)
+		return entity.Table{}, errors.New("connection not found for user " + userID)
 	}
 
 	requestData := c.getRequestData(conn, title)
@@ -108,7 +107,7 @@ func (c *Client) CreateTransactionsTable(
 		Post("/v1/databases")
 
 	if err != nil {
-		return nil, fmt.Errorf(
+		return entity.Table{}, fmt.Errorf(
 			"failed to create transactions table with request data %+v: %w",
 			requestData,
 			err,
@@ -117,7 +116,7 @@ func (c *Client) CreateTransactionsTable(
 
 	body := res.Body()
 	if res.IsError() {
-		return nil, fmt.Errorf(
+		return entity.Table{}, fmt.Errorf(
 			"request creating transactions table %+v failed with response %s",
 			requestData,
 			body,
@@ -126,18 +125,16 @@ func (c *Client) CreateTransactionsTable(
 
 	data := &createTransactionTableResp{}
 	if err := json.Unmarshal(body, &data); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal while creating transactions table: %w", err)
+		return entity.Table{}, fmt.Errorf("failed to unmarshal while creating transactions table: %w", err)
 	}
 
 	if len(data.Title) == 0 {
-		return nil, errors.New("title is empty")
+		return entity.Table{}, errors.New("title is empty")
 	}
 
-	table := &sheet.Table{
-		ID:       data.ID,
-		Title:    &data.Title[0].PlainText,
-		Archived: data.Archived,
-		InTrash:  data.InTrash,
+	table := entity.Table{
+		ID:    data.ID,
+		Title: data.Title[0].PlainText,
 	}
 
 	return table, nil
@@ -178,12 +175,7 @@ func (c *Client) getRequestData(
 			},
 			PaymentMethod: createTransactionTableReqCategory{
 				Select: createTransactionTableReqSelect{
-					Options: []createTransactionTableReqSelectOption{
-						{Name: "BOLETO", Color: entity.Yellow},
-						{Name: "PIX", Color: entity.Blue},
-						{Name: "TED", Color: entity.Green},
-						{Name: "CREDIT CARD", Color: entity.Purple},
-					},
+					Options: paymentMethodOptions(),
 				},
 			},
 			CardLastDigits: createTransactionTableReqRichText{},
@@ -192,6 +184,18 @@ func (c *Client) getRequestData(
 	}
 
 	return requestData
+}
+
+func paymentMethodOptions() []createTransactionTableReqSelectOption {
+	options := make([]createTransactionTableReqSelectOption, 0, len(entity.PaymentMethods))
+	for _, paymentMethod := range entity.PaymentMethods {
+		options = append(options, createTransactionTableReqSelectOption{
+			Name:  string(paymentMethod),
+			Color: entity.PaymentMethodColors[paymentMethod],
+		})
+	}
+
+	return options
 }
 
 func (c *Client) getCategoryOptions() []createTransactionTableReqSelectOption {

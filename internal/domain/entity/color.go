@@ -40,3 +40,9 @@ var ColorsMap = map[Color]struct{}{
 	Brown:     {},
 	Gray:      {},
 }
+
+func (c Color) IsValid() bool {
+	_, ok := ColorsMap[c]
+
+	return ok
+}

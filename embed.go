@@ -1,4 +1,4 @@
-package root //nolint:revive
+package root
 
 import (
 	"embed"

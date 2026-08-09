@@ -3,14 +3,12 @@ package cli
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/danielmesquitta/openfinance/internal/app"
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
-	"github.com/danielmesquitta/openfinance/internal/pkg/must"
 )
 
 var timeFormats = []string{
@@ -65,10 +63,19 @@ var rootCmd = &cobra.Command{
 	Use:   "openfinance-cli",
 	Short: "Open Finance Integration with Notion through Pluggy using CLI",
 	Long:  "This is a tool to help you integrate your open finance data with your Notion database",
-	Run:   run,
+	RunE:  run,
 }
 
-func run(cmd *cobra.Command, _ []string) {
+func run(cmd *cobra.Command, _ []string) error {
+	syncUseCase, err := app.NewSyncUseCase()
+	if err != nil {
+		return fmt.Errorf("initialize application: %w", err)
+	}
+
+	return executeSync(cmd, syncUseCase)
+}
+
+func executeSync(cmd *cobra.Command, syncUseCase usecase.SyncExecutor) error {
 	monthVal, _ := cmd.Flags().GetInt(monthFlag)
 	yearVal, _ := cmd.Flags().GetInt(yearFlag)
 	startDateVal, _ := cmd.Flags().GetTime(startDateFlag)
@@ -85,22 +92,19 @@ func run(cmd *cobra.Command, _ []string) {
 		endDateVal = endOfMonth
 	}
 
-	syncAllUseCase := app.NewSyncAllUseCase()
-
 	ctx := context.Background()
 
-	startDateStr := startDateVal.Format(time.RFC3339)
-	endDateStr := endDateVal.Format(time.RFC3339)
-
-	err := syncAllUseCase.Execute(ctx, usecase.SyncDTO{
-		StartDate: startDateStr,
-		EndDate:   endDateStr,
+	err := syncUseCase.Execute(ctx, usecase.SyncInput{
+		StartDate: startDateVal,
+		EndDate:   endDateVal,
 	})
 	if err != nil {
-		log.Printf("failed to execute sync all: %v", err)
-
-		return
+		return fmt.Errorf("execute sync: %w", err)
 	}
 
-	must.Must(fmt.Println("Sync completed successfully"))
+	if _, err := fmt.Println("Sync completed successfully"); err != nil {
+		return fmt.Errorf("print success message: %w", err)
+	}
+
+	return nil
 }

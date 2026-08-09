@@ -2,14 +2,11 @@ package notionapi
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
-	"github.com/danielmesquitta/openfinance/internal/pkg/ptr"
-	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 )
 
 type insertTransactionReq struct {
@@ -70,10 +67,15 @@ func (c *Client) InsertTransaction(
 	ctx context.Context,
 	userID, tableID string,
 	transaction entity.Transaction,
-) (*sheet.Table, error) {
+) error {
 	conn, ok := c.conns[userID]
 	if !ok {
-		return nil, errors.New("connection not found for user " + userID)
+		return errors.New("connection not found for user " + userID)
+	}
+
+	cardLastDigits := ""
+	if transaction.CardLastDigits != nil {
+		cardLastDigits = *transaction.CardLastDigits
 	}
 
 	requestData := insertTransactionReq{
@@ -107,7 +109,7 @@ func (c *Client) InsertTransaction(
 				RichText: []insertTransactionReqRichText{
 					{
 						Text: insertTransactionReqText{
-							Content: ptr.Deref(transaction.CardLastDigits),
+							Content: cardLastDigits,
 						},
 					},
 				},
@@ -134,7 +136,7 @@ func (c *Client) InsertTransaction(
 		SetBody(requestData).
 		Post("/v1/pages")
 	if err != nil {
-		return nil, fmt.Errorf(
+		return fmt.Errorf(
 			"failed to insert transaction with request data %+v: %w",
 			requestData,
 			err,
@@ -143,17 +145,12 @@ func (c *Client) InsertTransaction(
 
 	body := res.Body()
 	if res.IsError() {
-		return nil, fmt.Errorf(
+		return fmt.Errorf(
 			"failed to insert transaction with request data %+v and response %s",
 			requestData,
 			body,
 		)
 	}
 
-	data := &sheet.Table{}
-	if err := json.Unmarshal(body, &data); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal while inserting transaction: %w", err)
-	}
-
-	return data, nil
+	return nil
 }

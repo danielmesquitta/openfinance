@@ -17,13 +17,20 @@ const (
 )
 
 type LambdaHandler struct {
-	syncAllUseCase *usecase.SyncAll
+	syncUseCase usecase.SyncExecutor
 }
 
-func NewLambdaHandler() *LambdaHandler {
-	return &LambdaHandler{
-		syncAllUseCase: app.NewSyncAllUseCase(),
+func NewLambdaHandler() (*LambdaHandler, error) {
+	syncUseCase, err := app.NewSyncUseCase()
+	if err != nil {
+		return nil, fmt.Errorf("initialize application: %w", err)
 	}
+
+	return newLambdaHandler(syncUseCase), nil
+}
+
+func newLambdaHandler(syncUseCase usecase.SyncExecutor) *LambdaHandler {
+	return &LambdaHandler{syncUseCase: syncUseCase}
 }
 
 type Response struct {
@@ -50,68 +57,43 @@ func (h *LambdaHandler) Handle(ctx context.Context) (Response, error) {
 
 	startDate, endDate := last7days()
 
-	startDateStr := startDate.Format(time.RFC3339)
-	endDateStr := endDate.Format(time.RFC3339)
-
-	syncDTO := usecase.SyncDTO{
-		StartDate: startDateStr,
-		EndDate:   endDateStr,
+	input := usecase.SyncInput{
+		StartDate: startDate,
+		EndDate:   endDate,
 	}
 
-	err := h.syncAllUseCase.Execute(ctx, syncDTO)
+	err := h.syncUseCase.Execute(ctx, input)
 	if err != nil {
-		errorResponse := ErrorResponse{
+		return newResponse(http.StatusInternalServerError, ErrorResponse{
 			Error:   "sync_failed",
 			Message: fmt.Sprintf("Failed to execute sync: %v", err),
-		}
-
-		body, err := json.Marshal(errorResponse)
-		if err != nil {
-			return Response{
-				StatusCode: http.StatusInternalServerError,
-				Headers: map[string]string{
-					contentTypeHeader: applicationJSON,
-				},
-				Body: string(body),
-			}, nil
-		}
-
-		return Response{
-			StatusCode: http.StatusInternalServerError,
-			Headers: map[string]string{
-				contentTypeHeader: applicationJSON,
-			},
-			Body: string(body),
-		}, nil
+		}), nil
 	}
 
 	duration := time.Since(startTime)
 
-	successResponse := SuccessResponse{
+	return newResponse(http.StatusOK, SuccessResponse{
 		Message:   "Sync completed successfully",
-		StartDate: startDateStr,
-		EndDate:   endDateStr,
+		StartDate: startDate.Format(time.RFC3339),
+		EndDate:   endDate.Format(time.RFC3339),
 		Duration:  duration.String(),
-	}
+	}), nil
+}
 
-	body, err := json.Marshal(successResponse)
+func newResponse(statusCode int, value any) Response {
+	body, err := json.Marshal(value)
 	if err != nil {
-		return Response{
-			StatusCode: http.StatusInternalServerError,
-			Headers: map[string]string{
-				contentTypeHeader: applicationJSON,
-			},
-			Body: string(body),
-		}, nil
+		statusCode = http.StatusInternalServerError
+		body = []byte(`{"error":"encoding_failed","message":"Failed to encode response"}`)
 	}
 
 	return Response{
-		StatusCode: http.StatusOK,
+		StatusCode: statusCode,
 		Headers: map[string]string{
 			contentTypeHeader: applicationJSON,
 		},
 		Body: string(body),
-	}, nil
+	}
 }
 
 func last7days() (startDate time.Time, endDate time.Time) {

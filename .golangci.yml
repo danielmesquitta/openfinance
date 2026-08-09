@@ -14,7 +14,9 @@ linters:
     - gochecknoinits
     - testpackage
     - dupl
+    - gomodguard
   enable:
+    - gomodguard_v2
     - revive
     - wrapcheck
   settings:

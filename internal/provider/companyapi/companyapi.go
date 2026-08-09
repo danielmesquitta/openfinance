@@ -1,7 +1,11 @@
 package companyapi
 
-import "github.com/danielmesquitta/openfinance/internal/domain/entity"
+import (
+	"context"
+
+	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+)
 
 type APIProvider interface {
-	GetCompanyByID(id string) (entity.Company, error)
+	GetCompanyByID(ctx context.Context, id string) (entity.Company, error)
 }

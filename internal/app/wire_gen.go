@@ -8,6 +8,7 @@ package app
 
 import (
 	"github.com/danielmesquitta/openfinance/internal/config"
+	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
 	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
 	"github.com/danielmesquitta/openfinance/internal/provider/companyapi/brasilapi"
@@ -18,14 +19,31 @@ import (
 
 // Injectors from wire.go:
 
-func NewSyncAllUseCase() *usecase.SyncAll {
+func NewSyncUseCase() (*usecase.Sync, error) {
 	validatorValidator := validator.NewValidator()
-	env := config.NewEnv(validatorValidator)
+	env, err := config.NewEnv(validatorValidator)
+	if err != nil {
+		return nil, err
+	}
+	int2 := maxConcurrentOperations(env)
+	entitySyncSettings := syncSettings(env)
 	client := brasilapi.NewClient()
 	openAIClient := openai.NewOpenAIClient(env)
 	notionapiClient := notionapi.NewClient(env)
-	pluggyapiClient := pluggyapi.NewClient(env)
-	syncOne := usecase.NewSyncOne(env, validatorValidator, client, openAIClient, notionapiClient, pluggyapiClient)
-	syncAll := usecase.NewSyncAll(validatorValidator, env, syncOne)
-	return syncAll
+	pluggyapiClient, err := pluggyapi.NewClient(env)
+	if err != nil {
+		return nil, err
+	}
+	sync := usecase.NewSync(int2, entitySyncSettings, client, openAIClient, notionapiClient, pluggyapiClient)
+	return sync, nil
+}
+
+// wire.go:
+
+func syncSettings(env *config.Env) entity.SyncSettings {
+	return env.SyncSettings
+}
+
+func maxConcurrentOperations(env *config.Env) int {
+	return env.MaxConcurrentOperations
 }

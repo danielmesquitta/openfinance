@@ -1,49 +1,42 @@
 package pluggyapi
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
-	"math"
-	"strings"
+	"strconv"
 	"time"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
-	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
-	"github.com/danielmesquitta/openfinance/internal/pkg/ptr"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 )
 
-type listTransactionsResp struct {
-	Total      int64                        `json:"total"`
-	TotalPages int64                        `json:"totalPages"`
-	Page       int64                        `json:"page"`
-	Results    []listTransactionsRespResult `json:"results"`
+const transactionPageSize = "500"
+
+type listTransactionsResponse struct {
+	TotalPages int64                            `json:"totalPages"`
+	Page       int64                            `json:"page"`
+	Results    []listTransactionsResponseResult `json:"results"`
 }
 
-type listTransactionsRespResult struct {
-	ID                      string              `json:"id"`
+type listTransactionsResponseResult struct {
 	Description             string              `json:"description"`
 	Amount                  float64             `json:"amount"`
 	AmountInAccountCurrency *float64            `json:"amountInAccountCurrency"`
 	Date                    time.Time           `json:"date"`
 	Category                *string             `json:"category"`
 	PaymentData             *paymentData        `json:"paymentData"`
-	Type                    resultType          `json:"type"`
+	Type                    string              `json:"type"`
 	CreditCardMetadata      *creditCardMetadata `json:"creditCardMetadata"`
 }
 
 type creditCardMetadata struct {
-	CardNumber        *string `json:"cardNumber,omitempty"`
-	TotalInstallments *int64  `json:"totalInstallments,omitempty"`
-	InstallmentNumber *int64  `json:"installmentNumber,omitempty"`
+	CardNumber *string `json:"cardNumber,omitempty"`
 }
 
 type paymentData struct {
-	Payer         *payer                `json:"payer"`
 	PaymentMethod *entity.PaymentMethod `json:"paymentMethod"`
 	Receiver      *payer                `json:"receiver"`
 }
@@ -54,57 +47,52 @@ type payer struct {
 }
 
 type documentNumber struct {
-	Type  string `json:"type"`
 	Value string `json:"value"`
 }
-
-type resultType string
-
-const (
-	Credit resultType = "CREDIT"
-	Debit  resultType = "DEBIT"
-)
-
-const (
-	samePersonTransfer = "Same person transfer"
-	resultLogField     = "listTransactionsRespResult"
-)
 
 func (c *Client) ListTransactionsByUserID(
 	ctx context.Context,
 	userID string,
 	from, to time.Time,
 ) ([]entity.Transaction, error) {
-	conn, ok := c.conns[userID]
+	connection, ok := c.conns[userID]
 	if !ok {
 		return nil, errors.New("connection not found for user " + userID)
 	}
 
-	resTransactions, err := c.fetchAllAccountTransactions(
-		ctx, conn.accountIDs, conn.accessToken, from, to)
+	results, err := c.fetchAllAccountTransactions(
+		ctx,
+		connection.accountIDs,
+		connection.accessToken,
+		from,
+		to,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	transactions := []entity.Transaction{}
-
-	for _, data := range resTransactions {
-		t := c.parseRequestToTransactions(data)
-		transactions = append(transactions, t...)
+	transactions := make([]entity.Transaction, 0, len(results))
+	for _, result := range results {
+		transaction, accepted := entity.NewTransaction(transactionInput(result))
+		if accepted {
+			transactions = append(transactions, transaction)
+		}
 	}
 
 	return transactions, nil
 }
 
-func (c *Client) fetchAccountTransactions(
+func (c *Client) fetchAccountTransactionsPage(
 	ctx context.Context,
 	accountID, accessToken string,
 	from, to time.Time,
-) (listTransactionsResp, error) {
-	res, err := c.client.R().
+	page int,
+) (listTransactionsResponse, error) {
+	response, err := c.client.R().
 		SetContext(ctx).
 		SetQueryParams(map[string]string{
-			"pageSize":  "500",
+			"pageSize":  transactionPageSize,
+			"page":      strconv.Itoa(page),
 			"from":      from.Format(time.DateOnly),
 			"to":        to.Format(time.DateOnly),
 			"accountId": accountID,
@@ -112,32 +100,46 @@ func (c *Client) fetchAccountTransactions(
 		SetHeader("X-API-KEY", accessToken).
 		Get("/transactions")
 	if err != nil {
-		return listTransactionsResp{}, fmt.Errorf("failed to list transactions: %w", err)
+		return listTransactionsResponse{}, fmt.Errorf("list transactions: %w", err)
 	}
 
-	body := res.Body()
-	if res.IsError() {
-		return listTransactionsResp{}, fmt.Errorf(
-			"failed to list transactions with account id %s and date range %s to %s: %s",
+	if response.IsError() {
+		return listTransactionsResponse{}, fmt.Errorf(
+			"list transactions for account %s from %s to %s: %s",
 			accountID,
-			from,
-			to,
-			body,
+			from.Format(time.DateOnly),
+			to.Format(time.DateOnly),
+			response.Body(),
 		)
 	}
 
-	data := listTransactionsResp{}
-	if err := json.Unmarshal(body, &data); err != nil {
-		return listTransactionsResp{}, fmt.Errorf(
-			"failed to unmarshal while listing transactions with account id %s and date range %s to %s: %w",
-			accountID,
-			from,
-			to,
-			err,
-		)
+	data := listTransactionsResponse{}
+	if err := json.Unmarshal(response.Body(), &data); err != nil {
+		return listTransactionsResponse{}, fmt.Errorf("decode transactions response: %w", err)
 	}
 
 	return data, nil
+}
+
+func (c *Client) fetchAccountTransactions(
+	ctx context.Context,
+	accountID, accessToken string,
+	from, to time.Time,
+) ([]listTransactionsResponseResult, error) {
+	var results []listTransactionsResponseResult
+	for page := 1; ; page++ {
+		data, err := c.fetchAccountTransactionsPage(ctx, accountID, accessToken, from, to, page)
+		if err != nil {
+			return nil, err
+		}
+
+		results = append(results, data.Results...)
+		if data.TotalPages <= int64(page) {
+			break
+		}
+	}
+
+	return results, nil
 }
 
 func (c *Client) fetchAllAccountTransactions(
@@ -145,166 +147,77 @@ func (c *Client) fetchAllAccountTransactions(
 	accountIDs []string,
 	accessToken string,
 	from, to time.Time,
-) ([]listTransactionsResp, error) {
-	resTransactions := make([]listTransactionsResp, len(accountIDs))
-	g, gCtx := errgroup.WithContext(ctx)
+) ([]listTransactionsResponseResult, error) {
+	resultsByAccount := make([][]listTransactionsResponseResult, len(accountIDs))
+	group, groupContext := errgroup.WithContext(ctx)
+	group.SetLimit(c.maxConcurrentOperations)
 
-	for i, accountID := range accountIDs {
-		g.Go(func() error {
-			data, err := c.fetchAccountTransactions(gCtx, accountID, accessToken, from, to)
-			if err != nil {
-				return err
+	for index, accountID := range accountIDs {
+		group.Go(func() error {
+			select {
+			case c.accountSlots <- struct{}{}:
+				defer func() { <-c.accountSlots }()
+			case <-groupContext.Done():
+				return groupContext.Err()
 			}
 
-			resTransactions[i] = data
+			results, err := c.fetchAccountTransactions(groupContext, accountID, accessToken, from, to)
+			if err != nil {
+				return fmt.Errorf("list account %s transactions: %w", accountID, err)
+			}
+
+			resultsByAccount[index] = results
 
 			return nil
 		})
 	}
 
-	if err := g.Wait(); err != nil {
-		return nil, fmt.Errorf("failed to wait for listing transactions: %w", err)
+	if err := group.Wait(); err != nil {
+		return nil, fmt.Errorf("wait for account transactions: %w", err)
 	}
 
-	return resTransactions, nil
+	var results []listTransactionsResponseResult
+	for _, accountResults := range resultsByAccount {
+		results = append(results, accountResults...)
+	}
+
+	return results, nil
 }
 
-func (c *Client) shouldSkipTransaction(r listTransactionsRespResult) bool {
-	if isInvestment := (r.Category != nil && *r.Category == "Investments") ||
-		strings.Contains(r.Description, "Aplicação"); isInvestment {
-		return true
+func transactionInput(result listTransactionsResponseResult) entity.TransactionInput {
+	input := entity.TransactionInput{
+		AccountType:             entity.AccountTypeCreditCard,
+		Description:             result.Description,
+		Amount:                  result.Amount,
+		AmountInAccountCurrency: result.AmountInAccountCurrency,
+		Date:                    result.Date,
+		Direction:               entity.TransactionDirection(result.Type),
 	}
 
-	if isReceivingMoney := r.Type == Credit; isReceivingMoney {
-		return true
+	if result.Category != nil {
+		input.SourceCategory = *result.Category
 	}
 
-	if isCreditCardBillPayment := r.
-		Description == "Pagamento de fatura"; isCreditCardBillPayment {
-		return true
+	if result.CreditCardMetadata != nil {
+		input.CardLastDigits = result.CreditCardMetadata.CardNumber
 	}
 
-	if r.Category != nil && *r.Category == samePersonTransfer {
-		return true
+	if result.PaymentData == nil {
+		return input
 	}
 
-	return false
-}
-
-func (c *Client) setTransactionNameFromReceiver(
-	transaction *entity.Transaction,
-	r listTransactionsRespResult,
-) bool {
-	if hasReceiver := (r.PaymentData.Receiver != nil); !hasReceiver {
-		return false
+	input.AccountType = entity.AccountTypeBank
+	input.PaymentMethod = result.PaymentData.PaymentMethod
+	if result.PaymentData.Receiver == nil {
+		return input
 	}
 
-	if hasReceiverName := r.PaymentData.Receiver.Name != nil; hasReceiverName {
-		transaction.Name = *r.PaymentData.Receiver.Name
-
-		return false
+	if result.PaymentData.Receiver.Name != nil {
+		input.ReceiverName = *result.PaymentData.Receiver.Name
+	}
+	if result.PaymentData.Receiver.DocumentNumber != nil {
+		input.ReceiverDocument = result.PaymentData.Receiver.DocumentNumber.Value
 	}
 
-	if hasReceiverDocument := r.PaymentData.Receiver.DocumentNumber != nil; hasReceiverDocument {
-		document, err := docutil.MaskDocument(r.PaymentData.Receiver.DocumentNumber.Value)
-		if err != nil {
-			slog.Error("error masking document", "error", err)
-
-			return true
-		}
-
-		transaction.Name = document
-
-		return false
-	}
-
-	return false
-}
-
-func (c *Client) handleBankTransaction(
-	transaction *entity.Transaction,
-	r listTransactionsRespResult,
-) bool {
-	if r.PaymentData == nil {
-		slog.Error("PaymentData is nil", resultLogField, r)
-
-		return true
-	}
-
-	if r.PaymentData.PaymentMethod == nil {
-		slog.Error("PaymentMethod is nil", resultLogField, r)
-
-		return true
-	}
-
-	transaction.PaymentMethod = *r.PaymentData.PaymentMethod
-
-	if r.Description != "" {
-		transaction.Name = r.Description
-
-		return false
-	}
-
-	return c.setTransactionNameFromReceiver(transaction, r)
-}
-
-func (c *Client) processSingleResult(r listTransactionsRespResult) (*entity.Transaction, bool) {
-	amountInAccountCurrency := ptr.Deref(r.AmountInAccountCurrency)
-	amount := math.Abs(cmp.Or(amountInAccountCurrency, r.Amount))
-
-	transaction := entity.Transaction{
-		Amount: amount,
-		Date:   r.Date,
-	}
-
-	if r.Category != nil {
-		transaction.Category = entity.Category(*r.Category)
-	}
-
-	accountType := entity.AccountTypeCreditCard
-	if r.PaymentData != nil {
-		accountType = entity.AccountTypeBank
-	}
-
-	switch accountType {
-	case entity.AccountTypeBank:
-		if shouldContinue := c.handleBankTransaction(&transaction, r); shouldContinue {
-			return nil, true
-		}
-	case entity.AccountTypeCreditCard:
-		transaction.Name = r.Description
-		transaction.PaymentMethod = entity.PaymentMethodCreditCard
-
-		if r.CreditCardMetadata != nil && r.CreditCardMetadata.CardNumber != nil {
-			transaction.CardLastDigits = r.CreditCardMetadata.CardNumber
-		}
-
-	default:
-		slog.Error("unknown account type", "accountType", accountType, resultLogField, r)
-
-		return nil, true
-	}
-
-	return &transaction, false
-}
-
-func (c *Client) parseRequestToTransactions(
-	data listTransactionsResp,
-) []entity.Transaction {
-	transactions := []entity.Transaction{}
-
-	for _, r := range data.Results {
-		if c.shouldSkipTransaction(r) {
-			continue
-		}
-
-		transaction, shouldSkip := c.processSingleResult(r)
-		if shouldSkip {
-			continue
-		}
-
-		transactions = append(transactions, *transaction)
-	}
-
-	return transactions
+	return input
 }
