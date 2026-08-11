@@ -38,7 +38,7 @@ packages:
     interfaces:
       IngestExecutor:
         config:
-          dir: internal/domain/usecase/ingest/mockingest
+          dir: internal/domain/usecase/mockingest
           filename: mockingest.go
           pkgname: mockingest
           structname: MockIngest
