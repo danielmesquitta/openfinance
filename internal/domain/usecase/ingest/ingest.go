@@ -1,4 +1,4 @@
-package usecase
+package ingest
 
 import (
 	"context"
@@ -25,16 +25,16 @@ const (
 		"Use the fallback when uncertain."
 )
 
-type SyncInput struct {
+type IngestInput struct {
 	StartDate time.Time
 	EndDate   time.Time
 }
 
-type SyncExecutor interface {
-	Execute(ctx context.Context, input SyncInput) error
+type IngestExecutor interface {
+	Execute(ctx context.Context, input IngestInput) error
 }
 
-func (input SyncInput) Validate() error {
+func (input IngestInput) Validate() error {
 	if input.StartDate.IsZero() {
 		return errors.New("start date is required")
 	}
@@ -50,24 +50,24 @@ func (input SyncInput) Validate() error {
 	return nil
 }
 
-type Sync struct {
+type Ingest struct {
 	maxConcurrentOperations int
-	settings                entity.SyncSettings
+	settings                entity.IngestSettings
 	companyAPIProvider      companyapi.APIProvider
 	gptProvider             gpt.Provider
 	sheetProvider           sheet.Provider
 	openFinanceAPIProvider  openfinance.APIProvider
 }
 
-func NewSync(
+func NewIngest(
 	maxConcurrentOperations int,
-	settings entity.SyncSettings,
+	settings entity.IngestSettings,
 	companyAPIProvider companyapi.APIProvider,
 	gptProvider gpt.Provider,
 	sheetProvider sheet.Provider,
 	openFinanceAPIProvider openfinance.APIProvider,
-) *Sync {
-	return &Sync{
+) *Ingest {
+	return &Ingest{
 		maxConcurrentOperations: maxConcurrentOperations,
 		settings:                settings,
 		companyAPIProvider:      companyAPIProvider,
@@ -77,18 +77,18 @@ func NewSync(
 	}
 }
 
-func (s *Sync) Execute(ctx context.Context, input SyncInput) error {
+func (s *Ingest) Execute(ctx context.Context, input IngestInput) error {
 	if err := input.Validate(); err != nil {
-		return fmt.Errorf("invalid sync input: %w", err)
+		return fmt.Errorf("invalid ingest input: %w", err)
 	}
 
 	group, groupContext := errgroup.WithContext(ctx)
 	group.SetLimit(s.maxConcurrentOperations)
 
-	for _, syncProfileSettings := range s.settings.SyncProfiles {
+	for _, ingestProfileSettings := range s.settings.IngestProfiles {
 		group.Go(func() error {
-			if err := s.syncProfile(groupContext, syncProfileSettings, input); err != nil {
-				return fmt.Errorf("sync profile %q: %w", syncProfileSettings.ID, err)
+			if err := s.ingestProfile(groupContext, ingestProfileSettings, input); err != nil {
+				return fmt.Errorf("ingest profile %q: %w", ingestProfileSettings.ID, err)
 			}
 
 			return nil
@@ -96,18 +96,18 @@ func (s *Sync) Execute(ctx context.Context, input SyncInput) error {
 	}
 
 	if err := group.Wait(); err != nil {
-		return fmt.Errorf("sync profiles: %w", err)
+		return fmt.Errorf("ingest profiles: %w", err)
 	}
 
 	return nil
 }
 
-func (s *Sync) syncProfile(
+func (s *Ingest) ingestProfile(
 	ctx context.Context,
-	settings entity.SyncProfileSettings,
-	input SyncInput,
+	settings entity.IngestProfileSettings,
+	input IngestInput,
 ) error {
-	transactions, err := s.openFinanceAPIProvider.ListTransactionsBySyncProfileID(
+	transactions, err := s.openFinanceAPIProvider.ListTransactionsByIngestProfileID(
 		ctx,
 		settings.ID,
 		input.StartDate,
@@ -161,7 +161,7 @@ func (s *Sync) syncProfile(
 	return nil
 }
 
-func (s *Sync) enrichTransactionNames(ctx context.Context, transactions []entity.Transaction) {
+func (s *Ingest) enrichTransactionNames(ctx context.Context, transactions []entity.Transaction) {
 	documents := uniqueCompanyDocuments(transactions)
 	companyNameByDocument := s.lookupCompanyNames(ctx, documents)
 	applyCompanyNames(transactions, companyNameByDocument)
@@ -187,7 +187,7 @@ func uniqueCompanyDocuments(transactions []entity.Transaction) []string {
 	return documents
 }
 
-func (s *Sync) lookupCompanyNames(ctx context.Context, documents []string) map[string]string {
+func (s *Ingest) lookupCompanyNames(ctx context.Context, documents []string) map[string]string {
 	companyNameByDocument := make(map[string]string, len(documents))
 	var mutex sync.Mutex
 	group, groupContext := errgroup.WithContext(ctx)
@@ -213,7 +213,7 @@ func (s *Sync) lookupCompanyNames(ctx context.Context, documents []string) map[s
 	return companyNameByDocument
 }
 
-func (s *Sync) lookupCompanyName(ctx context.Context, document string) (string, bool) {
+func (s *Ingest) lookupCompanyName(ctx context.Context, document string) (string, bool) {
 	company, err := s.companyAPIProvider.GetCompanyByID(ctx, document)
 	if err != nil {
 		slog.Error("failed to get company", "document", document, "error", err)
@@ -237,9 +237,9 @@ func applyCompanyNames(transactions []entity.Transaction, companyNameByDocument 
 	}
 }
 
-func (s *Sync) categorizeTransactions(
+func (s *Ingest) categorizeTransactions(
 	ctx context.Context,
-	settings entity.SyncProfileSettings,
+	settings entity.IngestProfileSettings,
 	transactions []entity.Transaction,
 ) error {
 	names := uniqueTransactionNames(transactions)
@@ -331,12 +331,12 @@ func monthsInRange(startDate, endDate time.Time) []time.Time {
 	return months
 }
 
-func (s *Sync) onlyNewTransactions(
+func (s *Ingest) onlyNewTransactions(
 	ctx context.Context,
-	syncProfileID, tableID string,
+	ingestProfileID, tableID string,
 	transactions []entity.Transaction,
 ) ([]entity.Transaction, error) {
-	existingTransactions, err := s.sheetProvider.ListTransactions(ctx, syncProfileID, tableID)
+	existingTransactions, err := s.sheetProvider.ListTransactions(ctx, ingestProfileID, tableID)
 	if err != nil {
 		return nil, fmt.Errorf("list existing transactions: %w", err)
 	}
@@ -360,9 +360,9 @@ func (s *Sync) onlyNewTransactions(
 	return newTransactions, nil
 }
 
-func (s *Sync) insertTransactions(
+func (s *Ingest) insertTransactions(
 	ctx context.Context,
-	syncProfileID, tableID string,
+	ingestProfileID, tableID string,
 	transactions []entity.Transaction,
 ) error {
 	group, groupContext := errgroup.WithContext(ctx)
@@ -372,7 +372,7 @@ func (s *Sync) insertTransactions(
 		group.Go(func() error {
 			if err := s.sheetProvider.InsertTransaction(
 				groupContext,
-				syncProfileID,
+				ingestProfileID,
 				tableID,
 				transaction,
 			); err != nil {
@@ -390,4 +390,4 @@ func (s *Sync) insertTransactions(
 	return nil
 }
 
-var _ SyncExecutor = (*Sync)(nil)
+var _ IngestExecutor = (*Ingest)(nil)

@@ -8,9 +8,9 @@ import (
 )
 
 type APIProvider interface {
-	ListTransactionsBySyncProfileID(
+	ListTransactionsByIngestProfileID(
 		ctx context.Context,
-		syncProfileID string,
+		ingestProfileID string,
 		from, to time.Time,
 	) ([]entity.Transaction, error)
 }

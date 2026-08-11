@@ -30,15 +30,15 @@ make install
 cp .env.example .env
 ```
 
-4. Create the sync profiles config file
+4. Create the ingest profiles config file
 
 ```bash
-cp config/sync_profiles.json.example config/sync_profiles.json
+cp config/ingest_profiles.json.example config/ingest_profiles.json
 ```
 
-5. Configure your `.env` and `config/sync_profiles.json` files with your credentials and per-sync-profile categorization settings.
+5. Configure your `.env` and `config/ingest_profiles.json` files with your credentials and per-ingest-profile categorization settings.
 
-Each sync profile must define a non-empty `categories` object and a `mappings` object, which may be empty. The optional `fallback` defaults to `Others`. If the fallback is absent from `categories`, it is added automatically with Notion's default color.
+Each ingest profile must define a non-empty `categories` object and a `mappings` object, which may be empty. The optional `fallback` defaults to `Others`. If the fallback is absent from `categories`, it is added automatically with Notion's default color.
 
 6. Execute the script
 

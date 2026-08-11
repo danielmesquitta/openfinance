@@ -1,6 +1,6 @@
 package entity
 
-type SyncProfile struct {
+type IngestProfile struct {
 	ID                 string              `json:"id"`
 	NotionToken        string              `json:"notion_token"`
 	NotionPageID       string              `json:"notion_page_id"`

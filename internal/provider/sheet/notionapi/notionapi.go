@@ -25,20 +25,20 @@ func NewClient(env *config.Env) *Client {
 		SetBaseURL("https://api.notion.com").
 		SetHeader("Notion-Version", "2022-06-28")
 
-	colorsByCategoryBySyncProfileID := make(
+	colorsByCategoryByIngestProfileID := make(
 		map[string]map[entity.Category]entity.Color,
-		len(env.SyncSettings.SyncProfiles),
+		len(env.IngestSettings.IngestProfiles),
 	)
-	for _, settings := range env.SyncSettings.SyncProfiles {
-		colorsByCategoryBySyncProfileID[settings.ID] = settings.ColorsByCategory
+	for _, settings := range env.IngestSettings.IngestProfiles {
+		colorsByCategoryByIngestProfileID[settings.ID] = settings.ColorsByCategory
 	}
 
 	conns := map[string]conn{}
-	for _, syncProfile := range env.SyncProfiles {
-		conns[syncProfile.ID] = conn{
-			accessToken:      syncProfile.NotionToken,
-			pageID:           syncProfile.NotionPageID,
-			colorsByCategory: colorsByCategoryBySyncProfileID[syncProfile.ID],
+	for _, ingestProfile := range env.IngestProfiles {
+		conns[ingestProfile.ID] = conn{
+			accessToken:      ingestProfile.NotionToken,
+			pageID:           ingestProfile.NotionPageID,
+			colorsByCategory: colorsByCategoryByIngestProfileID[ingestProfile.ID],
 		}
 	}
 

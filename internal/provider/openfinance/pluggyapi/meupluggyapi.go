@@ -38,21 +38,21 @@ func NewClient(env *config.Env) (*Client, error) {
 	g, ctx := errgroup.WithContext(context.Background())
 	g.SetLimit(env.MaxConcurrentOperations)
 
-	for _, syncProfile := range env.SyncProfiles {
+	for _, ingestProfile := range env.IngestProfiles {
 		g.Go(func() error {
 			token, err := c.authenticate(
 				ctx,
-				syncProfile.PluggyClientID,
-				syncProfile.PluggyClientSecret,
+				ingestProfile.PluggyClientID,
+				ingestProfile.PluggyClientSecret,
 			)
 			if err != nil {
 				return err
 			}
 
 			mu.Lock()
-			conns[syncProfile.ID] = conn{
+			conns[ingestProfile.ID] = conn{
 				accessToken: token,
-				accountIDs:  syncProfile.PluggyAccountIDs,
+				accountIDs:  ingestProfile.PluggyAccountIDs,
 			}
 			mu.Unlock()
 
@@ -61,7 +61,7 @@ func NewClient(env *config.Env) (*Client, error) {
 	}
 
 	if err := g.Wait(); err != nil {
-		return nil, fmt.Errorf("authenticate Pluggy sync profiles: %w", err)
+		return nil, fmt.Errorf("authenticate Pluggy ingest profiles: %w", err)
 	}
 
 	c.conns = conns

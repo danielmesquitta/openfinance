@@ -90,12 +90,12 @@ type createTransactionTableRespTitle struct {
 
 func (c *Client) CreateTransactionsTable(
 	ctx context.Context,
-	syncProfileID string,
+	ingestProfileID string,
 	title string,
 ) (entity.Table, error) {
-	conn, ok := c.conns[syncProfileID]
+	conn, ok := c.conns[ingestProfileID]
 	if !ok {
-		return entity.Table{}, errors.New("connection not found for sync profile " + syncProfileID)
+		return entity.Table{}, errors.New("connection not found for ingest profile " + ingestProfileID)
 	}
 
 	requestData := c.getRequestData(conn, title)

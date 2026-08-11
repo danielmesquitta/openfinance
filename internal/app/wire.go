@@ -8,7 +8,7 @@ import (
 
 	"github.com/danielmesquitta/openfinance/internal/config"
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
+	"github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest"
 	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
 	"github.com/danielmesquitta/openfinance/internal/provider/companyapi"
 	"github.com/danielmesquitta/openfinance/internal/provider/companyapi/brasilapi"
@@ -20,19 +20,19 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet/notionapi"
 )
 
-func syncSettings(env *config.Env) entity.SyncSettings {
-	return env.SyncSettings
+func ingestSettings(env *config.Env) entity.IngestSettings {
+	return env.IngestSettings
 }
 
 func maxConcurrentOperations(env *config.Env) int {
 	return env.MaxConcurrentOperations
 }
 
-func NewSyncUseCase() (*usecase.Sync, error) {
+func NewIngestUseCase() (*ingest.Ingest, error) {
 	wire.Build(
 		validator.NewValidator,
 		config.NewEnv,
-		syncSettings,
+		ingestSettings,
 		maxConcurrentOperations,
 
 		wire.Bind(new(companyapi.APIProvider), new(*brasilapi.Client)),
@@ -47,7 +47,7 @@ func NewSyncUseCase() (*usecase.Sync, error) {
 		wire.Bind(new(openfinance.APIProvider), new(*pluggyapi.Client)),
 		pluggyapi.NewClient,
 
-		usecase.NewSync,
+		ingest.NewIngest,
 	)
 
 	return nil, nil

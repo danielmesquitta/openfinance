@@ -2,9 +2,9 @@ package entity
 
 import "testing"
 
-func validSyncProfile() SyncProfile {
-	return SyncProfile{
-		ID:                 "sync-profile",
+func validIngestProfile() IngestProfile {
+	return IngestProfile{
+		ID:                 "ingest-profile",
 		NotionToken:        "token",
 		NotionPageID:       "page",
 		PluggyClientID:     "client",
@@ -15,28 +15,28 @@ func validSyncProfile() SyncProfile {
 	}
 }
 
-func TestNewSyncSettingsNormalizesEachSyncProfile(t *testing.T) {
+func TestNewIngestSettingsNormalizesEachIngestProfile(t *testing.T) {
 	t.Parallel()
 
-	first := validSyncProfile()
+	first := validIngestProfile()
 	first.Mappings = map[string]Category{"Market": "Food"}
-	second := validSyncProfile()
+	second := validIngestProfile()
 	second.ID = "second"
 	second.Categories = map[Category]Color{"Education": Blue}
 	second.Mappings = map[string]Category{"Unknown store": "Outros"}
 	second.Fallback = "Outros"
 
-	settings, err := NewSyncSettings([]SyncProfile{first, second})
+	settings, err := NewIngestSettings([]IngestProfile{first, second})
 	if err != nil {
-		t.Fatalf("NewSyncSettings() error = %v", err)
+		t.Fatalf("NewIngestSettings() error = %v", err)
 	}
 
-	if len(settings.SyncProfiles) != 2 || settings.SyncProfiles[0].ID != "sync-profile" ||
-		settings.SyncProfiles[1].ID != "second" {
-		t.Fatalf("sync profiles = %#v", settings.SyncProfiles)
+	if len(settings.IngestProfiles) != 2 || settings.IngestProfiles[0].ID != "ingest-profile" ||
+		settings.IngestProfiles[1].ID != "second" {
+		t.Fatalf("ingest profiles = %#v", settings.IngestProfiles)
 	}
 
-	firstSettings := settings.SyncProfiles[0]
+	firstSettings := settings.IngestProfiles[0]
 	if len(firstSettings.Categories) != 2 || firstSettings.Categories[0] != "Food" ||
 		firstSettings.Categories[1] != DefaultFallbackCategory {
 		t.Fatalf("first categories = %#v", firstSettings.Categories)
@@ -46,10 +46,10 @@ func TestNewSyncSettingsNormalizesEachSyncProfile(t *testing.T) {
 		t.Fatalf("first settings = %#v", firstSettings)
 	}
 	if _, mutated := first.Categories[DefaultFallbackCategory]; mutated {
-		t.Fatal("NewSyncSettings() mutated the input categories")
+		t.Fatal("NewIngestSettings() mutated the input categories")
 	}
 
-	secondSettings := settings.SyncProfiles[1]
+	secondSettings := settings.IngestProfiles[1]
 	if len(secondSettings.Categories) != 2 || secondSettings.Categories[0] != "Education" ||
 		secondSettings.Categories[1] != "Outros" {
 		t.Fatalf("second categories = %#v", secondSettings.Categories)
@@ -59,91 +59,99 @@ func TestNewSyncSettingsNormalizesEachSyncProfile(t *testing.T) {
 	}
 }
 
-func TestNewSyncSettingsPreservesConfiguredFallbackColor(t *testing.T) {
+func TestNewIngestSettingsPreservesConfiguredFallbackColor(t *testing.T) {
 	t.Parallel()
 
-	syncProfile := validSyncProfile()
-	syncProfile.Fallback = "Outros"
-	syncProfile.Categories["Outros"] = Purple
+	ingestProfile := validIngestProfile()
+	ingestProfile.Fallback = "Outros"
+	ingestProfile.Categories["Outros"] = Purple
 
-	settings, err := NewSyncSettings([]SyncProfile{syncProfile})
+	settings, err := NewIngestSettings([]IngestProfile{ingestProfile})
 	if err != nil {
-		t.Fatalf("NewSyncSettings() error = %v", err)
+		t.Fatalf("NewIngestSettings() error = %v", err)
 	}
-	if settings.SyncProfiles[0].ColorsByCategory["Outros"] != Purple {
-		t.Fatalf("fallback color = %q", settings.SyncProfiles[0].ColorsByCategory["Outros"])
+	if settings.IngestProfiles[0].ColorsByCategory["Outros"] != Purple {
+		t.Fatalf("fallback color = %q", settings.IngestProfiles[0].ColorsByCategory["Outros"])
 	}
 }
 
-func TestNewSyncSettingsValidation(t *testing.T) {
+func TestNewIngestSettingsValidation(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name         string
-		syncProfiles func() []SyncProfile
+		name           string
+		ingestProfiles func() []IngestProfile
 	}{
-		{name: "no sync profiles", syncProfiles: func() []SyncProfile { return nil }},
+		{name: "no ingest profiles", ingestProfiles: func() []IngestProfile { return nil }},
 		{
-			name: "duplicate sync profile",
-			syncProfiles: func() []SyncProfile {
-				syncProfile := validSyncProfile()
-				return []SyncProfile{syncProfile, syncProfile}
+			name: "duplicate ingest profile",
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+
+				return []IngestProfile{ingestProfile, ingestProfile}
 			},
 		},
 		{
 			name: "incomplete integration",
-			syncProfiles: func() []SyncProfile {
-				syncProfile := validSyncProfile()
-				syncProfile.NotionToken = ""
-				return []SyncProfile{syncProfile}
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.NotionToken = ""
+
+				return []IngestProfile{ingestProfile}
 			},
 		},
 		{
 			name: "missing categories",
-			syncProfiles: func() []SyncProfile {
-				syncProfile := validSyncProfile()
-				syncProfile.Categories = nil
-				return []SyncProfile{syncProfile}
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.Categories = nil
+
+				return []IngestProfile{ingestProfile}
 			},
 		},
 		{
 			name: "missing mappings",
-			syncProfiles: func() []SyncProfile {
-				syncProfile := validSyncProfile()
-				syncProfile.Mappings = nil
-				return []SyncProfile{syncProfile}
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.Mappings = nil
+
+				return []IngestProfile{ingestProfile}
 			},
 		},
 		{
 			name: "invalid color",
-			syncProfiles: func() []SyncProfile {
-				syncProfile := validSyncProfile()
-				syncProfile.Categories["Food"] = "invalid"
-				return []SyncProfile{syncProfile}
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.Categories["Food"] = "invalid"
+
+				return []IngestProfile{ingestProfile}
 			},
 		},
 		{
 			name: "empty category name",
-			syncProfiles: func() []SyncProfile {
-				syncProfile := validSyncProfile()
-				syncProfile.Categories[""] = Red
-				return []SyncProfile{syncProfile}
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.Categories[""] = Red
+
+				return []IngestProfile{ingestProfile}
 			},
 		},
 		{
 			name: "empty mapping name",
-			syncProfiles: func() []SyncProfile {
-				syncProfile := validSyncProfile()
-				syncProfile.Mappings[""] = "Food"
-				return []SyncProfile{syncProfile}
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.Mappings[""] = "Food"
+
+				return []IngestProfile{ingestProfile}
 			},
 		},
 		{
 			name: "unknown mapping category",
-			syncProfiles: func() []SyncProfile {
-				syncProfile := validSyncProfile()
-				syncProfile.Mappings["Store"] = "Shopping"
-				return []SyncProfile{syncProfile}
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.Mappings["Store"] = "Shopping"
+
+				return []IngestProfile{ingestProfile}
 			},
 		},
 	}
@@ -152,8 +160,8 @@ func TestNewSyncSettingsValidation(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			if _, err := NewSyncSettings(test.syncProfiles()); err == nil {
-				t.Fatal("NewSyncSettings() error = nil")
+			if _, err := NewIngestSettings(test.ingestProfiles()); err == nil {
+				t.Fatal("NewIngestSettings() error = nil")
 			}
 		})
 	}

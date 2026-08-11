@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/danielmesquitta/openfinance/internal/app"
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
+	"github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest"
 )
 
 var timeFormats = []string{
@@ -67,15 +67,15 @@ var rootCmd = &cobra.Command{
 }
 
 func run(cmd *cobra.Command, _ []string) error {
-	syncUseCase, err := app.NewSyncUseCase()
+	ingestUseCase, err := app.NewIngestUseCase()
 	if err != nil {
 		return fmt.Errorf("initialize application: %w", err)
 	}
 
-	return executeSync(cmd, syncUseCase)
+	return executeIngest(cmd, ingestUseCase)
 }
 
-func executeSync(cmd *cobra.Command, syncUseCase usecase.SyncExecutor) error {
+func executeIngest(cmd *cobra.Command, ingestUseCase ingest.IngestExecutor) error {
 	monthVal, _ := cmd.Flags().GetInt(monthFlag)
 	yearVal, _ := cmd.Flags().GetInt(yearFlag)
 	startDateVal, _ := cmd.Flags().GetTime(startDateFlag)
@@ -94,15 +94,15 @@ func executeSync(cmd *cobra.Command, syncUseCase usecase.SyncExecutor) error {
 
 	ctx := context.Background()
 
-	err := syncUseCase.Execute(ctx, usecase.SyncInput{
+	err := ingestUseCase.Execute(ctx, ingest.IngestInput{
 		StartDate: startDateVal,
 		EndDate:   endDateVal,
 	})
 	if err != nil {
-		return fmt.Errorf("execute sync: %w", err)
+		return fmt.Errorf("execute ingest: %w", err)
 	}
 
-	if _, err := fmt.Println("Sync completed successfully"); err != nil {
+	if _, err := fmt.Println("Ingest completed successfully"); err != nil {
 		return fmt.Errorf("print success message: %w", err)
 	}
 

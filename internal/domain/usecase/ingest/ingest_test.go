@@ -1,4 +1,4 @@
-package usecase
+package ingest
 
 import (
 	"context"
@@ -54,20 +54,23 @@ func setMaximum(maximum *atomic.Int32, value int32) {
 	}
 }
 
-func testSyncProfileSettings(syncProfileID string) entity.SyncProfileSettings {
-	return entity.SyncProfileSettings{
-		ID:               syncProfileID,
-		Categories:       []entity.Category{"Food", entity.DefaultFallbackCategory},
-		ColorsByCategory: map[entity.Category]entity.Color{"Food": entity.Red, entity.DefaultFallbackCategory: entity.Gray},
-		Mappings:         map[string]entity.Category{"Market": "Food"},
-		Fallback:         entity.DefaultFallbackCategory,
+func testIngestProfileSettings(ingestProfileID string) entity.IngestProfileSettings {
+	return entity.IngestProfileSettings{
+		ID:         ingestProfileID,
+		Categories: []entity.Category{"Food", entity.DefaultFallbackCategory},
+		ColorsByCategory: map[entity.Category]entity.Color{
+			"Food":                         entity.Red,
+			entity.DefaultFallbackCategory: entity.Gray,
+		},
+		Mappings: map[string]entity.Category{"Market": "Food"},
+		Fallback: entity.DefaultFallbackCategory,
 	}
 }
 
-func testSettings(syncProfileIDs ...string) entity.SyncSettings {
-	settings := entity.SyncSettings{SyncProfiles: make([]entity.SyncProfileSettings, 0, len(syncProfileIDs))}
-	for _, syncProfileID := range syncProfileIDs {
-		settings.SyncProfiles = append(settings.SyncProfiles, testSyncProfileSettings(syncProfileID))
+func testSettings(ingestProfileIDs ...string) entity.IngestSettings {
+	settings := entity.IngestSettings{IngestProfiles: make([]entity.IngestProfileSettings, 0, len(ingestProfileIDs))}
+	for _, ingestProfileID := range ingestProfileIDs {
+		settings.IngestProfiles = append(settings.IngestProfiles, testIngestProfileSettings(ingestProfileID))
 	}
 
 	return settings
@@ -79,11 +82,11 @@ func noCompanyLookup(t *testing.T) *mockcompanyapi.MockCompanyAPI {
 	return mockcompanyapi.NewMockCompanyAPI(t)
 }
 
-func TestSyncInputValidate(t *testing.T) {
+func TestIngestInputValidate(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	tests := []SyncInput{
+	tests := []IngestInput{
 		{},
 		{StartDate: now},
 		{StartDate: now, EndDate: now.Add(-time.Second)},
@@ -95,7 +98,7 @@ func TestSyncInputValidate(t *testing.T) {
 		}
 	}
 
-	if err := (SyncInput{StartDate: now, EndDate: now}).Validate(); err != nil {
+	if err := (IngestInput{StartDate: now, EndDate: now}).Validate(); err != nil {
 		t.Fatalf("valid input error = %v", err)
 	}
 }
@@ -121,13 +124,13 @@ func TestCategorizeTransactionsRejectsInvalidCompletion(t *testing.T) {
 				Return(test.content, nil).
 				Once()
 
-			syncUseCase := &Sync{
+			ingestUseCase := &Ingest{
 				settings:    testSettings(),
 				gptProvider: categorizer,
 			}
-			err := syncUseCase.categorizeTransactions(
+			err := ingestUseCase.categorizeTransactions(
 				t.Context(),
-				testSyncProfileSettings("sync-profile"),
+				testIngestProfileSettings("ingest-profile"),
 				[]entity.Transaction{{Name: "Store"}},
 			)
 			if err == nil {
@@ -147,11 +150,15 @@ func TestCategorizeTransactionsUsesFallbackForMissingAndInvalidCategories(t *tes
 		Once()
 
 	transactions := []entity.Transaction{{Name: "Missing"}, {Name: "Invalid"}}
-	syncUseCase := &Sync{
+	ingestUseCase := &Ingest{
 		settings:    testSettings(),
 		gptProvider: categorizer,
 	}
-	if err := syncUseCase.categorizeTransactions(t.Context(), testSyncProfileSettings("sync-profile"), transactions); err != nil {
+	if err := ingestUseCase.categorizeTransactions(
+		t.Context(),
+		testIngestProfileSettings("ingest-profile"),
+		transactions,
+	); err != nil {
 		t.Fatalf("categorizeTransactions() error = %v", err)
 	}
 
@@ -162,20 +169,20 @@ func TestCategorizeTransactionsUsesFallbackForMissingAndInvalidCategories(t *tes
 	}
 }
 
-func TestSyncUsesSyncProfileSpecificCategorizationSettings(t *testing.T) {
+func TestIngestUsesIngestProfileSpecificCategorizationSettings(t *testing.T) {
 	t.Parallel()
 
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
-	settings := entity.SyncSettings{SyncProfiles: []entity.SyncProfileSettings{
+	settings := entity.IngestSettings{IngestProfiles: []entity.IngestProfileSettings{
 		{
-			ID:               "first-sync-profile",
+			ID:               "first-ingest-profile",
 			Categories:       []entity.Category{"Alpha", "Others"},
 			ColorsByCategory: map[entity.Category]entity.Color{"Alpha": entity.Red, "Others": entity.Gray},
 			Mappings:         map[string]entity.Category{"First example": "Alpha"},
 			Fallback:         "Others",
 		},
 		{
-			ID:               "second-sync-profile",
+			ID:               "second-ingest-profile",
 			Categories:       []entity.Category{"Beta", "Outros"},
 			ColorsByCategory: map[entity.Category]entity.Color{"Beta": entity.Blue, "Outros": entity.Purple},
 			Mappings:         map[string]entity.Category{"Second example": "Beta"},
@@ -185,9 +192,9 @@ func TestSyncUsesSyncProfileSpecificCategorizationSettings(t *testing.T) {
 
 	source := mockopenfinance.NewMockOpenFinance(t)
 	source.EXPECT().
-		ListTransactionsBySyncProfileID(mock.Anything, mock.Anything, date, date).
-		RunAndReturn(func(_ context.Context, syncProfileID string, _, _ time.Time) ([]entity.Transaction, error) {
-			return []entity.Transaction{{Name: syncProfileID + " transaction", Amount: 10, Date: date}}, nil
+		ListTransactionsByIngestProfileID(mock.Anything, mock.Anything, date, date).
+		RunAndReturn(func(_ context.Context, ingestProfileID string, _, _ time.Time) ([]entity.Transaction, error) {
+			return []entity.Transaction{{Name: ingestProfileID + " transaction", Amount: 10, Date: date}}, nil
 		}).
 		Twice()
 
@@ -214,11 +221,11 @@ func TestSyncUsesSyncProfileSpecificCategorizationSettings(t *testing.T) {
 			inputs[name] = input
 			inputsMutex.Unlock()
 
-			if name == "first-sync-profile transaction" {
-				return `{"first-sync-profile transaction":"Beta"}`, nil
+			if name == "first-ingest-profile transaction" {
+				return `{"first-ingest-profile transaction":"Beta"}`, nil
 			}
 
-			return `{"second-sync-profile transaction":"Alpha"}`, nil
+			return `{"second-ingest-profile transaction":"Alpha"}`, nil
 		}).
 		Twice()
 
@@ -226,8 +233,8 @@ func TestSyncUsesSyncProfileSpecificCategorizationSettings(t *testing.T) {
 	store.EXPECT().ListTables(mock.Anything, mock.Anything).Return(nil, nil).Twice()
 	store.EXPECT().
 		CreateTransactionsTable(mock.Anything, mock.Anything, "Jan 2026").
-		RunAndReturn(func(_ context.Context, syncProfileID, title string) (entity.Table, error) {
-			return entity.Table{ID: syncProfileID + "-table", Title: title}, nil
+		RunAndReturn(func(_ context.Context, ingestProfileID, title string) (entity.Table, error) {
+			return entity.Table{ID: ingestProfileID + "-table", Title: title}, nil
 		}).
 		Twice()
 
@@ -235,42 +242,42 @@ func TestSyncUsesSyncProfileSpecificCategorizationSettings(t *testing.T) {
 	var insertedMutex sync.Mutex
 	store.EXPECT().
 		InsertTransaction(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Run(func(_ context.Context, syncProfileID, _ string, transaction entity.Transaction) {
+		Run(func(_ context.Context, ingestProfileID, _ string, transaction entity.Transaction) {
 			insertedMutex.Lock()
-			insertedCategories[syncProfileID] = transaction.Category
+			insertedCategories[ingestProfileID] = transaction.Category
 			insertedMutex.Unlock()
 		}).
 		Return(nil).
 		Twice()
 
-	err := NewSync(
+	err := NewIngest(
 		testMaxConcurrentOperations,
 		settings,
 		noCompanyLookup(t),
 		categorizer,
 		store,
 		source,
-	).Execute(context.Background(), SyncInput{StartDate: date, EndDate: date})
+	).Execute(context.Background(), IngestInput{StartDate: date, EndDate: date})
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
 
-	firstInput := inputs["first-sync-profile transaction"]
+	firstInput := inputs["first-ingest-profile transaction"]
 	if len(firstInput.Categories) != 2 || firstInput.Categories[0] != "Alpha" ||
 		firstInput.Mappings["First example"] != "Alpha" || firstInput.Fallback != "Others" {
 		t.Fatalf("first categorization input = %#v", firstInput)
 	}
-	secondInput := inputs["second-sync-profile transaction"]
+	secondInput := inputs["second-ingest-profile transaction"]
 	if len(secondInput.Categories) != 2 || secondInput.Categories[0] != "Beta" ||
 		secondInput.Mappings["Second example"] != "Beta" || secondInput.Fallback != "Outros" {
 		t.Fatalf("second categorization input = %#v", secondInput)
 	}
-	if insertedCategories["first-sync-profile"] != "Others" || insertedCategories["second-sync-profile"] != "Outros" {
+	if insertedCategories["first-ingest-profile"] != "Others" || insertedCategories["second-ingest-profile"] != "Outros" {
 		t.Fatalf("inserted categories = %#v", insertedCategories)
 	}
 }
 
-func TestSyncProcessesEveryMonthAndDeduplicates(t *testing.T) {
+func TestIngestProcessesEveryMonthAndDeduplicates(t *testing.T) {
 	t.Parallel()
 
 	janDate := time.Date(2026, time.January, 10, 12, 0, 0, 0, time.UTC)
@@ -281,7 +288,7 @@ func TestSyncProcessesEveryMonthAndDeduplicates(t *testing.T) {
 
 	source := mockopenfinance.NewMockOpenFinance(t)
 	source.EXPECT().
-		ListTransactionsBySyncProfileID(mock.Anything, "sync-profile", janDate, febDate).
+		ListTransactionsByIngestProfileID(mock.Anything, "ingest-profile", janDate, febDate).
 		Return([]entity.Transaction{existing, existing, newJanuary, newFebruary}, nil).
 		Once()
 
@@ -321,22 +328,22 @@ func TestSyncProcessesEveryMonthAndDeduplicates(t *testing.T) {
 
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().
-		ListTables(mock.Anything, "sync-profile").
+		ListTables(mock.Anything, "ingest-profile").
 		Return([]entity.Table{{ID: "jan", Title: "Jan 2026"}}, nil).
 		Once()
 	store.EXPECT().
-		ListTransactions(mock.Anything, "sync-profile", "jan").
+		ListTransactions(mock.Anything, "ingest-profile", "jan").
 		Return([]entity.Transaction{existing}, nil).
 		Once()
 	store.EXPECT().
-		CreateTransactionsTable(mock.Anything, "sync-profile", "Feb 2026").
+		CreateTransactionsTable(mock.Anything, "ingest-profile", "Feb 2026").
 		Return(entity.Table{ID: "created-Feb 2026", Title: "Feb 2026"}, nil).
 		Once()
 
 	var insertedMutex sync.Mutex
 	inserted := make([]insertedTransaction, 0, 2)
 	store.EXPECT().
-		InsertTransaction(mock.Anything, "sync-profile", mock.Anything, mock.Anything).
+		InsertTransaction(mock.Anything, "ingest-profile", mock.Anything, mock.Anything).
 		Run(func(_ context.Context, _ string, tableID string, transaction entity.Transaction) {
 			insertedMutex.Lock()
 			inserted = append(inserted, insertedTransaction{tableID: tableID, transaction: transaction})
@@ -345,15 +352,15 @@ func TestSyncProcessesEveryMonthAndDeduplicates(t *testing.T) {
 		Return(nil).
 		Twice()
 
-	syncUseCase := NewSync(
+	ingestUseCase := NewIngest(
 		testMaxConcurrentOperations,
-		testSettings("sync-profile"),
+		testSettings("ingest-profile"),
 		noCompanyLookup(t),
 		categorizer,
 		store,
 		source,
 	)
-	err := syncUseCase.Execute(context.Background(), SyncInput{
+	err := ingestUseCase.Execute(context.Background(), IngestInput{
 		StartDate: janDate,
 		EndDate:   febDate,
 	})
@@ -373,7 +380,7 @@ func TestSyncProcessesEveryMonthAndDeduplicates(t *testing.T) {
 	}
 }
 
-func TestSyncEnrichesUniqueCompany(t *testing.T) {
+func TestIngestEnrichesUniqueCompany(t *testing.T) {
 	t.Parallel()
 
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
@@ -385,7 +392,7 @@ func TestSyncEnrichesUniqueCompany(t *testing.T) {
 
 	source := mockopenfinance.NewMockOpenFinance(t)
 	source.EXPECT().
-		ListTransactionsBySyncProfileID(mock.Anything, "sync-profile", date, date).
+		ListTransactionsByIngestProfileID(mock.Anything, "ingest-profile", date, date).
 		Return([]entity.Transaction{
 			{Name: "12.345.678/0001-95", Amount: 1, Date: date},
 			{Name: "12.345.678/0001-95", Amount: 2, Date: date},
@@ -399,15 +406,15 @@ func TestSyncEnrichesUniqueCompany(t *testing.T) {
 		Once()
 
 	store := mocksheet.NewMockSheet(t)
-	store.EXPECT().ListTables(mock.Anything, "sync-profile").Return(nil, nil).Once()
+	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 	store.EXPECT().
-		CreateTransactionsTable(mock.Anything, "sync-profile", "Jan 2026").
+		CreateTransactionsTable(mock.Anything, "ingest-profile", "Jan 2026").
 		Return(entity.Table{ID: "jan", Title: "Jan 2026"}, nil).
 		Once()
 	store.EXPECT().
 		InsertTransaction(
 			mock.Anything,
-			"sync-profile",
+			"ingest-profile",
 			"jan",
 			mock.MatchedBy(func(transaction entity.Transaction) bool {
 				return transaction.Name == "Company" && transaction.Category == "Food"
@@ -416,15 +423,22 @@ func TestSyncEnrichesUniqueCompany(t *testing.T) {
 		Return(nil).
 		Twice()
 
-	if err := NewSync(testMaxConcurrentOperations, testSettings("sync-profile"), company, categorizer, store, source).Execute(
+	if err := NewIngest(
+		testMaxConcurrentOperations,
+		testSettings("ingest-profile"),
+		company,
+		categorizer,
+		store,
+		source,
+	).Execute(
 		context.Background(),
-		SyncInput{StartDate: date, EndDate: date},
+		IngestInput{StartDate: date, EndDate: date},
 	); err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
 }
 
-func TestSyncCompanyLookupFailureIsNonFatal(t *testing.T) {
+func TestIngestCompanyLookupFailureIsNonFatal(t *testing.T) {
 	t.Parallel()
 
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
@@ -437,7 +451,7 @@ func TestSyncCompanyLookupFailureIsNonFatal(t *testing.T) {
 
 	source := mockopenfinance.NewMockOpenFinance(t)
 	source.EXPECT().
-		ListTransactionsBySyncProfileID(mock.Anything, "sync-profile", date, date).
+		ListTransactionsByIngestProfileID(mock.Anything, "ingest-profile", date, date).
 		Return([]entity.Transaction{{Name: "12.345.678/0001-95", Amount: 1, Date: date}}, nil).
 		Once()
 
@@ -448,15 +462,15 @@ func TestSyncCompanyLookupFailureIsNonFatal(t *testing.T) {
 		Once()
 
 	store := mocksheet.NewMockSheet(t)
-	store.EXPECT().ListTables(mock.Anything, "sync-profile").Return(nil, nil).Once()
+	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 	store.EXPECT().
-		CreateTransactionsTable(mock.Anything, "sync-profile", "Jan 2026").
+		CreateTransactionsTable(mock.Anything, "ingest-profile", "Jan 2026").
 		Return(entity.Table{ID: "jan", Title: "Jan 2026"}, nil).
 		Once()
 	store.EXPECT().
 		InsertTransaction(
 			mock.Anything,
-			"sync-profile",
+			"ingest-profile",
 			"jan",
 			mock.MatchedBy(func(transaction entity.Transaction) bool {
 				return transaction.Name == "12.345.678/0001-95"
@@ -465,48 +479,55 @@ func TestSyncCompanyLookupFailureIsNonFatal(t *testing.T) {
 		Return(nil).
 		Once()
 
-	if err := NewSync(testMaxConcurrentOperations, testSettings("sync-profile"), company, categorizer, store, source).Execute(
+	if err := NewIngest(
+		testMaxConcurrentOperations,
+		testSettings("ingest-profile"),
+		company,
+		categorizer,
+		store,
+		source,
+	).Execute(
 		context.Background(),
-		SyncInput{StartDate: date, EndDate: date},
+		IngestInput{StartDate: date, EndDate: date},
 	); err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
 }
 
-func TestSyncEmptyRangeSkipsCategorizer(t *testing.T) {
+func TestIngestEmptyRangeSkipsCategorizer(t *testing.T) {
 	t.Parallel()
 
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	source := mockopenfinance.NewMockOpenFinance(t)
 	source.EXPECT().
-		ListTransactionsBySyncProfileID(mock.Anything, "sync-profile", date, date).
+		ListTransactionsByIngestProfileID(mock.Anything, "ingest-profile", date, date).
 		Return(nil, nil).
 		Once()
 
 	categorizer := mockgpt.NewMockGPT(t)
 	store := mocksheet.NewMockSheet(t)
-	store.EXPECT().ListTables(mock.Anything, "sync-profile").Return(nil, nil).Once()
+	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 	store.EXPECT().
-		CreateTransactionsTable(mock.Anything, "sync-profile", "Jan 2026").
+		CreateTransactionsTable(mock.Anything, "ingest-profile", "Jan 2026").
 		Return(entity.Table{ID: "jan", Title: "Jan 2026"}, nil).
 		Once()
 
-	if err := NewSync(
+	if err := NewIngest(
 		testMaxConcurrentOperations,
-		testSettings("sync-profile"),
+		testSettings("ingest-profile"),
 		noCompanyLookup(t),
 		categorizer,
 		store,
 		source,
 	).Execute(
 		context.Background(),
-		SyncInput{StartDate: date, EndDate: date},
+		IngestInput{StartDate: date, EndDate: date},
 	); err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
 }
 
-func TestSyncPropagatesSourceErrorAndCancellation(t *testing.T) {
+func TestIngestPropagatesSourceErrorAndCancellation(t *testing.T) {
 	t.Parallel()
 
 	date := time.Now()
@@ -514,18 +535,18 @@ func TestSyncPropagatesSourceErrorAndCancellation(t *testing.T) {
 		wantErr := errors.New("source failed")
 		source := mockopenfinance.NewMockOpenFinance(t)
 		source.EXPECT().
-			ListTransactionsBySyncProfileID(mock.Anything, "sync-profile", date, date).
+			ListTransactionsByIngestProfileID(mock.Anything, "ingest-profile", date, date).
 			Return(nil, wantErr).
 			Once()
 
-		err := NewSync(
+		err := NewIngest(
 			testMaxConcurrentOperations,
-			testSettings("sync-profile"),
+			testSettings("ingest-profile"),
 			noCompanyLookup(t),
 			mockgpt.NewMockGPT(t),
 			mocksheet.NewMockSheet(t),
 			source,
-		).Execute(context.Background(), SyncInput{StartDate: date, EndDate: date})
+		).Execute(context.Background(), IngestInput{StartDate: date, EndDate: date})
 		if !errors.Is(err, wantErr) {
 			t.Fatalf("Execute() error = %v, want source error", err)
 		}
@@ -537,27 +558,27 @@ func TestSyncPropagatesSourceErrorAndCancellation(t *testing.T) {
 
 		source := mockopenfinance.NewMockOpenFinance(t)
 		source.EXPECT().
-			ListTransactionsBySyncProfileID(mock.Anything, "sync-profile", date, date).
+			ListTransactionsByIngestProfileID(mock.Anything, "ingest-profile", date, date).
 			RunAndReturn(func(ctx context.Context, _ string, _, _ time.Time) ([]entity.Transaction, error) {
 				return nil, ctx.Err()
 			}).
 			Once()
 
-		err := NewSync(
+		err := NewIngest(
 			testMaxConcurrentOperations,
-			testSettings("sync-profile"),
+			testSettings("ingest-profile"),
 			noCompanyLookup(t),
 			mockgpt.NewMockGPT(t),
 			mocksheet.NewMockSheet(t),
 			source,
-		).Execute(canceledContext, SyncInput{StartDate: date, EndDate: date})
+		).Execute(canceledContext, IngestInput{StartDate: date, EndDate: date})
 		if !errors.Is(err, context.Canceled) {
 			t.Fatalf("Execute() error = %v, want context canceled", err)
 		}
 	})
 }
 
-func TestSyncPropagatesCategorizerAndStoreErrors(t *testing.T) {
+func TestIngestPropagatesCategorizerAndStoreErrors(t *testing.T) {
 	t.Parallel()
 
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
@@ -580,7 +601,7 @@ func TestSyncPropagatesCategorizerAndStoreErrors(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			source := mockopenfinance.NewMockOpenFinance(t)
 			source.EXPECT().
-				ListTransactionsBySyncProfileID(mock.Anything, "sync-profile", date, date).
+				ListTransactionsByIngestProfileID(mock.Anything, "ingest-profile", date, date).
 				Return([]entity.Transaction{transaction}, nil).
 				Once()
 
@@ -597,33 +618,33 @@ func TestSyncPropagatesCategorizerAndStoreErrors(t *testing.T) {
 					CreateChatCompletion(mock.Anything, mock.Anything, mock.Anything).
 					Return(`{"Store":"Food"}`, nil).
 					Once()
-				store.EXPECT().ListTables(mock.Anything, "sync-profile").Return(nil, listTablesErr).Once()
+				store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, listTablesErr).Once()
 			case "insert":
 				categorizer.EXPECT().
 					CreateChatCompletion(mock.Anything, mock.Anything, mock.Anything).
 					Return(`{"Store":"Food"}`, nil).
 					Once()
-				store.EXPECT().ListTables(mock.Anything, "sync-profile").Return(nil, nil).Once()
+				store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 				store.EXPECT().
-					CreateTransactionsTable(mock.Anything, "sync-profile", "Jan 2026").
+					CreateTransactionsTable(mock.Anything, "ingest-profile", "Jan 2026").
 					Return(entity.Table{ID: "jan", Title: "Jan 2026"}, nil).
 					Once()
 				store.EXPECT().
-					InsertTransaction(mock.Anything, "sync-profile", "jan", mock.Anything).
+					InsertTransaction(mock.Anything, "ingest-profile", "jan", mock.Anything).
 					Return(insertErr).
 					Once()
 			}
 
-			err := NewSync(
+			err := NewIngest(
 				testMaxConcurrentOperations,
-				testSettings("sync-profile"),
+				testSettings("ingest-profile"),
 				noCompanyLookup(t),
 				categorizer,
 				store,
 				source,
 			).Execute(
 				context.Background(),
-				SyncInput{StartDate: date, EndDate: date},
+				IngestInput{StartDate: date, EndDate: date},
 			)
 			if !errors.Is(err, test.wantErr) {
 				t.Fatalf("Execute() error = %v, want %q", err, test.wantErr)
@@ -632,20 +653,20 @@ func TestSyncPropagatesCategorizerAndStoreErrors(t *testing.T) {
 	}
 }
 
-func TestSyncBoundsSyncProfileConcurrency(t *testing.T) {
+func TestIngestBoundsIngestProfileConcurrency(t *testing.T) {
 	t.Parallel()
 
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
-	syncProfileIDs := make([]string, 12)
-	for index := range syncProfileIDs {
-		syncProfileIDs[index] = fmt.Sprintf("sync-profile-%d", index)
+	ingestProfileIDs := make([]string, 12)
+	for index := range ingestProfileIDs {
+		ingestProfileIDs[index] = fmt.Sprintf("ingest-profile-%d", index)
 	}
 
 	var activeSources atomic.Int32
 	var maximumSources atomic.Int32
 	source := mockopenfinance.NewMockOpenFinance(t)
 	source.EXPECT().
-		ListTransactionsBySyncProfileID(mock.Anything, mock.Anything, date, date).
+		ListTransactionsByIngestProfileID(mock.Anything, mock.Anything, date, date).
 		RunAndReturn(func(ctx context.Context, _ string, _, _ time.Time) ([]entity.Transaction, error) {
 			active := activeSources.Add(1)
 			defer activeSources.Add(-1)
@@ -659,25 +680,25 @@ func TestSyncBoundsSyncProfileConcurrency(t *testing.T) {
 
 			return nil, nil
 		}).
-		Times(len(syncProfileIDs))
+		Times(len(ingestProfileIDs))
 
 	store := mocksheet.NewMockSheet(t)
-	store.EXPECT().ListTables(mock.Anything, mock.Anything).Return(nil, nil).Times(len(syncProfileIDs))
+	store.EXPECT().ListTables(mock.Anything, mock.Anything).Return(nil, nil).Times(len(ingestProfileIDs))
 	store.EXPECT().
 		CreateTransactionsTable(mock.Anything, mock.Anything, "Jan 2026").
-		RunAndReturn(func(_ context.Context, syncProfileID, title string) (entity.Table, error) {
-			return entity.Table{ID: syncProfileID + "-jan", Title: title}, nil
+		RunAndReturn(func(_ context.Context, ingestProfileID, title string) (entity.Table, error) {
+			return entity.Table{ID: ingestProfileID + "-jan", Title: title}, nil
 		}).
-		Times(len(syncProfileIDs))
+		Times(len(ingestProfileIDs))
 
-	if err := NewSync(
+	if err := NewIngest(
 		testMaxConcurrentOperations,
-		testSettings(syncProfileIDs...),
+		testSettings(ingestProfileIDs...),
 		noCompanyLookup(t),
 		mockgpt.NewMockGPT(t),
 		store,
 		source,
-	).Execute(context.Background(), SyncInput{StartDate: date, EndDate: date}); err != nil {
+	).Execute(context.Background(), IngestInput{StartDate: date, EndDate: date}); err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
 
@@ -689,7 +710,7 @@ func TestSyncBoundsSyncProfileConcurrency(t *testing.T) {
 	}
 }
 
-func TestSyncBoundsInsertConcurrency(t *testing.T) {
+func TestIngestBoundsInsertConcurrency(t *testing.T) {
 	t.Parallel()
 
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
@@ -704,7 +725,7 @@ func TestSyncBoundsInsertConcurrency(t *testing.T) {
 
 	source := mockopenfinance.NewMockOpenFinance(t)
 	source.EXPECT().
-		ListTransactionsBySyncProfileID(mock.Anything, "sync-profile", date, date).
+		ListTransactionsByIngestProfileID(mock.Anything, "ingest-profile", date, date).
 		Return(transactions, nil).
 		Once()
 
@@ -735,13 +756,13 @@ func TestSyncBoundsInsertConcurrency(t *testing.T) {
 	var activeInserts atomic.Int32
 	var maximumInserts atomic.Int32
 	store := mocksheet.NewMockSheet(t)
-	store.EXPECT().ListTables(mock.Anything, "sync-profile").Return(nil, nil).Once()
+	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 	store.EXPECT().
-		CreateTransactionsTable(mock.Anything, "sync-profile", "Jan 2026").
+		CreateTransactionsTable(mock.Anything, "ingest-profile", "Jan 2026").
 		Return(entity.Table{ID: "jan", Title: "Jan 2026"}, nil).
 		Once()
 	store.EXPECT().
-		InsertTransaction(mock.Anything, "sync-profile", "jan", mock.Anything).
+		InsertTransaction(mock.Anything, "ingest-profile", "jan", mock.Anything).
 		RunAndReturn(func(ctx context.Context, _ string, _ string, _ entity.Transaction) error {
 			active := activeInserts.Add(1)
 			defer activeInserts.Add(-1)
@@ -756,16 +777,16 @@ func TestSyncBoundsInsertConcurrency(t *testing.T) {
 		}).
 		Times(len(transactions))
 
-	if err := NewSync(
+	if err := NewIngest(
 		testMaxConcurrentOperations,
-		testSettings("sync-profile"),
+		testSettings("ingest-profile"),
 		noCompanyLookup(t),
 		categorizer,
 		store,
 		source,
 	).Execute(
 		context.Background(),
-		SyncInput{StartDate: date, EndDate: date},
+		IngestInput{StartDate: date, EndDate: date},
 	); err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}

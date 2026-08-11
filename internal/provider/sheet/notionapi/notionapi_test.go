@@ -46,10 +46,10 @@ func TestListTablesPaginatesAndFiltersUnavailableTables(t *testing.T) {
 
 	client := &Client{
 		client: resty.New().SetBaseURL(server.URL),
-		conns:  map[string]conn{"sync-profile": {accessToken: "token", pageID: "page"}},
+		conns:  map[string]conn{"ingest-profile": {accessToken: "token", pageID: "page"}},
 	}
 
-	tables, err := client.ListTables(t.Context(), "sync-profile")
+	tables, err := client.ListTables(t.Context(), "ingest-profile")
 	if err != nil {
 		t.Fatalf("ListTables() error = %v", err)
 	}
@@ -177,9 +177,9 @@ func TestInsertTransactionPersistsFallbackCategory(t *testing.T) {
 
 			client := &Client{
 				client: resty.New().SetBaseURL(server.URL),
-				conns:  map[string]conn{"sync-profile": {accessToken: "token"}},
+				conns:  map[string]conn{"ingest-profile": {accessToken: "token"}},
 			}
-			err := client.InsertTransaction(t.Context(), "sync-profile", "table", entity.Transaction{
+			err := client.InsertTransaction(t.Context(), "ingest-profile", "table", entity.Transaction{
 				Name:     "Store",
 				Category: fallback,
 				Amount:   10,

@@ -34,11 +34,11 @@ packages:
           filename: mocksheet.go
           pkgname: mocksheet
           structname: MockSheet
-  github.com/danielmesquitta/openfinance/internal/domain/usecase:
+  github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest:
     interfaces:
-      SyncExecutor:
+      IngestExecutor:
         config:
-          dir: internal/domain/usecase/mockusecase
-          filename: mockusecase.go
-          pkgname: mockusecase
-          structname: MockSyncExecutor
+          dir: internal/domain/usecase/ingest/mockingest
+          filename: mockingest.go
+          pkgname: mockingest
+          structname: MockIngest

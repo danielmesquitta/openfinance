@@ -39,49 +39,49 @@ func (_m *MockOpenFinance) EXPECT() *MockOpenFinance_Expecter {
 	return &MockOpenFinance_Expecter{mock: &_m.Mock}
 }
 
-// ListTransactionsBySyncProfileID provides a mock function for the type MockOpenFinance
-func (_mock *MockOpenFinance) ListTransactionsBySyncProfileID(ctx context.Context, syncProfileID string, from time.Time, to time.Time) ([]entity.Transaction, error) {
-	ret := _mock.Called(ctx, syncProfileID, from, to)
+// ListTransactionsByIngestProfileID provides a mock function for the type MockOpenFinance
+func (_mock *MockOpenFinance) ListTransactionsByIngestProfileID(ctx context.Context, ingestProfileID string, from time.Time, to time.Time) ([]entity.Transaction, error) {
+	ret := _mock.Called(ctx, ingestProfileID, from, to)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ListTransactionsBySyncProfileID")
+		panic("no return value specified for ListTransactionsByIngestProfileID")
 	}
 
 	var r0 []entity.Transaction
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time, time.Time) ([]entity.Transaction, error)); ok {
-		return returnFunc(ctx, syncProfileID, from, to)
+		return returnFunc(ctx, ingestProfileID, from, to)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time, time.Time) []entity.Transaction); ok {
-		r0 = returnFunc(ctx, syncProfileID, from, to)
+		r0 = returnFunc(ctx, ingestProfileID, from, to)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]entity.Transaction)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, time.Time, time.Time) error); ok {
-		r1 = returnFunc(ctx, syncProfileID, from, to)
+		r1 = returnFunc(ctx, ingestProfileID, from, to)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// MockOpenFinance_ListTransactionsBySyncProfileID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListTransactionsBySyncProfileID'
-type MockOpenFinance_ListTransactionsBySyncProfileID_Call struct {
+// MockOpenFinance_ListTransactionsByIngestProfileID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListTransactionsByIngestProfileID'
+type MockOpenFinance_ListTransactionsByIngestProfileID_Call struct {
 	*mock.Call
 }
 
-// ListTransactionsBySyncProfileID is a helper method to define mock.On call
+// ListTransactionsByIngestProfileID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - syncProfileID string
+//   - ingestProfileID string
 //   - from time.Time
 //   - to time.Time
-func (_e *MockOpenFinance_Expecter) ListTransactionsBySyncProfileID(ctx interface{}, syncProfileID interface{}, from interface{}, to interface{}) *MockOpenFinance_ListTransactionsBySyncProfileID_Call {
-	return &MockOpenFinance_ListTransactionsBySyncProfileID_Call{Call: _e.mock.On("ListTransactionsBySyncProfileID", ctx, syncProfileID, from, to)}
+func (_e *MockOpenFinance_Expecter) ListTransactionsByIngestProfileID(ctx interface{}, ingestProfileID interface{}, from interface{}, to interface{}) *MockOpenFinance_ListTransactionsByIngestProfileID_Call {
+	return &MockOpenFinance_ListTransactionsByIngestProfileID_Call{Call: _e.mock.On("ListTransactionsByIngestProfileID", ctx, ingestProfileID, from, to)}
 }
 
-func (_c *MockOpenFinance_ListTransactionsBySyncProfileID_Call) Run(run func(ctx context.Context, syncProfileID string, from time.Time, to time.Time)) *MockOpenFinance_ListTransactionsBySyncProfileID_Call {
+func (_c *MockOpenFinance_ListTransactionsByIngestProfileID_Call) Run(run func(ctx context.Context, ingestProfileID string, from time.Time, to time.Time)) *MockOpenFinance_ListTransactionsByIngestProfileID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -109,12 +109,12 @@ func (_c *MockOpenFinance_ListTransactionsBySyncProfileID_Call) Run(run func(ctx
 	return _c
 }
 
-func (_c *MockOpenFinance_ListTransactionsBySyncProfileID_Call) Return(transactions []entity.Transaction, err error) *MockOpenFinance_ListTransactionsBySyncProfileID_Call {
+func (_c *MockOpenFinance_ListTransactionsByIngestProfileID_Call) Return(transactions []entity.Transaction, err error) *MockOpenFinance_ListTransactionsByIngestProfileID_Call {
 	_c.Call.Return(transactions, err)
 	return _c
 }
 
-func (_c *MockOpenFinance_ListTransactionsBySyncProfileID_Call) RunAndReturn(run func(ctx context.Context, syncProfileID string, from time.Time, to time.Time) ([]entity.Transaction, error)) *MockOpenFinance_ListTransactionsBySyncProfileID_Call {
+func (_c *MockOpenFinance_ListTransactionsByIngestProfileID_Call) RunAndReturn(run func(ctx context.Context, ingestProfileID string, from time.Time, to time.Time) ([]entity.Transaction, error)) *MockOpenFinance_ListTransactionsByIngestProfileID_Call {
 	_c.Call.Return(run)
 	return _c
 }

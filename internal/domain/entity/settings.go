@@ -7,7 +7,7 @@ import (
 	"slices"
 )
 
-type SyncProfileSettings struct {
+type IngestProfileSettings struct {
 	ID               string
 	Categories       []Category
 	ColorsByCategory map[Category]Color
@@ -15,36 +15,36 @@ type SyncProfileSettings struct {
 	Fallback         Category
 }
 
-type SyncSettings struct {
-	SyncProfiles []SyncProfileSettings
+type IngestSettings struct {
+	IngestProfiles []IngestProfileSettings
 }
 
-func NewSyncSettings(syncProfiles []SyncProfile) (SyncSettings, error) {
-	if err := ValidateSyncProfiles(syncProfiles); err != nil {
-		return SyncSettings{}, err
+func NewIngestSettings(ingestProfiles []IngestProfile) (IngestSettings, error) {
+	if err := ValidateIngestProfiles(ingestProfiles); err != nil {
+		return IngestSettings{}, err
 	}
 
-	syncProfileSettings := make([]SyncProfileSettings, 0, len(syncProfiles))
-	for _, syncProfile := range syncProfiles {
-		if len(syncProfile.Categories) == 0 {
-			return SyncSettings{}, fmt.Errorf("sync profile %q: at least one category is required", syncProfile.ID)
+	ingestProfileSettings := make([]IngestProfileSettings, 0, len(ingestProfiles))
+	for _, ingestProfile := range ingestProfiles {
+		if len(ingestProfile.Categories) == 0 {
+			return IngestSettings{}, fmt.Errorf("ingest profile %q: at least one category is required", ingestProfile.ID)
 		}
-		if syncProfile.Mappings == nil {
-			return SyncSettings{}, fmt.Errorf("sync profile %q: mappings are required", syncProfile.ID)
+		if ingestProfile.Mappings == nil {
+			return IngestSettings{}, fmt.Errorf("ingest profile %q: mappings are required", ingestProfile.ID)
 		}
 
-		fallback := syncProfile.Fallback
+		fallback := ingestProfile.Fallback
 		if fallback == "" {
 			fallback = DefaultFallbackCategory
 		}
 
-		colorsByCategory := maps.Clone(syncProfile.Categories)
+		colorsByCategory := maps.Clone(ingestProfile.Categories)
 		if _, exists := colorsByCategory[fallback]; !exists {
 			colorsByCategory[fallback] = Gray
 		}
 
-		if err := ValidateCategories(colorsByCategory, syncProfile.Mappings); err != nil {
-			return SyncSettings{}, fmt.Errorf("sync profile %q: %w", syncProfile.ID, err)
+		if err := ValidateCategories(colorsByCategory, ingestProfile.Mappings); err != nil {
+			return IngestSettings{}, fmt.Errorf("ingest profile %q: %w", ingestProfile.ID, err)
 		}
 
 		categories := make([]Category, 0, len(colorsByCategory))
@@ -53,36 +53,36 @@ func NewSyncSettings(syncProfiles []SyncProfile) (SyncSettings, error) {
 		}
 		slices.Sort(categories)
 
-		syncProfileSettings = append(syncProfileSettings, SyncProfileSettings{
-			ID:               syncProfile.ID,
+		ingestProfileSettings = append(ingestProfileSettings, IngestProfileSettings{
+			ID:               ingestProfile.ID,
 			Categories:       categories,
 			ColorsByCategory: colorsByCategory,
-			Mappings:         maps.Clone(syncProfile.Mappings),
+			Mappings:         maps.Clone(ingestProfile.Mappings),
 			Fallback:         fallback,
 		})
 	}
 
-	return SyncSettings{SyncProfiles: syncProfileSettings}, nil
+	return IngestSettings{IngestProfiles: ingestProfileSettings}, nil
 }
 
-func ValidateSyncProfiles(syncProfiles []SyncProfile) error {
-	if len(syncProfiles) == 0 {
-		return errors.New("at least one sync profile is required")
+func ValidateIngestProfiles(ingestProfiles []IngestProfile) error {
+	if len(ingestProfiles) == 0 {
+		return errors.New("at least one ingest profile is required")
 	}
 
-	syncProfileIDs := make(map[string]struct{}, len(syncProfiles))
-	for _, syncProfile := range syncProfiles {
-		if syncProfile.ID == "" || syncProfile.NotionToken == "" || syncProfile.NotionPageID == "" ||
-			syncProfile.PluggyClientID == "" || syncProfile.PluggyClientSecret == "" ||
-			len(syncProfile.PluggyAccountIDs) == 0 {
-			return fmt.Errorf("sync profile %q has incomplete integration settings", syncProfile.ID)
+	ingestProfileIDs := make(map[string]struct{}, len(ingestProfiles))
+	for _, ingestProfile := range ingestProfiles {
+		if ingestProfile.ID == "" || ingestProfile.NotionToken == "" || ingestProfile.NotionPageID == "" ||
+			ingestProfile.PluggyClientID == "" || ingestProfile.PluggyClientSecret == "" ||
+			len(ingestProfile.PluggyAccountIDs) == 0 {
+			return fmt.Errorf("ingest profile %q has incomplete integration settings", ingestProfile.ID)
 		}
 
-		if _, exists := syncProfileIDs[syncProfile.ID]; exists {
-			return fmt.Errorf("sync profile id %q is duplicated", syncProfile.ID)
+		if _, exists := ingestProfileIDs[ingestProfile.ID]; exists {
+			return fmt.Errorf("ingest profile id %q is duplicated", ingestProfile.ID)
 		}
 
-		syncProfileIDs[syncProfile.ID] = struct{}{}
+		ingestProfileIDs[ingestProfile.ID] = struct{}{}
 	}
 
 	return nil

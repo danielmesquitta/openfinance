@@ -103,11 +103,11 @@ type listTransactionsRespTitleProperty struct {
 
 func (c *Client) ListTransactions(
 	ctx context.Context,
-	syncProfileID, databaseID string,
+	ingestProfileID, databaseID string,
 ) ([]entity.Transaction, error) {
-	conn, ok := c.conns[syncProfileID]
+	conn, ok := c.conns[ingestProfileID]
 	if !ok {
-		return nil, errors.New("connection not found for sync profile " + syncProfileID)
+		return nil, errors.New("connection not found for ingest profile " + ingestProfileID)
 	}
 
 	var allTransactions []entity.Transaction

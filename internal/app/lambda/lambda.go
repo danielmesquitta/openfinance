@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/danielmesquitta/openfinance/internal/app"
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
+	"github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest"
 )
 
 const (
@@ -17,20 +17,20 @@ const (
 )
 
 type LambdaHandler struct {
-	syncUseCase usecase.SyncExecutor
+	ingestUseCase ingest.IngestExecutor
 }
 
 func NewLambdaHandler() (*LambdaHandler, error) {
-	syncUseCase, err := app.NewSyncUseCase()
+	ingestUseCase, err := app.NewIngestUseCase()
 	if err != nil {
 		return nil, fmt.Errorf("initialize application: %w", err)
 	}
 
-	return newLambdaHandler(syncUseCase), nil
+	return newLambdaHandler(ingestUseCase), nil
 }
 
-func newLambdaHandler(syncUseCase usecase.SyncExecutor) *LambdaHandler {
-	return &LambdaHandler{syncUseCase: syncUseCase}
+func newLambdaHandler(ingestUseCase ingest.IngestExecutor) *LambdaHandler {
+	return &LambdaHandler{ingestUseCase: ingestUseCase}
 }
 
 type Response struct {
@@ -57,23 +57,23 @@ func (h *LambdaHandler) Handle(ctx context.Context) (Response, error) {
 
 	startDate, endDate := last7days()
 
-	input := usecase.SyncInput{
+	input := ingest.IngestInput{
 		StartDate: startDate,
 		EndDate:   endDate,
 	}
 
-	err := h.syncUseCase.Execute(ctx, input)
+	err := h.ingestUseCase.Execute(ctx, input)
 	if err != nil {
 		return newResponse(http.StatusInternalServerError, ErrorResponse{
-			Error:   "sync_failed",
-			Message: fmt.Sprintf("Failed to execute sync: %v", err),
+			Error:   "ingest_failed",
+			Message: fmt.Sprintf("Failed to execute ingest: %v", err),
 		}), nil
 	}
 
 	duration := time.Since(startTime)
 
 	return newResponse(http.StatusOK, SuccessResponse{
-		Message:   "Sync completed successfully",
+		Message:   "Ingest completed successfully",
 		StartDate: startDate.Format(time.RFC3339),
 		EndDate:   endDate.Format(time.RFC3339),
 		Duration:  duration.String(),

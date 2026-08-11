@@ -9,7 +9,7 @@ package app
 import (
 	"github.com/danielmesquitta/openfinance/internal/config"
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
+	"github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest"
 	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
 	"github.com/danielmesquitta/openfinance/internal/provider/companyapi/brasilapi"
 	"github.com/danielmesquitta/openfinance/internal/provider/gpt/openai"
@@ -19,14 +19,14 @@ import (
 
 // Injectors from wire.go:
 
-func NewSyncUseCase() (*usecase.Sync, error) {
+func NewIngestUseCase() (*ingest.Ingest, error) {
 	validatorValidator := validator.NewValidator()
 	env, err := config.NewEnv(validatorValidator)
 	if err != nil {
 		return nil, err
 	}
 	int2 := maxConcurrentOperations(env)
-	entitySyncSettings := syncSettings(env)
+	entityIngestSettings := ingestSettings(env)
 	client := brasilapi.NewClient()
 	openAIClient := openai.NewOpenAIClient(env)
 	notionapiClient := notionapi.NewClient(env)
@@ -34,14 +34,14 @@ func NewSyncUseCase() (*usecase.Sync, error) {
 	if err != nil {
 		return nil, err
 	}
-	sync := usecase.NewSync(int2, entitySyncSettings, client, openAIClient, notionapiClient, pluggyapiClient)
-	return sync, nil
+	ingestIngest := ingest.NewIngest(int2, entityIngestSettings, client, openAIClient, notionapiClient, pluggyapiClient)
+	return ingestIngest, nil
 }
 
 // wire.go:
 
-func syncSettings(env *config.Env) entity.SyncSettings {
-	return env.SyncSettings
+func ingestSettings(env *config.Env) entity.IngestSettings {
+	return env.IngestSettings
 }
 
 func maxConcurrentOperations(env *config.Env) int {

@@ -32,11 +32,11 @@ type listTablesChildDatabase struct {
 
 func (c *Client) ListTables(
 	ctx context.Context,
-	syncProfileID string,
+	ingestProfileID string,
 ) ([]entity.Table, error) {
-	conn, ok := c.conns[syncProfileID]
+	conn, ok := c.conns[ingestProfileID]
 	if !ok {
-		return nil, errors.New("connection not found for sync profile " + syncProfileID)
+		return nil, errors.New("connection not found for ingest profile " + ingestProfileID)
 	}
 
 	var allTables []entity.Table

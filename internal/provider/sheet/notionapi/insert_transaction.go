@@ -65,12 +65,12 @@ type insertTransactionReqRichTextProperty struct {
 
 func (c *Client) InsertTransaction(
 	ctx context.Context,
-	syncProfileID, tableID string,
+	ingestProfileID, tableID string,
 	transaction entity.Transaction,
 ) error {
-	conn, ok := c.conns[syncProfileID]
+	conn, ok := c.conns[ingestProfileID]
 	if !ok {
-		return errors.New("connection not found for sync profile " + syncProfileID)
+		return errors.New("connection not found for ingest profile " + ingestProfileID)
 	}
 
 	cardLastDigits := ""

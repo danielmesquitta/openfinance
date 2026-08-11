@@ -23,8 +23,8 @@ jobs:
         cat > .env << 'EOF'
         ${{ secrets.ENV }}
         EOF
-        cat > config/sync_profiles.json << 'EOF'
-        ${{ secrets.SYNC_PROFILES_JSON }}
+        cat > config/ingest_profiles.json << 'EOF'
+        ${{ secrets.INGEST_PROFILES_JSON }}
         EOF
 
     - name: Install dependencies

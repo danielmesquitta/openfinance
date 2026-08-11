@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase/mockusecase"
+	"github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest"
+	"github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest/mockingest"
 )
 
 func testCommand(startDate, endDate time.Time) *cobra.Command {
@@ -22,27 +22,27 @@ func testCommand(startDate, endDate time.Time) *cobra.Command {
 	return command
 }
 
-func TestExecuteSyncPropagatesSyncError(t *testing.T) {
+func TestExecuteIngestPropagatesIngestError(t *testing.T) {
 	t.Parallel()
 
 	startDate := time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, time.August, 31, 0, 0, 0, 0, time.UTC)
-	wantErr := errors.New("sync failed")
-	syncUseCase := mockusecase.NewMockSyncExecutor(t)
-	syncUseCase.EXPECT().
-		Execute(mock.Anything, mock.MatchedBy(func(input usecase.SyncInput) bool {
+	wantErr := errors.New("ingest failed")
+	ingestUseCase := mockingest.NewMockIngest(t)
+	ingestUseCase.EXPECT().
+		Execute(mock.Anything, mock.MatchedBy(func(input ingest.IngestInput) bool {
 			return input.StartDate.Equal(startDate) && input.EndDate.Equal(endDate)
 		})).
 		Return(wantErr).
 		Once()
 
-	err := executeSync(testCommand(startDate, endDate), syncUseCase)
+	err := executeIngest(testCommand(startDate, endDate), ingestUseCase)
 	if !errors.Is(err, wantErr) {
-		t.Fatalf("executeSync() error = %v", err)
+		t.Fatalf("executeIngest() error = %v", err)
 	}
 }
 
-func TestExecuteSyncUsesMonthAndYearFlags(t *testing.T) {
+func TestExecuteIngestUsesMonthAndYearFlags(t *testing.T) {
 	t.Parallel()
 
 	defaultStart := time.Date(2026, time.August, 1, 0, 0, 0, 0, time.Local)
@@ -57,15 +57,15 @@ func TestExecuteSyncUsesMonthAndYearFlags(t *testing.T) {
 
 	wantStart := time.Date(2025, time.February, 1, 0, 0, 0, 0, time.Local)
 	wantEnd := wantStart.AddDate(0, 1, 0).Add(-time.Nanosecond)
-	syncUseCase := mockusecase.NewMockSyncExecutor(t)
-	syncUseCase.EXPECT().
-		Execute(mock.Anything, mock.MatchedBy(func(input usecase.SyncInput) bool {
+	ingestUseCase := mockingest.NewMockIngest(t)
+	ingestUseCase.EXPECT().
+		Execute(mock.Anything, mock.MatchedBy(func(input ingest.IngestInput) bool {
 			return input.StartDate.Equal(wantStart) && input.EndDate.Equal(wantEnd)
 		})).
 		Return(nil).
 		Once()
 
-	if err := executeSync(command, syncUseCase); err != nil {
-		t.Fatalf("executeSync() error = %v", err)
+	if err := executeIngest(command, ingestUseCase); err != nil {
+		t.Fatalf("executeIngest() error = %v", err)
 	}
 }

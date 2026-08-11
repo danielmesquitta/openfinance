@@ -1,7 +1,7 @@
 .env*
 !.env.example
 
-config/sync_profiles.json
+config/ingest_profiles.json
 
 tmp/*
 

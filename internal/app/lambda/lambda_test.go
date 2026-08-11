@@ -8,22 +8,22 @@ import (
 
 	"github.com/stretchr/testify/mock"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase"
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase/mockusecase"
+	ingest "github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest"
+	"github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest/mockingest"
 )
 
 func TestLambdaHandlerSuccess(t *testing.T) {
 	t.Parallel()
 
-	syncUseCase := mockusecase.NewMockSyncExecutor(t)
-	syncUseCase.EXPECT().
-		Execute(mock.Anything, mock.MatchedBy(func(input usecase.SyncInput) bool {
+	ingestUseCase := mockingest.NewMockIngest(t)
+	ingestUseCase.EXPECT().
+		Execute(mock.Anything, mock.MatchedBy(func(input ingest.IngestInput) bool {
 			return input.EndDate.Sub(input.StartDate).Hours() == 7*24
 		})).
 		Return(nil).
 		Once()
 
-	response, err := newLambdaHandler(syncUseCase).Handle(t.Context())
+	response, err := newLambdaHandler(ingestUseCase).Handle(t.Context())
 	if err != nil {
 		t.Fatalf("Handle() error = %v", err)
 	}
@@ -37,7 +37,7 @@ func TestLambdaHandlerSuccess(t *testing.T) {
 	if err := json.Unmarshal([]byte(response.Body), &body); err != nil {
 		t.Fatalf("decode body: %v", err)
 	}
-	if body.Message != "Sync completed successfully" || body.StartDate == "" || body.EndDate == "" {
+	if body.Message != "Ingest completed successfully" || body.StartDate == "" || body.EndDate == "" {
 		t.Fatalf("body = %#v", body)
 	}
 }
@@ -45,10 +45,10 @@ func TestLambdaHandlerSuccess(t *testing.T) {
 func TestLambdaHandlerFailure(t *testing.T) {
 	t.Parallel()
 
-	syncUseCase := mockusecase.NewMockSyncExecutor(t)
-	syncUseCase.EXPECT().Execute(mock.Anything, mock.Anything).Return(errors.New("failed")).Once()
+	ingestUseCase := mockingest.NewMockIngest(t)
+	ingestUseCase.EXPECT().Execute(mock.Anything, mock.Anything).Return(errors.New("failed")).Once()
 
-	response, err := newLambdaHandler(syncUseCase).Handle(t.Context())
+	response, err := newLambdaHandler(ingestUseCase).Handle(t.Context())
 	if err != nil {
 		t.Fatalf("Handle() error = %v", err)
 	}
@@ -60,7 +60,7 @@ func TestLambdaHandlerFailure(t *testing.T) {
 	if err := json.Unmarshal([]byte(response.Body), &body); err != nil {
 		t.Fatalf("decode body: %v", err)
 	}
-	if body.Error != "sync_failed" {
+	if body.Error != "ingest_failed" {
 		t.Fatalf("body = %#v", body)
 	}
 }

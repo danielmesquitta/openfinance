@@ -17,17 +17,17 @@ type EnvFileData struct {
 	MaxConcurrentOperations int    `json:"max_concurrent_operations" mapstructure:"MAX_CONCURRENT_OPERATIONS" validate:"required,gte=1"`
 }
 
-// SyncProfilesFileData is the data for the sync_profiles.json file.
-type SyncProfilesFileData struct {
-	SyncProfiles []entity.SyncProfile `json:"sync_profiles" validate:"required"`
+// IngestProfilesFileData is the data for the ingest_profiles.json file.
+type IngestProfilesFileData struct {
+	IngestProfiles []entity.IngestProfile `json:"ingest_profiles" validate:"required"`
 }
 
 // Env is the environment variables.
 type Env struct {
 	EnvFileData
-	SyncProfilesFileData
+	IngestProfilesFileData
 
-	SyncSettings entity.SyncSettings
+	IngestSettings entity.IngestSettings
 
 	val *validator.Validator
 }
@@ -54,12 +54,12 @@ func (e *Env) loadEnv() error {
 		return fmt.Errorf("failed to validate env file: %w", err)
 	}
 
-	if err := e.loadDataFromSyncProfilesFile(); err != nil {
-		return fmt.Errorf("failed to load data from sync profiles file: %w", err)
+	if err := e.loadDataFromIngestProfilesFile(); err != nil {
+		return fmt.Errorf("failed to load data from ingest profiles file: %w", err)
 	}
 
-	if err := e.validateSyncProfilesFile(); err != nil {
-		return fmt.Errorf("failed to validate sync profiles file: %w", err)
+	if err := e.validateIngestProfilesFile(); err != nil {
+		return fmt.Errorf("failed to validate ingest profiles file: %w", err)
 	}
 
 	return nil
@@ -86,29 +86,29 @@ func (e *Env) loadDataFromEnvFile() error {
 	return nil
 }
 
-func (e *Env) loadDataFromSyncProfilesFile() error {
-	if err := e.loadSyncProfiles(); err != nil {
-		return fmt.Errorf("failed to load sync profiles: %w", err)
+func (e *Env) loadDataFromIngestProfilesFile() error {
+	if err := e.loadIngestProfiles(); err != nil {
+		return fmt.Errorf("failed to load ingest profiles: %w", err)
 	}
 
-	settings, err := entity.NewSyncSettings(e.SyncProfiles)
+	settings, err := entity.NewIngestSettings(e.IngestProfiles)
 	if err != nil {
 		return fmt.Errorf("invalid domain settings: %w", err)
 	}
 
-	e.SyncSettings = settings
+	e.IngestSettings = settings
 
 	return nil
 }
 
-func (e *Env) loadSyncProfiles() (err error) {
-	syncProfilesData, err := root.SyncProfilesFile.ReadFile("config/sync_profiles.json")
+func (e *Env) loadIngestProfiles() (err error) {
+	ingestProfilesData, err := root.IngestProfilesFile.ReadFile("config/ingest_profiles.json")
 	if err != nil {
-		return fmt.Errorf("failed to read sync profiles file: %w", err)
+		return fmt.Errorf("failed to read ingest profiles file: %w", err)
 	}
 
-	if err = json.Unmarshal(syncProfilesData, &e.SyncProfiles); err != nil {
-		return fmt.Errorf("failed to unmarshal sync profiles file: %w", err)
+	if err = json.Unmarshal(ingestProfilesData, &e.IngestProfiles); err != nil {
+		return fmt.Errorf("failed to unmarshal ingest profiles file: %w", err)
 	}
 
 	return nil
@@ -122,9 +122,9 @@ func (e *Env) validateEnvFile() error {
 	return nil
 }
 
-func (e *Env) validateSyncProfilesFile() error {
-	if err := e.val.Validate(e.SyncProfilesFileData); err != nil {
-		return fmt.Errorf("failed to validate sync profiles file: %w", err)
+func (e *Env) validateIngestProfilesFile() error {
+	if err := e.val.Validate(e.IngestProfilesFileData); err != nil {
+		return fmt.Errorf("failed to validate ingest profiles file: %w", err)
 	}
 
 	return nil
