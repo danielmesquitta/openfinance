@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest"
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest/mockingest"
+	"github.com/danielmesquitta/openfinance/internal/domain/usecase/mockingest"
 )
 
 func testCommand(startDate, endDate time.Time) *cobra.Command {
