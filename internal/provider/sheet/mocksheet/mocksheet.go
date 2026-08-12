@@ -7,7 +7,7 @@ package mocksheet
 import (
 	"context"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -38,46 +38,54 @@ func (_m *MockSheet) EXPECT() *MockSheet_Expecter {
 	return &MockSheet_Expecter{mock: &_m.Mock}
 }
 
-// CreateTransactionsTable provides a mock function for the type MockSheet
-func (_mock *MockSheet) CreateTransactionsTable(ctx context.Context, ingestProfileID string, title string) (entity.Table, error) {
-	ret := _mock.Called(ctx, ingestProfileID, title)
+// CreateTable provides a mock function for the type MockSheet
+func (_mock *MockSheet) CreateTable(ctx context.Context, connectionID string, title string, options ...sheet.CreateTableOption) (sheet.Table, error) {
+	var tmpRet mock.Arguments
+	if len(options) > 0 {
+		tmpRet = _mock.Called(ctx, connectionID, title, options)
+	} else {
+		tmpRet = _mock.Called(ctx, connectionID, title)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for CreateTransactionsTable")
+		panic("no return value specified for CreateTable")
 	}
 
-	var r0 entity.Table
+	var r0 sheet.Table
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (entity.Table, error)); ok {
-		return returnFunc(ctx, ingestProfileID, title)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, ...sheet.CreateTableOption) (sheet.Table, error)); ok {
+		return returnFunc(ctx, connectionID, title, options...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) entity.Table); ok {
-		r0 = returnFunc(ctx, ingestProfileID, title)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, ...sheet.CreateTableOption) sheet.Table); ok {
+		r0 = returnFunc(ctx, connectionID, title, options...)
 	} else {
-		r0 = ret.Get(0).(entity.Table)
+		r0 = ret.Get(0).(sheet.Table)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = returnFunc(ctx, ingestProfileID, title)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, ...sheet.CreateTableOption) error); ok {
+		r1 = returnFunc(ctx, connectionID, title, options...)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// MockSheet_CreateTransactionsTable_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateTransactionsTable'
-type MockSheet_CreateTransactionsTable_Call struct {
+// MockSheet_CreateTable_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateTable'
+type MockSheet_CreateTable_Call struct {
 	*mock.Call
 }
 
-// CreateTransactionsTable is a helper method to define mock.On call
+// CreateTable is a helper method to define mock.On call
 //   - ctx context.Context
-//   - ingestProfileID string
+//   - connectionID string
 //   - title string
-func (_e *MockSheet_Expecter) CreateTransactionsTable(ctx interface{}, ingestProfileID interface{}, title interface{}) *MockSheet_CreateTransactionsTable_Call {
-	return &MockSheet_CreateTransactionsTable_Call{Call: _e.mock.On("CreateTransactionsTable", ctx, ingestProfileID, title)}
+//   - options ...sheet.CreateTableOption
+func (_e *MockSheet_Expecter) CreateTable(ctx interface{}, connectionID interface{}, title interface{}, options ...interface{}) *MockSheet_CreateTable_Call {
+	return &MockSheet_CreateTable_Call{Call: _e.mock.On("CreateTable",
+		append([]interface{}{ctx, connectionID, title}, options...)...)}
 }
 
-func (_c *MockSheet_CreateTransactionsTable_Call) Run(run func(ctx context.Context, ingestProfileID string, title string)) *MockSheet_CreateTransactionsTable_Call {
+func (_c *MockSheet_CreateTable_Call) Run(run func(ctx context.Context, connectionID string, title string, options ...sheet.CreateTableOption)) *MockSheet_CreateTable_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -91,57 +99,64 @@ func (_c *MockSheet_CreateTransactionsTable_Call) Run(run func(ctx context.Conte
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []sheet.CreateTableOption
+		var variadicArgs []sheet.CreateTableOption
+		if len(args) > 3 {
+			variadicArgs = args[3].([]sheet.CreateTableOption)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockSheet_CreateTransactionsTable_Call) Return(table entity.Table, err error) *MockSheet_CreateTransactionsTable_Call {
+func (_c *MockSheet_CreateTable_Call) Return(table sheet.Table, err error) *MockSheet_CreateTable_Call {
 	_c.Call.Return(table, err)
 	return _c
 }
 
-func (_c *MockSheet_CreateTransactionsTable_Call) RunAndReturn(run func(ctx context.Context, ingestProfileID string, title string) (entity.Table, error)) *MockSheet_CreateTransactionsTable_Call {
+func (_c *MockSheet_CreateTable_Call) RunAndReturn(run func(ctx context.Context, connectionID string, title string, options ...sheet.CreateTableOption) (sheet.Table, error)) *MockSheet_CreateTable_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// InsertTransaction provides a mock function for the type MockSheet
-func (_mock *MockSheet) InsertTransaction(ctx context.Context, ingestProfileID string, tableID string, transaction entity.Transaction) error {
-	ret := _mock.Called(ctx, ingestProfileID, tableID, transaction)
+// InsertRow provides a mock function for the type MockSheet
+func (_mock *MockSheet) InsertRow(ctx context.Context, connectionID string, tableID string, row sheet.Row) error {
+	ret := _mock.Called(ctx, connectionID, tableID, row)
 
 	if len(ret) == 0 {
-		panic("no return value specified for InsertTransaction")
+		panic("no return value specified for InsertRow")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, entity.Transaction) error); ok {
-		r0 = returnFunc(ctx, ingestProfileID, tableID, transaction)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, sheet.Row) error); ok {
+		r0 = returnFunc(ctx, connectionID, tableID, row)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// MockSheet_InsertTransaction_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertTransaction'
-type MockSheet_InsertTransaction_Call struct {
+// MockSheet_InsertRow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertRow'
+type MockSheet_InsertRow_Call struct {
 	*mock.Call
 }
 
-// InsertTransaction is a helper method to define mock.On call
+// InsertRow is a helper method to define mock.On call
 //   - ctx context.Context
-//   - ingestProfileID string
+//   - connectionID string
 //   - tableID string
-//   - transaction entity.Transaction
-func (_e *MockSheet_Expecter) InsertTransaction(ctx interface{}, ingestProfileID interface{}, tableID interface{}, transaction interface{}) *MockSheet_InsertTransaction_Call {
-	return &MockSheet_InsertTransaction_Call{Call: _e.mock.On("InsertTransaction", ctx, ingestProfileID, tableID, transaction)}
+//   - row sheet.Row
+func (_e *MockSheet_Expecter) InsertRow(ctx interface{}, connectionID interface{}, tableID interface{}, row interface{}) *MockSheet_InsertRow_Call {
+	return &MockSheet_InsertRow_Call{Call: _e.mock.On("InsertRow", ctx, connectionID, tableID, row)}
 }
 
-func (_c *MockSheet_InsertTransaction_Call) Run(run func(ctx context.Context, ingestProfileID string, tableID string, transaction entity.Transaction)) *MockSheet_InsertTransaction_Call {
+func (_c *MockSheet_InsertRow_Call) Run(run func(ctx context.Context, connectionID string, tableID string, row sheet.Row)) *MockSheet_InsertRow_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -155,9 +170,9 @@ func (_c *MockSheet_InsertTransaction_Call) Run(run func(ctx context.Context, in
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
-		var arg3 entity.Transaction
+		var arg3 sheet.Row
 		if args[3] != nil {
-			arg3 = args[3].(entity.Transaction)
+			arg3 = args[3].(sheet.Row)
 		}
 		run(
 			arg0,
@@ -169,38 +184,112 @@ func (_c *MockSheet_InsertTransaction_Call) Run(run func(ctx context.Context, in
 	return _c
 }
 
-func (_c *MockSheet_InsertTransaction_Call) Return(err error) *MockSheet_InsertTransaction_Call {
+func (_c *MockSheet_InsertRow_Call) Return(err error) *MockSheet_InsertRow_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockSheet_InsertTransaction_Call) RunAndReturn(run func(ctx context.Context, ingestProfileID string, tableID string, transaction entity.Transaction) error) *MockSheet_InsertTransaction_Call {
+func (_c *MockSheet_InsertRow_Call) RunAndReturn(run func(ctx context.Context, connectionID string, tableID string, row sheet.Row) error) *MockSheet_InsertRow_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListRows provides a mock function for the type MockSheet
+func (_mock *MockSheet) ListRows(ctx context.Context, connectionID string, tableID string) ([]sheet.Row, error) {
+	ret := _mock.Called(ctx, connectionID, tableID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListRows")
+	}
+
+	var r0 []sheet.Row
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) ([]sheet.Row, error)); ok {
+		return returnFunc(ctx, connectionID, tableID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) []sheet.Row); ok {
+		r0 = returnFunc(ctx, connectionID, tableID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]sheet.Row)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, connectionID, tableID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockSheet_ListRows_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListRows'
+type MockSheet_ListRows_Call struct {
+	*mock.Call
+}
+
+// ListRows is a helper method to define mock.On call
+//   - ctx context.Context
+//   - connectionID string
+//   - tableID string
+func (_e *MockSheet_Expecter) ListRows(ctx interface{}, connectionID interface{}, tableID interface{}) *MockSheet_ListRows_Call {
+	return &MockSheet_ListRows_Call{Call: _e.mock.On("ListRows", ctx, connectionID, tableID)}
+}
+
+func (_c *MockSheet_ListRows_Call) Run(run func(ctx context.Context, connectionID string, tableID string)) *MockSheet_ListRows_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSheet_ListRows_Call) Return(rows []sheet.Row, err error) *MockSheet_ListRows_Call {
+	_c.Call.Return(rows, err)
+	return _c
+}
+
+func (_c *MockSheet_ListRows_Call) RunAndReturn(run func(ctx context.Context, connectionID string, tableID string) ([]sheet.Row, error)) *MockSheet_ListRows_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListTables provides a mock function for the type MockSheet
-func (_mock *MockSheet) ListTables(ctx context.Context, ingestProfileID string) ([]entity.Table, error) {
-	ret := _mock.Called(ctx, ingestProfileID)
+func (_mock *MockSheet) ListTables(ctx context.Context, connectionID string) ([]sheet.Table, error) {
+	ret := _mock.Called(ctx, connectionID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListTables")
 	}
 
-	var r0 []entity.Table
+	var r0 []sheet.Table
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]entity.Table, error)); ok {
-		return returnFunc(ctx, ingestProfileID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]sheet.Table, error)); ok {
+		return returnFunc(ctx, connectionID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []entity.Table); ok {
-		r0 = returnFunc(ctx, ingestProfileID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []sheet.Table); ok {
+		r0 = returnFunc(ctx, connectionID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]entity.Table)
+			r0 = ret.Get(0).([]sheet.Table)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, ingestProfileID)
+		r1 = returnFunc(ctx, connectionID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -214,12 +303,12 @@ type MockSheet_ListTables_Call struct {
 
 // ListTables is a helper method to define mock.On call
 //   - ctx context.Context
-//   - ingestProfileID string
-func (_e *MockSheet_Expecter) ListTables(ctx interface{}, ingestProfileID interface{}) *MockSheet_ListTables_Call {
-	return &MockSheet_ListTables_Call{Call: _e.mock.On("ListTables", ctx, ingestProfileID)}
+//   - connectionID string
+func (_e *MockSheet_Expecter) ListTables(ctx interface{}, connectionID interface{}) *MockSheet_ListTables_Call {
+	return &MockSheet_ListTables_Call{Call: _e.mock.On("ListTables", ctx, connectionID)}
 }
 
-func (_c *MockSheet_ListTables_Call) Run(run func(ctx context.Context, ingestProfileID string)) *MockSheet_ListTables_Call {
+func (_c *MockSheet_ListTables_Call) Run(run func(ctx context.Context, connectionID string)) *MockSheet_ListTables_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -237,86 +326,12 @@ func (_c *MockSheet_ListTables_Call) Run(run func(ctx context.Context, ingestPro
 	return _c
 }
 
-func (_c *MockSheet_ListTables_Call) Return(tables []entity.Table, err error) *MockSheet_ListTables_Call {
+func (_c *MockSheet_ListTables_Call) Return(tables []sheet.Table, err error) *MockSheet_ListTables_Call {
 	_c.Call.Return(tables, err)
 	return _c
 }
 
-func (_c *MockSheet_ListTables_Call) RunAndReturn(run func(ctx context.Context, ingestProfileID string) ([]entity.Table, error)) *MockSheet_ListTables_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// ListTransactions provides a mock function for the type MockSheet
-func (_mock *MockSheet) ListTransactions(ctx context.Context, ingestProfileID string, tableID string) ([]entity.Transaction, error) {
-	ret := _mock.Called(ctx, ingestProfileID, tableID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ListTransactions")
-	}
-
-	var r0 []entity.Transaction
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) ([]entity.Transaction, error)); ok {
-		return returnFunc(ctx, ingestProfileID, tableID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) []entity.Transaction); ok {
-		r0 = returnFunc(ctx, ingestProfileID, tableID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]entity.Transaction)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = returnFunc(ctx, ingestProfileID, tableID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockSheet_ListTransactions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListTransactions'
-type MockSheet_ListTransactions_Call struct {
-	*mock.Call
-}
-
-// ListTransactions is a helper method to define mock.On call
-//   - ctx context.Context
-//   - ingestProfileID string
-//   - tableID string
-func (_e *MockSheet_Expecter) ListTransactions(ctx interface{}, ingestProfileID interface{}, tableID interface{}) *MockSheet_ListTransactions_Call {
-	return &MockSheet_ListTransactions_Call{Call: _e.mock.On("ListTransactions", ctx, ingestProfileID, tableID)}
-}
-
-func (_c *MockSheet_ListTransactions_Call) Run(run func(ctx context.Context, ingestProfileID string, tableID string)) *MockSheet_ListTransactions_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockSheet_ListTransactions_Call) Return(transactions []entity.Transaction, err error) *MockSheet_ListTransactions_Call {
-	_c.Call.Return(transactions, err)
-	return _c
-}
-
-func (_c *MockSheet_ListTransactions_Call) RunAndReturn(run func(ctx context.Context, ingestProfileID string, tableID string) ([]entity.Transaction, error)) *MockSheet_ListTransactions_Call {
+func (_c *MockSheet_ListTables_Call) RunAndReturn(run func(ctx context.Context, connectionID string) ([]sheet.Table, error)) *MockSheet_ListTables_Call {
 	_c.Call.Return(run)
 	return _c
 }

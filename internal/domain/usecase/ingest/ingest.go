@@ -128,7 +128,7 @@ func (s *Ingest) ingestProfile(
 		return fmt.Errorf("list tables: %w", err)
 	}
 
-	tableByTitle := make(map[string]entity.Table, len(tables))
+	tableByTitle := make(map[string]sheet.Table, len(tables))
 	for _, table := range tables {
 		tableByTitle[table.Title] = table
 	}
@@ -140,7 +140,12 @@ func (s *Ingest) ingestProfile(
 
 		table, exists := tableByTitle[title]
 		if !exists {
-			table, err = s.sheetProvider.CreateTransactionsTable(ctx, settings.ID, title)
+			table, err = s.sheetProvider.CreateTable(
+				ctx,
+				settings.ID,
+				title,
+				transactionTableOptions(settings)...,
+			)
 			if err != nil {
 				return fmt.Errorf("create table %q: %w", title, err)
 			}
@@ -336,9 +341,18 @@ func (s *Ingest) onlyNewTransactions(
 	ingestProfileID, tableID string,
 	transactions []entity.Transaction,
 ) ([]entity.Transaction, error) {
-	existingTransactions, err := s.sheetProvider.ListTransactions(ctx, ingestProfileID, tableID)
+	rows, err := s.sheetProvider.ListRows(ctx, ingestProfileID, tableID)
 	if err != nil {
 		return nil, fmt.Errorf("list existing transactions: %w", err)
+	}
+
+	existingTransactions := make([]entity.Transaction, 0, len(rows))
+	for _, row := range rows {
+		transaction, err := rowToTransaction(row)
+		if err != nil {
+			return nil, fmt.Errorf("map existing transaction row: %w", err)
+		}
+		existingTransactions = append(existingTransactions, transaction)
 	}
 
 	seen := make(map[string]struct{}, len(existingTransactions)+len(transactions))
@@ -370,11 +384,11 @@ func (s *Ingest) insertTransactions(
 
 	for _, transaction := range transactions {
 		group.Go(func() error {
-			if err := s.sheetProvider.InsertTransaction(
+			if err := s.sheetProvider.InsertRow(
 				groupContext,
 				ingestProfileID,
 				tableID,
-				transaction,
+				transactionToRow(transaction),
 			); err != nil {
 				return fmt.Errorf("insert transaction %q: %w", transaction.ID(), err)
 			}

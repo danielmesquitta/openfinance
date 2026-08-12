@@ -17,6 +17,7 @@ import (
 	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
 	"github.com/danielmesquitta/openfinance/internal/provider/gpt/mockgpt"
 	"github.com/danielmesquitta/openfinance/internal/provider/openfinance/mockopenfinance"
+	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
 	"github.com/danielmesquitta/openfinance/internal/provider/sheet/mocksheet"
 )
 
@@ -232,17 +233,27 @@ func TestIngestUsesIngestProfileSpecificCategorizationSettings(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().ListTables(mock.Anything, mock.Anything).Return(nil, nil).Twice()
 	store.EXPECT().
-		CreateTransactionsTable(mock.Anything, mock.Anything, "Jan 2026").
-		RunAndReturn(func(_ context.Context, ingestProfileID, title string) (entity.Table, error) {
-			return entity.Table{ID: ingestProfileID + "-table", Title: title}, nil
+		CreateTable(mock.Anything, mock.Anything, "Jan 2026", mock.Anything).
+		RunAndReturn(func(
+			_ context.Context,
+			ingestProfileID, title string,
+			_ ...sheet.CreateTableOption,
+		) (sheet.Table, error) {
+			return sheet.Table{ID: ingestProfileID + "-table", Title: title}, nil
 		}).
 		Twice()
 
 	insertedCategories := make(map[string]entity.Category, 2)
 	var insertedMutex sync.Mutex
 	store.EXPECT().
-		InsertTransaction(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Run(func(_ context.Context, ingestProfileID, _ string, transaction entity.Transaction) {
+		InsertRow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(_ context.Context, ingestProfileID, _ string, row sheet.Row) {
+			transaction, err := rowToTransaction(row)
+			if err != nil {
+				t.Errorf("rowToTransaction() error = %v", err)
+
+				return
+			}
 			insertedMutex.Lock()
 			insertedCategories[ingestProfileID] = transaction.Category
 			insertedMutex.Unlock()
@@ -272,7 +283,8 @@ func TestIngestUsesIngestProfileSpecificCategorizationSettings(t *testing.T) {
 		secondInput.Mappings["Second example"] != "Beta" || secondInput.Fallback != "Outros" {
 		t.Fatalf("second categorization input = %#v", secondInput)
 	}
-	if insertedCategories["first-ingest-profile"] != "Others" || insertedCategories["second-ingest-profile"] != "Outros" {
+	if insertedCategories["first-ingest-profile"] != "Others" ||
+		insertedCategories["second-ingest-profile"] != "Outros" {
 		t.Fatalf("inserted categories = %#v", insertedCategories)
 	}
 }
@@ -329,22 +341,33 @@ func TestIngestProcessesEveryMonthAndDeduplicates(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().
 		ListTables(mock.Anything, "ingest-profile").
-		Return([]entity.Table{{ID: "jan", Title: "Jan 2026"}}, nil).
+		Return([]sheet.Table{{ID: "jan", Title: "Jan 2026"}}, nil).
 		Once()
 	store.EXPECT().
-		ListTransactions(mock.Anything, "ingest-profile", "jan").
-		Return([]entity.Transaction{existing}, nil).
+		ListRows(mock.Anything, "ingest-profile", "jan").
+		Return([]sheet.Row{transactionToRow(existing)}, nil).
 		Once()
 	store.EXPECT().
-		CreateTransactionsTable(mock.Anything, "ingest-profile", "Feb 2026").
-		Return(entity.Table{ID: "created-Feb 2026", Title: "Feb 2026"}, nil).
+		CreateTable(
+			mock.Anything,
+			"ingest-profile",
+			"Feb 2026",
+			mock.Anything,
+		).
+		Return(sheet.Table{ID: "created-Feb 2026", Title: "Feb 2026"}, nil).
 		Once()
 
 	var insertedMutex sync.Mutex
 	inserted := make([]insertedTransaction, 0, 2)
 	store.EXPECT().
-		InsertTransaction(mock.Anything, "ingest-profile", mock.Anything, mock.Anything).
-		Run(func(_ context.Context, _ string, tableID string, transaction entity.Transaction) {
+		InsertRow(mock.Anything, "ingest-profile", mock.Anything, mock.Anything).
+		Run(func(_ context.Context, _ string, tableID string, row sheet.Row) {
+			transaction, err := rowToTransaction(row)
+			if err != nil {
+				t.Errorf("rowToTransaction() error = %v", err)
+
+				return
+			}
 			insertedMutex.Lock()
 			inserted = append(inserted, insertedTransaction{tableID: tableID, transaction: transaction})
 			insertedMutex.Unlock()
@@ -408,16 +431,18 @@ func TestIngestEnrichesUniqueCompany(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 	store.EXPECT().
-		CreateTransactionsTable(mock.Anything, "ingest-profile", "Jan 2026").
-		Return(entity.Table{ID: "jan", Title: "Jan 2026"}, nil).
+		CreateTable(mock.Anything, "ingest-profile", "Jan 2026", mock.Anything).
+		Return(sheet.Table{ID: "jan", Title: "Jan 2026"}, nil).
 		Once()
 	store.EXPECT().
-		InsertTransaction(
+		InsertRow(
 			mock.Anything,
 			"ingest-profile",
 			"jan",
-			mock.MatchedBy(func(transaction entity.Transaction) bool {
-				return transaction.Name == "Company" && transaction.Category == "Food"
+			mock.MatchedBy(func(row sheet.Row) bool {
+				transaction, err := rowToTransaction(row)
+
+				return err == nil && transaction.Name == "Company" && transaction.Category == "Food"
 			}),
 		).
 		Return(nil).
@@ -464,16 +489,18 @@ func TestIngestCompanyLookupFailureIsNonFatal(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 	store.EXPECT().
-		CreateTransactionsTable(mock.Anything, "ingest-profile", "Jan 2026").
-		Return(entity.Table{ID: "jan", Title: "Jan 2026"}, nil).
+		CreateTable(mock.Anything, "ingest-profile", "Jan 2026", mock.Anything).
+		Return(sheet.Table{ID: "jan", Title: "Jan 2026"}, nil).
 		Once()
 	store.EXPECT().
-		InsertTransaction(
+		InsertRow(
 			mock.Anything,
 			"ingest-profile",
 			"jan",
-			mock.MatchedBy(func(transaction entity.Transaction) bool {
-				return transaction.Name == "12.345.678/0001-95"
+			mock.MatchedBy(func(row sheet.Row) bool {
+				transaction, err := rowToTransaction(row)
+
+				return err == nil && transaction.Name == "12.345.678/0001-95"
 			}),
 		).
 		Return(nil).
@@ -508,8 +535,8 @@ func TestIngestEmptyRangeSkipsCategorizer(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 	store.EXPECT().
-		CreateTransactionsTable(mock.Anything, "ingest-profile", "Jan 2026").
-		Return(entity.Table{ID: "jan", Title: "Jan 2026"}, nil).
+		CreateTable(mock.Anything, "ingest-profile", "Jan 2026", mock.Anything).
+		Return(sheet.Table{ID: "jan", Title: "Jan 2026"}, nil).
 		Once()
 
 	if err := NewIngest(
@@ -626,11 +653,11 @@ func TestIngestPropagatesCategorizerAndStoreErrors(t *testing.T) {
 					Once()
 				store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 				store.EXPECT().
-					CreateTransactionsTable(mock.Anything, "ingest-profile", "Jan 2026").
-					Return(entity.Table{ID: "jan", Title: "Jan 2026"}, nil).
+					CreateTable(mock.Anything, "ingest-profile", "Jan 2026", mock.Anything).
+					Return(sheet.Table{ID: "jan", Title: "Jan 2026"}, nil).
 					Once()
 				store.EXPECT().
-					InsertTransaction(mock.Anything, "ingest-profile", "jan", mock.Anything).
+					InsertRow(mock.Anything, "ingest-profile", "jan", mock.Anything).
 					Return(insertErr).
 					Once()
 			}
@@ -685,9 +712,13 @@ func TestIngestBoundsIngestProfileConcurrency(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().ListTables(mock.Anything, mock.Anything).Return(nil, nil).Times(len(ingestProfileIDs))
 	store.EXPECT().
-		CreateTransactionsTable(mock.Anything, mock.Anything, "Jan 2026").
-		RunAndReturn(func(_ context.Context, ingestProfileID, title string) (entity.Table, error) {
-			return entity.Table{ID: ingestProfileID + "-jan", Title: title}, nil
+		CreateTable(mock.Anything, mock.Anything, "Jan 2026", mock.Anything).
+		RunAndReturn(func(
+			_ context.Context,
+			ingestProfileID, title string,
+			_ ...sheet.CreateTableOption,
+		) (sheet.Table, error) {
+			return sheet.Table{ID: ingestProfileID + "-jan", Title: title}, nil
 		}).
 		Times(len(ingestProfileIDs))
 
@@ -758,12 +789,12 @@ func TestIngestBoundsInsertConcurrency(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 	store.EXPECT().
-		CreateTransactionsTable(mock.Anything, "ingest-profile", "Jan 2026").
-		Return(entity.Table{ID: "jan", Title: "Jan 2026"}, nil).
+		CreateTable(mock.Anything, "ingest-profile", "Jan 2026", mock.Anything).
+		Return(sheet.Table{ID: "jan", Title: "Jan 2026"}, nil).
 		Once()
 	store.EXPECT().
-		InsertTransaction(mock.Anything, "ingest-profile", "jan", mock.Anything).
-		RunAndReturn(func(ctx context.Context, _ string, _ string, _ entity.Transaction) error {
+		InsertRow(mock.Anything, "ingest-profile", "jan", mock.Anything).
+		RunAndReturn(func(ctx context.Context, _ string, _ string, _ sheet.Row) error {
 			active := activeInserts.Add(1)
 			defer activeInserts.Add(-1)
 			setMaximum(&maximumInserts, active)

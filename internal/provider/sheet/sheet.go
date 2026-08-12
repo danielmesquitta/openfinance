@@ -2,13 +2,40 @@ package sheet
 
 import (
 	"context"
-
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"time"
 )
 
 type Provider interface {
-	CreateTransactionsTable(ctx context.Context, ingestProfileID, title string) (entity.Table, error)
-	InsertTransaction(ctx context.Context, ingestProfileID, tableID string, transaction entity.Transaction) error
-	ListTables(ctx context.Context, ingestProfileID string) ([]entity.Table, error)
-	ListTransactions(ctx context.Context, ingestProfileID, tableID string) ([]entity.Transaction, error)
+	CreateTable(
+		ctx context.Context,
+		connectionID string,
+		title string,
+		options ...CreateTableOption,
+	) (Table, error)
+	InsertRow(ctx context.Context, connectionID, tableID string, row Row) error
+	ListTables(ctx context.Context, connectionID string) ([]Table, error)
+	ListRows(ctx context.Context, connectionID, tableID string) ([]Row, error)
 }
+
+type Table struct {
+	ID    string
+	Title string
+}
+
+type Row map[string]Cell
+
+type Cell interface {
+	isCell()
+}
+
+type TitleCell string
+type TextCell string
+type NumberCell float64
+type SelectCell string
+type DateCell time.Time
+
+func (TitleCell) isCell()  {}
+func (TextCell) isCell()   {}
+func (NumberCell) isCell() {}
+func (SelectCell) isCell() {}
+func (DateCell) isCell()   {}
