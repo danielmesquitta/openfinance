@@ -228,7 +228,25 @@ func TestLocalizedTransactionTableTitle(t *testing.T) {
 	if got := localizedTransactionTableTitle(august, entity.LanguageEnglish); got != "Aug 2026" {
 		t.Fatalf("English title = %q", got)
 	}
-	if got := localizedTransactionTableTitle(august, entity.LanguagePortugueseBrazil); got != "Agosto 2026" {
-		t.Fatalf("Portuguese title = %q", got)
+
+	portugueseTitles := []string{
+		"Jan 2026",
+		"Fev 2026",
+		"Mar 2026",
+		"Abr 2026",
+		"Mai 2026",
+		"Jun 2026",
+		"Jul 2026",
+		"Ago 2026",
+		"Set 2026",
+		"Out 2026",
+		"Nov 2026",
+		"Dez 2026",
+	}
+	for index, want := range portugueseTitles {
+		month := time.Date(2026, time.Month(index+1), 1, 0, 0, 0, 0, time.UTC)
+		if got := localizedTransactionTableTitle(month, entity.LanguagePortugueseBrazil); got != want {
+			t.Fatalf("Portuguese title for %s = %q, want %q", month.Month(), got, want)
+		}
 	}
 }

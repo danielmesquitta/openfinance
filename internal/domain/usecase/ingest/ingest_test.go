@@ -417,7 +417,7 @@ func TestIngestReusesExistingTableLanguage(t *testing.T) {
 		{
 			name:                  "Portuguese profile reuses English table",
 			configuredLanguage:    entity.LanguagePortugueseBrazil,
-			existingTitle:         "Jan 2026",
+			existingTitle:         "Aug 2026",
 			existingTableLanguage: entity.LanguageEnglish,
 			paymentMethodColumn:   "Payment Method",
 			paymentMethodLabel:    "CREDIT CARD",
@@ -425,7 +425,7 @@ func TestIngestReusesExistingTableLanguage(t *testing.T) {
 		{
 			name:                  "English profile reuses Portuguese table",
 			configuredLanguage:    entity.LanguageEnglish,
-			existingTitle:         "Janeiro 2026",
+			existingTitle:         "Ago 2026",
 			existingTableLanguage: entity.LanguagePortugueseBrazil,
 			paymentMethodColumn:   "Forma de pagamento",
 			paymentMethodLabel:    "CARTÃO DE CRÉDITO",
@@ -436,7 +436,7 @@ func TestIngestReusesExistingTableLanguage(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			date := time.Date(2026, time.January, 10, 12, 0, 0, 0, time.UTC)
+			date := time.Date(2026, time.August, 10, 12, 0, 0, 0, time.UTC)
 			source := mockopenfinance.NewMockOpenFinance(t)
 			source.EXPECT().
 				ListTransactionsByIngestProfileID(mock.Anything, "ingest-profile", date, date).
@@ -508,7 +508,7 @@ func TestIngestCreatesPortugueseTable(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 	store.EXPECT().
-		CreateTable(mock.Anything, "ingest-profile", "Janeiro 2026", mock.Anything).
+		CreateTable(mock.Anything, "ingest-profile", "Jan 2026", mock.Anything).
 		RunAndReturn(func(
 			_ context.Context,
 			_, title string,
@@ -541,10 +541,10 @@ func TestIngestCreatesPortugueseTable(t *testing.T) {
 func TestTransactionTableForMonthPrefersConfiguredLanguage(t *testing.T) {
 	t.Parallel()
 
-	month := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	month := time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC)
 	tables := map[string]sheet.Table{
-		"Jan 2026":     {ID: "english", Title: "Jan 2026"},
-		"Janeiro 2026": {ID: "portuguese", Title: "Janeiro 2026"},
+		"Aug 2026": {ID: "english", Title: "Aug 2026"},
+		"Ago 2026": {ID: "portuguese", Title: "Ago 2026"},
 	}
 
 	table, language, exists := transactionTableForMonth(
@@ -554,6 +554,34 @@ func TestTransactionTableForMonthPrefersConfiguredLanguage(t *testing.T) {
 	)
 	if !exists || table.ID != "portuguese" || language != entity.LanguagePortugueseBrazil {
 		t.Fatalf("table = %#v, language = %q, exists = %t", table, language, exists)
+	}
+}
+
+func TestTransactionTableForMonthUsesConfiguredLanguageForSharedTitle(t *testing.T) {
+	t.Parallel()
+
+	month := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	tables := map[string]sheet.Table{
+		"Jan 2026": {ID: "shared", Title: "Jan 2026"},
+	}
+
+	for _, language := range []entity.Language{
+		entity.LanguageEnglish,
+		entity.LanguagePortugueseBrazil,
+	} {
+		t.Run(string(language), func(t *testing.T) {
+			t.Parallel()
+
+			table, tableLanguage, exists := transactionTableForMonth(tables, month, language)
+			if !exists || table.ID != "shared" || tableLanguage != language {
+				t.Fatalf(
+					"table = %#v, language = %q, exists = %t",
+					table,
+					tableLanguage,
+					exists,
+				)
+			}
+		})
 	}
 }
 
