@@ -47,8 +47,9 @@ func (o *OpenAIClient) CreateChatCompletion(
 	}
 
 	params := openai.ChatCompletionNewParams{
-		Model:    openai.ChatModelGPT5Mini,
-		Messages: messages,
+		Model:           openai.ChatModelGPT5_6Terra,
+		ReasoningEffort: openai.ReasoningEffortMedium,
+		Messages:        messages,
 	}
 	if completionOptions.JSONResponse {
 		jsonObjectFormat := shared.NewResponseFormatJSONObjectParam()
