@@ -2,6 +2,7 @@ package entity
 
 type IngestProfile struct {
 	ID                 string              `json:"id"`
+	Language           Language            `json:"language,omitempty"`
 	NotionToken        string              `json:"notion_token"`
 	NotionPageID       string              `json:"notion_page_id"`
 	PluggyClientID     string              `json:"pluggy_client_id"`

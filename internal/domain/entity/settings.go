@@ -9,6 +9,7 @@ import (
 
 type IngestProfileSettings struct {
 	ID               string
+	Language         Language
 	Categories       []Category
 	ColorsByCategory map[Category]Color
 	Mappings         map[string]Category
@@ -26,6 +27,20 @@ func NewIngestSettings(ingestProfiles []IngestProfile) (IngestSettings, error) {
 
 	ingestProfileSettings := make([]IngestProfileSettings, 0, len(ingestProfiles))
 	for _, ingestProfile := range ingestProfiles {
+		language := ingestProfile.Language
+		if language == "" {
+			language = DefaultLanguage
+		}
+		if !language.IsValid() {
+			return IngestSettings{}, fmt.Errorf(
+				"ingest profile %q: unsupported language %q (supported: %s, %s)",
+				ingestProfile.ID,
+				language,
+				LanguageEnglish,
+				LanguagePortugueseBrazil,
+			)
+		}
+
 		if len(ingestProfile.Categories) == 0 {
 			return IngestSettings{}, fmt.Errorf("ingest profile %q: at least one category is required", ingestProfile.ID)
 		}
@@ -55,6 +70,7 @@ func NewIngestSettings(ingestProfiles []IngestProfile) (IngestSettings, error) {
 
 		ingestProfileSettings = append(ingestProfileSettings, IngestProfileSettings{
 			ID:               ingestProfile.ID,
+			Language:         language,
 			Categories:       categories,
 			ColorsByCategory: colorsByCategory,
 			Mappings:         maps.Clone(ingestProfile.Mappings),

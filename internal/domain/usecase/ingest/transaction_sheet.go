@@ -11,16 +11,12 @@ import (
 const (
 	transactionTableIcon = "💸"
 	transactionCurrency  = "BRL"
-
-	transactionNameColumn           = "Name"
-	transactionCategoryColumn       = "Category"
-	transactionAmountColumn         = "Amount"
-	transactionPaymentMethodColumn  = "Payment Method"
-	transactionCardLastDigitsColumn = "Card Last Digits"
-	transactionDateColumn           = "Date"
 )
 
 func transactionTableOptions(settings entity.IngestProfileSettings) []sheet.CreateTableOption {
+	localization := transactionTableLocalizationFor(settings.Language)
+	columns := localization.columns
+
 	categoryOptions := make([]sheet.SelectOption, 0, len(settings.Categories))
 	for _, category := range settings.Categories {
 		categoryOptions = append(
@@ -37,7 +33,7 @@ func transactionTableOptions(settings entity.IngestProfileSettings) []sheet.Crea
 		paymentMethodOptions = append(
 			paymentMethodOptions,
 			sheet.NewSelectOption(
-				string(paymentMethod),
+				localization.paymentMethodLabels[paymentMethod],
 				sheet.WithColor(entity.PaymentMethodColors[paymentMethod]),
 			),
 		)
@@ -46,68 +42,82 @@ func transactionTableOptions(settings entity.IngestProfileSettings) []sheet.Crea
 	return []sheet.CreateTableOption{
 		sheet.WithIcon(transactionTableIcon),
 		sheet.WithColumns(
-			sheet.NewTitleColumn(transactionNameColumn),
+			sheet.NewTitleColumn(columns.name),
 			sheet.NewSelectColumn(
-				transactionCategoryColumn,
+				columns.category,
 				sheet.WithSelectOptions(categoryOptions...),
 			),
 			sheet.NewNumberColumn(
-				transactionAmountColumn,
+				columns.amount,
 				sheet.WithCurrency(transactionCurrency),
 			),
 			sheet.NewSelectColumn(
-				transactionPaymentMethodColumn,
+				columns.paymentMethod,
 				sheet.WithSelectOptions(paymentMethodOptions...),
 			),
-			sheet.NewTextColumn(transactionCardLastDigitsColumn),
-			sheet.NewDateColumn(transactionDateColumn),
+			sheet.NewTextColumn(columns.cardLastDigits),
+			sheet.NewDateColumn(columns.date),
 		),
 	}
 }
 
-func transactionToRow(transaction entity.Transaction) sheet.Row {
+func transactionToRow(transaction entity.Transaction, language entity.Language) sheet.Row {
+	localization := transactionTableLocalizationFor(language)
+	columns := localization.columns
+
 	cardLastDigits := ""
 	if transaction.CardLastDigits != nil {
 		cardLastDigits = *transaction.CardLastDigits
 	}
 
 	return sheet.Row{
-		transactionNameColumn:           sheet.TitleCell(transaction.Name),
-		transactionCategoryColumn:       sheet.SelectCell(transaction.Category),
-		transactionAmountColumn:         sheet.NumberCell(transaction.Amount),
-		transactionPaymentMethodColumn:  sheet.SelectCell(transaction.PaymentMethod),
-		transactionCardLastDigitsColumn: sheet.TextCell(cardLastDigits),
-		transactionDateColumn:           sheet.DateCell(transaction.Date),
+		columns.name:           sheet.TitleCell(transaction.Name),
+		columns.category:       sheet.SelectCell(transaction.Category),
+		columns.amount:         sheet.NumberCell(transaction.Amount),
+		columns.paymentMethod:  sheet.SelectCell(localization.paymentMethodLabels[transaction.PaymentMethod]),
+		columns.cardLastDigits: sheet.TextCell(cardLastDigits),
+		columns.date:           sheet.DateCell(transaction.Date),
 	}
 }
 
-func rowToTransaction(row sheet.Row) (entity.Transaction, error) {
-	name, err := rowCell[sheet.TitleCell](row, transactionNameColumn, sheet.ColumnTypeTitle)
+func rowToTransaction(row sheet.Row, language entity.Language) (entity.Transaction, error) {
+	localization := transactionTableLocalizationFor(language)
+	columns := localization.columns
+
+	name, err := rowCell[sheet.TitleCell](row, columns.name, sheet.ColumnTypeTitle)
 	if err != nil {
 		return entity.Transaction{}, err
 	}
 
-	category, err := rowCell[sheet.SelectCell](row, transactionCategoryColumn, sheet.ColumnTypeSelect)
+	category, err := rowCell[sheet.SelectCell](row, columns.category, sheet.ColumnTypeSelect)
 	if err != nil {
 		return entity.Transaction{}, err
 	}
 
-	amount, err := rowCell[sheet.NumberCell](row, transactionAmountColumn, sheet.ColumnTypeNumber)
+	amount, err := rowCell[sheet.NumberCell](row, columns.amount, sheet.ColumnTypeNumber)
 	if err != nil {
 		return entity.Transaction{}, err
 	}
 
-	paymentMethod, err := rowCell[sheet.SelectCell](row, transactionPaymentMethodColumn, sheet.ColumnTypeSelect)
+	paymentMethodLabel, err := rowCell[sheet.SelectCell](row, columns.paymentMethod, sheet.ColumnTypeSelect)
+	if err != nil {
+		return entity.Transaction{}, err
+	}
+	paymentMethod, exists := localization.paymentMethodsByLabel[string(paymentMethodLabel)]
+	if !exists && paymentMethodLabel != "" {
+		return entity.Transaction{}, fmt.Errorf(
+			"column %q has unknown payment method %q",
+			columns.paymentMethod,
+			paymentMethodLabel,
+		)
+	}
+
+	cardLastDigits, err := rowCell[sheet.TextCell](row, columns.cardLastDigits, sheet.ColumnTypeText)
 	if err != nil {
 		return entity.Transaction{}, err
 	}
 
-	cardLastDigits, err := rowCell[sheet.TextCell](row, transactionCardLastDigitsColumn, sheet.ColumnTypeText)
-	if err != nil {
-		return entity.Transaction{}, err
-	}
-
-	date, err := rowCell[sheet.DateCell](row, transactionDateColumn, sheet.ColumnTypeDate)
+	date, err := rowCell[sheet.DateCell](row, columns.date, sheet.ColumnTypeDate)
 	if err != nil {
 		return entity.Transaction{}, err
 	}
@@ -116,7 +126,7 @@ func rowToTransaction(row sheet.Row) (entity.Transaction, error) {
 		Name:          string(name),
 		Category:      entity.Category(category),
 		Amount:        float64(amount),
-		PaymentMethod: entity.PaymentMethod(paymentMethod),
+		PaymentMethod: paymentMethod,
 		Date:          time.Time(date),
 	}
 	if cardLastDigits != "" {

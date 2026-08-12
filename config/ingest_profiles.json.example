@@ -1,6 +1,7 @@
 [
   {
     "id": "johndoe@email.com",
+    "language": "en",
     "notion_token": "notion_token",
     "notion_page_id": "notion_page_id",
     "pluggy_client_id": "pluggy_client_id",
@@ -23,6 +24,7 @@
   },
   {
     "id": "janedoe@email.com",
+    "language": "pt-BR",
     "notion_token": "notion_token",
     "notion_page_id": "notion_page_id",
     "pluggy_client_id": "pluggy_client_id",

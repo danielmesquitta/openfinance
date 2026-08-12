@@ -25,6 +25,7 @@ func TestNewIngestSettingsNormalizesEachIngestProfile(t *testing.T) {
 	second.Categories = map[Category]Color{"Education": Blue}
 	second.Mappings = map[string]Category{"Unknown store": "Outros"}
 	second.Fallback = "Outros"
+	second.Language = LanguagePortugueseBrazil
 
 	settings, err := NewIngestSettings([]IngestProfile{first, second})
 	if err != nil {
@@ -37,6 +38,9 @@ func TestNewIngestSettingsNormalizesEachIngestProfile(t *testing.T) {
 	}
 
 	firstSettings := settings.IngestProfiles[0]
+	if firstSettings.Language != LanguageEnglish {
+		t.Fatalf("first language = %q, want %q", firstSettings.Language, LanguageEnglish)
+	}
 	if len(firstSettings.Categories) != 2 || firstSettings.Categories[0] != "Food" ||
 		firstSettings.Categories[1] != DefaultFallbackCategory {
 		t.Fatalf("first categories = %#v", firstSettings.Categories)
@@ -50,6 +54,13 @@ func TestNewIngestSettingsNormalizesEachIngestProfile(t *testing.T) {
 	}
 
 	secondSettings := settings.IngestProfiles[1]
+	if secondSettings.Language != LanguagePortugueseBrazil {
+		t.Fatalf(
+			"second language = %q, want %q",
+			secondSettings.Language,
+			LanguagePortugueseBrazil,
+		)
+	}
 	if len(secondSettings.Categories) != 2 || secondSettings.Categories[0] != "Education" ||
 		secondSettings.Categories[1] != "Outros" {
 		t.Fatalf("second categories = %#v", secondSettings.Categories)
@@ -96,6 +107,15 @@ func TestNewIngestSettingsValidation(t *testing.T) {
 			ingestProfiles: func() []IngestProfile {
 				ingestProfile := validIngestProfile()
 				ingestProfile.NotionToken = ""
+
+				return []IngestProfile{ingestProfile}
+			},
+		},
+		{
+			name: "unsupported language",
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.Language = "es"
 
 				return []IngestProfile{ingestProfile}
 			},
@@ -164,5 +184,21 @@ func TestNewIngestSettingsValidation(t *testing.T) {
 				t.Fatal("NewIngestSettings() error = nil")
 			}
 		})
+	}
+}
+
+func TestNewIngestSettingsUnsupportedLanguageError(t *testing.T) {
+	t.Parallel()
+
+	ingestProfile := validIngestProfile()
+	ingestProfile.Language = "es"
+
+	_, err := NewIngestSettings([]IngestProfile{ingestProfile})
+	if err == nil {
+		t.Fatal("NewIngestSettings() error = nil")
+	}
+	want := `ingest profile "ingest-profile": unsupported language "es" (supported: en, pt-BR)`
+	if err.Error() != want {
+		t.Fatalf("NewIngestSettings() error = %q, want %q", err, want)
 	}
 }

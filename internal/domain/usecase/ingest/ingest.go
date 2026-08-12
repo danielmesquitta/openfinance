@@ -135,10 +135,15 @@ func (s *Ingest) ingestProfile(
 
 	transactionsByMonth := groupTransactionsByMonth(transactions)
 	for _, month := range monthsInRange(input.StartDate, input.EndDate) {
-		title := month.Format("Jan 2006")
-		monthTransactions := transactionsByMonth[title]
+		configuredLanguage := normalizedLanguage(settings.Language)
+		title := localizedTransactionTableTitle(month, configuredLanguage)
+		monthTransactions := transactionsByMonth[newTransactionMonth(month)]
 
-		table, exists := tableByTitle[title]
+		table, tableLanguage, exists := transactionTableForMonth(
+			tableByTitle,
+			month,
+			configuredLanguage,
+		)
 		if !exists {
 			table, err = s.sheetProvider.CreateTable(
 				ctx,
@@ -151,15 +156,28 @@ func (s *Ingest) ingestProfile(
 			}
 
 			tableByTitle[title] = table
+			tableLanguage = configuredLanguage
 		} else {
-			monthTransactions, err = s.onlyNewTransactions(ctx, settings.ID, table.ID, monthTransactions)
+			monthTransactions, err = s.onlyNewTransactions(
+				ctx,
+				settings.ID,
+				table.ID,
+				tableLanguage,
+				monthTransactions,
+			)
 			if err != nil {
-				return fmt.Errorf("filter transactions for table %q: %w", title, err)
+				return fmt.Errorf("filter transactions for table %q: %w", table.Title, err)
 			}
 		}
 
-		if err := s.insertTransactions(ctx, settings.ID, table.ID, monthTransactions); err != nil {
-			return fmt.Errorf("insert transactions into table %q: %w", title, err)
+		if err := s.insertTransactions(
+			ctx,
+			settings.ID,
+			table.ID,
+			tableLanguage,
+			monthTransactions,
+		); err != nil {
+			return fmt.Errorf("insert transactions into table %q: %w", table.Title, err)
 		}
 	}
 
@@ -314,14 +332,43 @@ func uniqueTransactionNames(transactions []entity.Transaction) []string {
 	return names
 }
 
-func groupTransactionsByMonth(transactions []entity.Transaction) map[string][]entity.Transaction {
-	transactionsByMonth := make(map[string][]entity.Transaction)
+type transactionMonth struct {
+	year  int
+	month time.Month
+}
+
+func newTransactionMonth(value time.Time) transactionMonth {
+	return transactionMonth{year: value.Year(), month: value.Month()}
+}
+
+func groupTransactionsByMonth(transactions []entity.Transaction) map[transactionMonth][]entity.Transaction {
+	transactionsByMonth := make(map[transactionMonth][]entity.Transaction)
 	for _, transaction := range transactions {
-		month := transaction.Date.Format("Jan 2006")
+		month := newTransactionMonth(transaction.Date)
 		transactionsByMonth[month] = append(transactionsByMonth[month], transaction)
 	}
 
 	return transactionsByMonth
+}
+
+func transactionTableForMonth(
+	tableByTitle map[string]sheet.Table,
+	month time.Time,
+	preferredLanguage entity.Language,
+) (sheet.Table, entity.Language, bool) {
+	preferredLanguage = normalizedLanguage(preferredLanguage)
+	preferredTitle := localizedTransactionTableTitle(month, preferredLanguage)
+	if table, exists := tableByTitle[preferredTitle]; exists {
+		return table, preferredLanguage, true
+	}
+
+	alternative := alternateLanguage(preferredLanguage)
+	alternativeTitle := localizedTransactionTableTitle(month, alternative)
+	if table, exists := tableByTitle[alternativeTitle]; exists {
+		return table, alternative, true
+	}
+
+	return sheet.Table{}, "", false
 }
 
 func monthsInRange(startDate, endDate time.Time) []time.Time {
@@ -339,6 +386,7 @@ func monthsInRange(startDate, endDate time.Time) []time.Time {
 func (s *Ingest) onlyNewTransactions(
 	ctx context.Context,
 	ingestProfileID, tableID string,
+	language entity.Language,
 	transactions []entity.Transaction,
 ) ([]entity.Transaction, error) {
 	rows, err := s.sheetProvider.ListRows(ctx, ingestProfileID, tableID)
@@ -348,7 +396,7 @@ func (s *Ingest) onlyNewTransactions(
 
 	existingTransactions := make([]entity.Transaction, 0, len(rows))
 	for _, row := range rows {
-		transaction, err := rowToTransaction(row)
+		transaction, err := rowToTransaction(row, language)
 		if err != nil {
 			return nil, fmt.Errorf("map existing transaction row: %w", err)
 		}
@@ -377,6 +425,7 @@ func (s *Ingest) onlyNewTransactions(
 func (s *Ingest) insertTransactions(
 	ctx context.Context,
 	ingestProfileID, tableID string,
+	language entity.Language,
 	transactions []entity.Transaction,
 ) error {
 	group, groupContext := errgroup.WithContext(ctx)
@@ -388,7 +437,7 @@ func (s *Ingest) insertTransactions(
 				groupContext,
 				ingestProfileID,
 				tableID,
-				transactionToRow(transaction),
+				transactionToRow(transaction, language),
 			); err != nil {
 				return fmt.Errorf("insert transaction %q: %w", transaction.ID(), err)
 			}

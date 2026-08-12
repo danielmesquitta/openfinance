@@ -248,7 +248,7 @@ func TestIngestUsesIngestProfileSpecificCategorizationSettings(t *testing.T) {
 	store.EXPECT().
 		InsertRow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(_ context.Context, ingestProfileID, _ string, row sheet.Row) {
-			transaction, err := rowToTransaction(row)
+			transaction, err := rowToTransaction(row, entity.LanguageEnglish)
 			if err != nil {
 				t.Errorf("rowToTransaction() error = %v", err)
 
@@ -345,7 +345,7 @@ func TestIngestProcessesEveryMonthAndDeduplicates(t *testing.T) {
 		Once()
 	store.EXPECT().
 		ListRows(mock.Anything, "ingest-profile", "jan").
-		Return([]sheet.Row{transactionToRow(existing)}, nil).
+		Return([]sheet.Row{transactionToRow(existing, entity.LanguageEnglish)}, nil).
 		Once()
 	store.EXPECT().
 		CreateTable(
@@ -362,7 +362,7 @@ func TestIngestProcessesEveryMonthAndDeduplicates(t *testing.T) {
 	store.EXPECT().
 		InsertRow(mock.Anything, "ingest-profile", mock.Anything, mock.Anything).
 		Run(func(_ context.Context, _ string, tableID string, row sheet.Row) {
-			transaction, err := rowToTransaction(row)
+			transaction, err := rowToTransaction(row, entity.LanguageEnglish)
 			if err != nil {
 				t.Errorf("rowToTransaction() error = %v", err)
 
@@ -403,6 +403,176 @@ func TestIngestProcessesEveryMonthAndDeduplicates(t *testing.T) {
 	}
 }
 
+func TestIngestReusesExistingTableLanguage(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                  string
+		configuredLanguage    entity.Language
+		existingTitle         string
+		existingTableLanguage entity.Language
+		paymentMethodColumn   string
+		paymentMethodLabel    sheet.SelectCell
+	}{
+		{
+			name:                  "Portuguese profile reuses English table",
+			configuredLanguage:    entity.LanguagePortugueseBrazil,
+			existingTitle:         "Jan 2026",
+			existingTableLanguage: entity.LanguageEnglish,
+			paymentMethodColumn:   "Payment Method",
+			paymentMethodLabel:    "CREDIT CARD",
+		},
+		{
+			name:                  "English profile reuses Portuguese table",
+			configuredLanguage:    entity.LanguageEnglish,
+			existingTitle:         "Janeiro 2026",
+			existingTableLanguage: entity.LanguagePortugueseBrazil,
+			paymentMethodColumn:   "Forma de pagamento",
+			paymentMethodLabel:    "CARTÃO DE CRÉDITO",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			date := time.Date(2026, time.January, 10, 12, 0, 0, 0, time.UTC)
+			source := mockopenfinance.NewMockOpenFinance(t)
+			source.EXPECT().
+				ListTransactionsByIngestProfileID(mock.Anything, "ingest-profile", date, date).
+				Return([]entity.Transaction{{
+					Name:          "Store",
+					Amount:        10,
+					PaymentMethod: entity.PaymentMethodCreditCard,
+					Date:          date,
+				}}, nil).
+				Once()
+
+			categorizer := mockgpt.NewMockGPT(t)
+			categorizer.EXPECT().
+				CreateChatCompletion(mock.Anything, mock.Anything, mock.Anything).
+				Return(`{"Store":"Food"}`, nil).
+				Once()
+
+			store := mocksheet.NewMockSheet(t)
+			store.EXPECT().
+				ListTables(mock.Anything, "ingest-profile").
+				Return([]sheet.Table{{ID: "existing", Title: test.existingTitle}}, nil).
+				Once()
+			store.EXPECT().
+				ListRows(mock.Anything, "ingest-profile", "existing").
+				Return(nil, nil).
+				Once()
+			store.EXPECT().
+				InsertRow(
+					mock.Anything,
+					"ingest-profile",
+					"existing",
+					mock.MatchedBy(func(row sheet.Row) bool {
+						transaction, err := rowToTransaction(row, test.existingTableLanguage)
+
+						return err == nil && transaction.Name == "Store" &&
+							transaction.PaymentMethod == entity.PaymentMethodCreditCard &&
+							row[test.paymentMethodColumn] == test.paymentMethodLabel
+					}),
+				).
+				Return(nil).
+				Once()
+
+			settings := testSettings("ingest-profile")
+			settings.IngestProfiles[0].Language = test.configuredLanguage
+			if err := NewIngest(
+				testMaxConcurrentOperations,
+				settings,
+				noCompanyLookup(t),
+				categorizer,
+				store,
+				source,
+			).Execute(context.Background(), IngestInput{StartDate: date, EndDate: date}); err != nil {
+				t.Fatalf("Execute() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestIngestCreatesPortugueseTable(t *testing.T) {
+	t.Parallel()
+
+	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	source := mockopenfinance.NewMockOpenFinance(t)
+	source.EXPECT().
+		ListTransactionsByIngestProfileID(mock.Anything, "ingest-profile", date, date).
+		Return(nil, nil).
+		Once()
+
+	store := mocksheet.NewMockSheet(t)
+	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
+	store.EXPECT().
+		CreateTable(mock.Anything, "ingest-profile", "Janeiro 2026", mock.Anything).
+		RunAndReturn(func(
+			_ context.Context,
+			_, title string,
+			options ...sheet.CreateTableOption,
+		) (sheet.Table, error) {
+			resolved := resolveCreateTableOptions(options)
+			if len(resolved.Columns) != 6 || resolved.Columns[0].Name() != "Nome" ||
+				resolved.Columns[3].Name() != "Forma de pagamento" {
+				t.Fatalf("table options = %#v", resolved)
+			}
+
+			return sheet.Table{ID: "january", Title: title}, nil
+		}).
+		Once()
+
+	settings := testSettings("ingest-profile")
+	settings.IngestProfiles[0].Language = entity.LanguagePortugueseBrazil
+	if err := NewIngest(
+		testMaxConcurrentOperations,
+		settings,
+		noCompanyLookup(t),
+		mockgpt.NewMockGPT(t),
+		store,
+		source,
+	).Execute(context.Background(), IngestInput{StartDate: date, EndDate: date}); err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+}
+
+func TestTransactionTableForMonthPrefersConfiguredLanguage(t *testing.T) {
+	t.Parallel()
+
+	month := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	tables := map[string]sheet.Table{
+		"Jan 2026":     {ID: "english", Title: "Jan 2026"},
+		"Janeiro 2026": {ID: "portuguese", Title: "Janeiro 2026"},
+	}
+
+	table, language, exists := transactionTableForMonth(
+		tables,
+		month,
+		entity.LanguagePortugueseBrazil,
+	)
+	if !exists || table.ID != "portuguese" || language != entity.LanguagePortugueseBrazil {
+		t.Fatalf("table = %#v, language = %q, exists = %t", table, language, exists)
+	}
+}
+
+func TestGroupTransactionsByMonthUsesStableKeys(t *testing.T) {
+	t.Parallel()
+
+	transactions := []entity.Transaction{
+		{Date: time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)},
+		{Date: time.Date(2026, time.January, 31, 0, 0, 0, 0, time.UTC)},
+		{Date: time.Date(2026, time.February, 1, 0, 0, 0, 0, time.UTC)},
+	}
+
+	grouped := groupTransactionsByMonth(transactions)
+	if len(grouped[newTransactionMonth(transactions[0].Date)]) != 2 ||
+		len(grouped[newTransactionMonth(transactions[2].Date)]) != 1 {
+		t.Fatalf("grouped transactions = %#v", grouped)
+	}
+}
+
 func TestIngestEnrichesUniqueCompany(t *testing.T) {
 	t.Parallel()
 
@@ -440,7 +610,7 @@ func TestIngestEnrichesUniqueCompany(t *testing.T) {
 			"ingest-profile",
 			"jan",
 			mock.MatchedBy(func(row sheet.Row) bool {
-				transaction, err := rowToTransaction(row)
+				transaction, err := rowToTransaction(row, entity.LanguageEnglish)
 
 				return err == nil && transaction.Name == "Company" && transaction.Category == "Food"
 			}),
@@ -498,7 +668,7 @@ func TestIngestCompanyLookupFailureIsNonFatal(t *testing.T) {
 			"ingest-profile",
 			"jan",
 			mock.MatchedBy(func(row sheet.Row) bool {
-				transaction, err := rowToTransaction(row)
+				transaction, err := rowToTransaction(row, entity.LanguageEnglish)
 
 				return err == nil && transaction.Name == "12.345.678/0001-95"
 			}),

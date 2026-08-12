@@ -12,36 +12,72 @@ import (
 func TestTransactionTableOptions(t *testing.T) {
 	t.Parallel()
 
-	settings := entity.IngestProfileSettings{
-		Categories: []entity.Category{"Food", "Others"},
-		ColorsByCategory: map[entity.Category]entity.Color{
-			"Food": entity.Red, "Others": entity.Gray,
+	tests := []struct {
+		name     string
+		language entity.Language
+		columns  []sheet.Column
+	}{
+		{
+			name:     "English default",
+			language: "",
+			columns: []sheet.Column{
+				sheet.NewTitleColumn("Name"),
+				sheet.NewSelectColumn("Category", sheet.WithSelectOptions(
+					sheet.NewSelectOption("Food", sheet.WithColor(entity.Red)),
+					sheet.NewSelectOption("Others", sheet.WithColor(entity.Gray)),
+				)),
+				sheet.NewNumberColumn("Amount", sheet.WithCurrency("BRL")),
+				sheet.NewSelectColumn("Payment Method", sheet.WithSelectOptions(
+					sheet.NewSelectOption("BOLETO", sheet.WithColor(entity.Yellow)),
+					sheet.NewSelectOption("PIX", sheet.WithColor(entity.Blue)),
+					sheet.NewSelectOption("TED", sheet.WithColor(entity.Green)),
+					sheet.NewSelectOption("CREDIT CARD", sheet.WithColor(entity.Purple)),
+				)),
+				sheet.NewTextColumn("Card Last Digits"),
+				sheet.NewDateColumn("Date"),
+			},
+		},
+		{
+			name:     "Brazilian Portuguese",
+			language: entity.LanguagePortugueseBrazil,
+			columns: []sheet.Column{
+				sheet.NewTitleColumn("Nome"),
+				sheet.NewSelectColumn("Categoria", sheet.WithSelectOptions(
+					sheet.NewSelectOption("Food", sheet.WithColor(entity.Red)),
+					sheet.NewSelectOption("Others", sheet.WithColor(entity.Gray)),
+				)),
+				sheet.NewNumberColumn("Valor", sheet.WithCurrency("BRL")),
+				sheet.NewSelectColumn("Forma de pagamento", sheet.WithSelectOptions(
+					sheet.NewSelectOption("BOLETO", sheet.WithColor(entity.Yellow)),
+					sheet.NewSelectOption("PIX", sheet.WithColor(entity.Blue)),
+					sheet.NewSelectOption("TED", sheet.WithColor(entity.Green)),
+					sheet.NewSelectOption("CARTÃO DE CRÉDITO", sheet.WithColor(entity.Purple)),
+				)),
+				sheet.NewTextColumn("Últimos dígitos do cartão"),
+				sheet.NewDateColumn("Data"),
+			},
 		},
 	}
 
-	got := resolveCreateTableOptions(transactionTableOptions(settings))
-	want := sheet.CreateTableOptions{
-		Icon: "💸",
-		Columns: []sheet.Column{
-			sheet.NewTitleColumn("Name"),
-			sheet.NewSelectColumn("Category", sheet.WithSelectOptions(
-				sheet.NewSelectOption("Food", sheet.WithColor(entity.Red)),
-				sheet.NewSelectOption("Others", sheet.WithColor(entity.Gray)),
-			)),
-			sheet.NewNumberColumn("Amount", sheet.WithCurrency("BRL")),
-			sheet.NewSelectColumn("Payment Method", sheet.WithSelectOptions(
-				sheet.NewSelectOption("BOLETO", sheet.WithColor(entity.Yellow)),
-				sheet.NewSelectOption("PIX", sheet.WithColor(entity.Blue)),
-				sheet.NewSelectOption("TED", sheet.WithColor(entity.Green)),
-				sheet.NewSelectOption("CREDIT CARD", sheet.WithColor(entity.Purple)),
-			)),
-			sheet.NewTextColumn("Card Last Digits"),
-			sheet.NewDateColumn("Date"),
-		},
-	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("definition = %#v, want %#v", got, want)
+			settings := entity.IngestProfileSettings{
+				Language:   test.language,
+				Categories: []entity.Category{"Food", "Others"},
+				ColorsByCategory: map[entity.Category]entity.Color{
+					"Food": entity.Red, "Others": entity.Gray,
+				},
+			}
+
+			got := resolveCreateTableOptions(transactionTableOptions(settings))
+			want := sheet.CreateTableOptions{Icon: "💸", Columns: test.columns}
+
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("definition = %#v, want %#v", got, want)
+			}
+		})
 	}
 }
 
@@ -69,34 +105,63 @@ func TestTransactionRowRoundTrip(t *testing.T) {
 		Date:           time.Date(2026, time.August, 9, 12, 0, 0, 0, time.UTC),
 	}
 
-	row := transactionToRow(transaction)
-	if row[transactionNameColumn] != sheet.TitleCell("Store") ||
-		row[transactionCategoryColumn] != sheet.SelectCell("Food") ||
-		row[transactionAmountColumn] != sheet.NumberCell(42.5) ||
-		row[transactionPaymentMethodColumn] != sheet.SelectCell(entity.PaymentMethodCreditCard) ||
-		row[transactionCardLastDigitsColumn] != sheet.TextCell("1234") ||
-		row[transactionDateColumn] != sheet.DateCell(transaction.Date) {
-		t.Fatalf("row = %#v", row)
+	tests := []struct {
+		name               string
+		language           entity.Language
+		columns            transactionTableColumns
+		paymentMethodLabel string
+	}{
+		{
+			name:               "English",
+			language:           entity.LanguageEnglish,
+			columns:            transactionTableLocalizationFor(entity.LanguageEnglish).columns,
+			paymentMethodLabel: "CREDIT CARD",
+		},
+		{
+			name:               "Brazilian Portuguese",
+			language:           entity.LanguagePortugueseBrazil,
+			columns:            transactionTableLocalizationFor(entity.LanguagePortugueseBrazil).columns,
+			paymentMethodLabel: "CARTÃO DE CRÉDITO",
+		},
 	}
 
-	got, err := rowToTransaction(row)
-	if err != nil {
-		t.Fatalf("rowToTransaction() error = %v", err)
-	}
-	if !reflect.DeepEqual(got, transaction) {
-		t.Fatalf("transaction = %#v, want %#v", got, transaction)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			row := transactionToRow(transaction, test.language)
+			if row[test.columns.name] != sheet.TitleCell("Store") ||
+				row[test.columns.category] != sheet.SelectCell("Food") ||
+				row[test.columns.amount] != sheet.NumberCell(42.5) ||
+				row[test.columns.paymentMethod] != sheet.SelectCell(test.paymentMethodLabel) ||
+				row[test.columns.cardLastDigits] != sheet.TextCell("1234") ||
+				row[test.columns.date] != sheet.DateCell(transaction.Date) {
+				t.Fatalf("row = %#v", row)
+			}
+
+			got, err := rowToTransaction(row, test.language)
+			if err != nil {
+				t.Fatalf("rowToTransaction() error = %v", err)
+			}
+			if !reflect.DeepEqual(got, transaction) {
+				t.Fatalf("transaction = %#v, want %#v", got, transaction)
+			}
+		})
 	}
 }
 
 func TestTransactionRowEmptyCardLastDigits(t *testing.T) {
 	t.Parallel()
 
-	row := transactionToRow(entity.Transaction{})
-	if row[transactionCardLastDigitsColumn] != sheet.TextCell("") {
-		t.Fatalf("card cell = %#v", row[transactionCardLastDigitsColumn])
+	columns := transactionTableLocalizationFor(entity.LanguagePortugueseBrazil).columns
+	row := transactionToRow(entity.Transaction{
+		PaymentMethod: entity.PaymentMethodPix,
+	}, entity.LanguagePortugueseBrazil)
+	if row[columns.cardLastDigits] != sheet.TextCell("") {
+		t.Fatalf("card cell = %#v", row[columns.cardLastDigits])
 	}
 
-	transaction, err := rowToTransaction(row)
+	transaction, err := rowToTransaction(row, entity.LanguagePortugueseBrazil)
 	if err != nil {
 		t.Fatalf("rowToTransaction() error = %v", err)
 	}
@@ -108,8 +173,43 @@ func TestTransactionRowEmptyCardLastDigits(t *testing.T) {
 func TestRowToTransactionRejectsUnexpectedCellType(t *testing.T) {
 	t.Parallel()
 
-	_, err := rowToTransaction(sheet.Row{transactionAmountColumn: sheet.TextCell("42")})
+	_, err := rowToTransaction(
+		sheet.Row{"Valor": sheet.TextCell("42")},
+		entity.LanguagePortugueseBrazil,
+	)
 	if err == nil {
 		t.Fatal("rowToTransaction() error = nil")
+	}
+	if got := err.Error(); got != `column "Valor" has cell type sheet.TextCell, want number` {
+		t.Fatalf("rowToTransaction() error = %q", got)
+	}
+}
+
+func TestRowToTransactionRejectsUnknownLocalizedPaymentMethod(t *testing.T) {
+	t.Parallel()
+
+	row := transactionToRow(entity.Transaction{
+		PaymentMethod: entity.PaymentMethodCreditCard,
+	}, entity.LanguagePortugueseBrazil)
+	row["Forma de pagamento"] = sheet.SelectCell("DINHEIRO")
+
+	_, err := rowToTransaction(row, entity.LanguagePortugueseBrazil)
+	if err == nil {
+		t.Fatal("rowToTransaction() error = nil")
+	}
+	if got := err.Error(); got != `column "Forma de pagamento" has unknown payment method "DINHEIRO"` {
+		t.Fatalf("rowToTransaction() error = %q", got)
+	}
+}
+
+func TestLocalizedTransactionTableTitle(t *testing.T) {
+	t.Parallel()
+
+	august := time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC)
+	if got := localizedTransactionTableTitle(august, entity.LanguageEnglish); got != "Aug 2026" {
+		t.Fatalf("English title = %q", got)
+	}
+	if got := localizedTransactionTableTitle(august, entity.LanguagePortugueseBrazil); got != "Agosto 2026" {
+		t.Fatalf("Portuguese title = %q", got)
 	}
 }
