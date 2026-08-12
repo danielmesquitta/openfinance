@@ -6,8 +6,6 @@ import (
 )
 
 func TestNewTransaction(t *testing.T) {
-	t.Parallel()
-
 	pix := PaymentMethodPix
 	accountAmount := -12.34
 	card := "1234"
@@ -114,8 +112,6 @@ func TestNewTransaction(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			got, accepted := NewTransaction(test.input)
 			if accepted != test.accepted {
 				t.Fatalf("accepted = %v, want %v", accepted, test.accepted)
@@ -128,8 +124,6 @@ func TestNewTransaction(t *testing.T) {
 }
 
 func TestTransactionID(t *testing.T) {
-	t.Parallel()
-
 	transaction := Transaction{
 		Name:   "Store",
 		Amount: 10.126,
@@ -142,8 +136,6 @@ func TestTransactionID(t *testing.T) {
 }
 
 func TestCleanBankTransactionName(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name  string
 		input string
@@ -160,8 +152,6 @@ func TestCleanBankTransactionName(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			if got := cleanBankTransactionName(test.input); got != test.want {
 				t.Fatalf("cleanBankTransactionName(%q) = %q, want %q", test.input, got, test.want)
 			}

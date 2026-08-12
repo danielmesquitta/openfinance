@@ -16,8 +16,6 @@ import (
 )
 
 func TestListTablesPaginatesAndFiltersUnavailableTables(t *testing.T) {
-	t.Parallel()
-
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		requests.Add(1)
@@ -61,8 +59,6 @@ func TestListTablesPaginatesAndFiltersUnavailableTables(t *testing.T) {
 }
 
 func TestCreateTableTranslatesGenericDefinition(t *testing.T) {
-	t.Parallel()
-
 	var requestData createTableReq
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/v1/databases" {
@@ -120,8 +116,6 @@ func TestCreateTableTranslatesGenericDefinition(t *testing.T) {
 }
 
 func TestCreateTableRequestSupportsEmptyOptionalMetadata(t *testing.T) {
-	t.Parallel()
-
 	requestData, err := createTableRequest("page", "Table", sheet.CreateTableOptions{
 		Columns: []sheet.Column{
 			sheet.NewNumberColumn("Amount"),
@@ -143,8 +137,6 @@ func TestCreateTableRequestSupportsEmptyOptionalMetadata(t *testing.T) {
 }
 
 func TestCreateTableRejectsInvalidOptionsBeforeRequest(t *testing.T) {
-	t.Parallel()
-
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		requests.Add(1)
@@ -175,8 +167,6 @@ func TestCreateTableRejectsInvalidOptionsBeforeRequest(t *testing.T) {
 }
 
 func TestInsertRowTranslatesEveryCellType(t *testing.T) {
-	t.Parallel()
-
 	var requestData insertRowReq
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/v1/pages" {
@@ -213,8 +203,6 @@ func TestInsertRowTranslatesEveryCellType(t *testing.T) {
 }
 
 func TestInsertRowRejectsNilCellBeforeRequest(t *testing.T) {
-	t.Parallel()
-
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		requests.Add(1)
@@ -231,8 +219,6 @@ func TestInsertRowRejectsNilCellBeforeRequest(t *testing.T) {
 }
 
 func TestListRowsPaginatesMapsPropertiesAndSkipsMalformedDates(t *testing.T) {
-	t.Parallel()
-
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		requests.Add(1)
@@ -303,8 +289,6 @@ func TestListRowsPaginatesMapsPropertiesAndSkipsMalformedDates(t *testing.T) {
 }
 
 func TestOperationsRejectMissingConnection(t *testing.T) {
-	t.Parallel()
-
 	client := &Client{client: resty.New(), conns: map[string]conn{}}
 	if _, err := client.CreateTable(t.Context(), "missing", "Table"); err == nil {
 		t.Fatal("CreateTable() error = nil")

@@ -7,8 +7,6 @@ import (
 )
 
 func TestShouldIgnoreTransaction(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name                      string
 		transaction               entity.Transaction
@@ -53,8 +51,6 @@ func TestShouldIgnoreTransaction(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			got := shouldIgnoreTransaction(test.transaction, test.ignoreSamePersonTransfers)
 			if got != test.want {
 				t.Fatalf("shouldIgnoreTransaction() = %t, want %t", got, test.want)
@@ -64,8 +60,6 @@ func TestShouldIgnoreTransaction(t *testing.T) {
 }
 
 func TestFilterTransactions(t *testing.T) {
-	t.Parallel()
-
 	transactions := []entity.Transaction{
 		{Name: "Market"},
 		{Name: "Transfer", Category: samePersonTransferCategory},

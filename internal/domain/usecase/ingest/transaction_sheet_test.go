@@ -10,8 +10,6 @@ import (
 )
 
 func TestTransactionTableOptions(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name     string
 		language entity.Language
@@ -61,8 +59,6 @@ func TestTransactionTableOptions(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			settings := entity.IngestProfileSettings{
 				Language:   test.language,
 				Categories: []entity.Category{"Food", "Others"},
@@ -93,8 +89,6 @@ func resolveCreateTableOptions(options []sheet.CreateTableOption) sheet.CreateTa
 }
 
 func TestTransactionRowRoundTrip(t *testing.T) {
-	t.Parallel()
-
 	cardLastDigits := "1234"
 	transaction := entity.Transaction{
 		Name:           "Store",
@@ -127,8 +121,6 @@ func TestTransactionRowRoundTrip(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			row := transactionToRow(transaction, test.language)
 			if row[test.columns.name] != sheet.TitleCell("Store") ||
 				row[test.columns.category] != sheet.SelectCell("Food") ||
@@ -151,8 +143,6 @@ func TestTransactionRowRoundTrip(t *testing.T) {
 }
 
 func TestTransactionRowEmptyCardLastDigits(t *testing.T) {
-	t.Parallel()
-
 	columns := transactionTableLocalizationFor(entity.LanguagePortugueseBrazil).columns
 	row := transactionToRow(entity.Transaction{
 		PaymentMethod: entity.PaymentMethodPix,
@@ -171,8 +161,6 @@ func TestTransactionRowEmptyCardLastDigits(t *testing.T) {
 }
 
 func TestTransactionToRowOmitsEmptyPaymentMethod(t *testing.T) {
-	t.Parallel()
-
 	columns := transactionTableLocalizationFor(entity.LanguageEnglish).columns
 	row := transactionToRow(entity.Transaction{Name: "Payment made"}, entity.LanguageEnglish)
 
@@ -190,8 +178,6 @@ func TestTransactionToRowOmitsEmptyPaymentMethod(t *testing.T) {
 }
 
 func TestRowToTransactionRejectsUnexpectedCellType(t *testing.T) {
-	t.Parallel()
-
 	_, err := rowToTransaction(
 		sheet.Row{"Valor": sheet.TextCell("42")},
 		entity.LanguagePortugueseBrazil,
@@ -205,8 +191,6 @@ func TestRowToTransactionRejectsUnexpectedCellType(t *testing.T) {
 }
 
 func TestRowToTransactionRejectsUnknownLocalizedPaymentMethod(t *testing.T) {
-	t.Parallel()
-
 	row := transactionToRow(entity.Transaction{
 		PaymentMethod: entity.PaymentMethodCreditCard,
 	}, entity.LanguagePortugueseBrazil)
@@ -222,8 +206,6 @@ func TestRowToTransactionRejectsUnknownLocalizedPaymentMethod(t *testing.T) {
 }
 
 func TestLocalizedTransactionTableTitle(t *testing.T) {
-	t.Parallel()
-
 	august := time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC)
 	if got := localizedTransactionTableTitle(august, entity.LanguageEnglish); got != "Aug 2026" {
 		t.Fatalf("English title = %q", got)

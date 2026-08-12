@@ -23,8 +23,6 @@ func testCommand(startDate, endDate time.Time) *cobra.Command {
 }
 
 func TestExecuteIngestPropagatesIngestError(t *testing.T) {
-	t.Parallel()
-
 	startDate := time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, time.August, 31, 0, 0, 0, 0, time.UTC)
 	wantErr := errors.New("ingest failed")
@@ -43,8 +41,6 @@ func TestExecuteIngestPropagatesIngestError(t *testing.T) {
 }
 
 func TestExecuteIngestUsesMonthAndYearFlags(t *testing.T) {
-	t.Parallel()
-
 	defaultStart := time.Date(2026, time.August, 1, 0, 0, 0, 0, time.Local)
 	defaultEnd := time.Date(2026, time.August, 31, 0, 0, 0, 0, time.Local)
 	command := testCommand(defaultStart, defaultEnd)

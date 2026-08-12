@@ -8,8 +8,6 @@ import (
 )
 
 func TestColumnConstructors(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name       string
 		column     Column
@@ -24,8 +22,6 @@ func TestColumnConstructors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			if test.column.Name() == "" || test.column.Type() != test.columnType {
 				t.Fatalf("column = %#v", test.column)
 			}
@@ -37,8 +33,6 @@ func TestColumnConstructors(t *testing.T) {
 }
 
 func TestNumberColumnOptionsAreNilSafeAndLastWins(t *testing.T) {
-	t.Parallel()
-
 	column := NewNumberColumn(
 		"Amount",
 		WithCurrency("USD"),
@@ -51,8 +45,6 @@ func TestNumberColumnOptionsAreNilSafeAndLastWins(t *testing.T) {
 }
 
 func TestSelectColumnAndOptionConfiguration(t *testing.T) {
-	t.Parallel()
-
 	option := NewSelectOption(
 		"Food",
 		WithColor(entity.Blue),
@@ -81,8 +73,6 @@ func TestSelectColumnAndOptionConfiguration(t *testing.T) {
 }
 
 func TestFunctionalOptionsCopySlices(t *testing.T) {
-	t.Parallel()
-
 	columns := []Column{NewTitleColumn("Name")}
 	tableOption := WithColumns(columns...)
 	resolved := resolveTableOptions(WithIcon("first"), nil, WithIcon("last"), tableOption)
@@ -106,8 +96,6 @@ func TestFunctionalOptionsCopySlices(t *testing.T) {
 }
 
 func TestCreateTableOptionsValidate(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name        string
 		columns     []Column
@@ -131,8 +119,6 @@ func TestCreateTableOptionsValidate(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			err := (CreateTableOptions{Columns: test.columns}).Validate()
 			if err == nil || !strings.Contains(err.Error(), test.wantErrPart) {
 				t.Fatalf("Validate() error = %v, want containing %q", err, test.wantErrPart)

@@ -48,8 +48,6 @@ func writeCompletion(writer http.ResponseWriter, content string) {
 }
 
 func TestCreateChatCompletionBuildsGenericRequest(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name               string
 		message            string
@@ -109,8 +107,6 @@ func TestCreateChatCompletionBuildsGenericRequest(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			requestChannel := make(chan chatCompletionRequest, 1)
 			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				var completionRequest chatCompletionRequest
@@ -157,8 +153,6 @@ func TestCreateChatCompletionBuildsGenericRequest(t *testing.T) {
 }
 
 func TestCreateChatCompletionRejectsEmptyMessages(t *testing.T) {
-	t.Parallel()
-
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		requests.Add(1)
@@ -180,8 +174,6 @@ func TestCreateChatCompletionRejectsEmptyMessages(t *testing.T) {
 }
 
 func TestCreateChatCompletionRejectsInvalidResponses(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name       string
 		statusCode int
@@ -222,8 +214,6 @@ func TestCreateChatCompletionRejectsInvalidResponses(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 				writer.Header().Set("Content-Type", "application/json")
 				writer.WriteHeader(test.statusCode)

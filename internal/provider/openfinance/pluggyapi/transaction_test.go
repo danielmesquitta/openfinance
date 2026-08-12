@@ -14,8 +14,6 @@ import (
 )
 
 func TestListTransactionsByIngestProfileIDPaginatesAndMaps(t *testing.T) {
-	t.Parallel()
-
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		requests.Add(1)

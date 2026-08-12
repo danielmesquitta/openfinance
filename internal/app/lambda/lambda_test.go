@@ -13,8 +13,6 @@ import (
 )
 
 func TestLambdaHandlerSuccess(t *testing.T) {
-	t.Parallel()
-
 	ingestUseCase := mockingest.NewMockIngest(t)
 	ingestUseCase.EXPECT().
 		Execute(mock.Anything, mock.MatchedBy(func(input ingest.IngestInput) bool {
@@ -43,8 +41,6 @@ func TestLambdaHandlerSuccess(t *testing.T) {
 }
 
 func TestLambdaHandlerFailure(t *testing.T) {
-	t.Parallel()
-
 	ingestUseCase := mockingest.NewMockIngest(t)
 	ingestUseCase.EXPECT().Execute(mock.Anything, mock.Anything).Return(errors.New("failed")).Once()
 
@@ -66,8 +62,6 @@ func TestLambdaHandlerFailure(t *testing.T) {
 }
 
 func TestNewResponseEncodingFallback(t *testing.T) {
-	t.Parallel()
-
 	response := newResponse(http.StatusOK, make(chan int))
 	if response.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("status = %d", response.StatusCode)

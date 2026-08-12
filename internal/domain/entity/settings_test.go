@@ -16,8 +16,6 @@ func validIngestProfile() IngestProfile {
 }
 
 func TestNewIngestSettingsNormalizesEachIngestProfile(t *testing.T) {
-	t.Parallel()
-
 	first := validIngestProfile()
 	first.Mappings = map[string]Category{"Market": "Food"}
 	first.IgnoreSamePersonTransfers = new(false)
@@ -78,8 +76,6 @@ func TestNewIngestSettingsNormalizesEachIngestProfile(t *testing.T) {
 }
 
 func TestNewIngestSettingsPreservesConfiguredFallbackColor(t *testing.T) {
-	t.Parallel()
-
 	ingestProfile := validIngestProfile()
 	ingestProfile.Fallback = "Outros"
 	ingestProfile.Categories["Outros"] = Purple
@@ -94,8 +90,6 @@ func TestNewIngestSettingsPreservesConfiguredFallbackColor(t *testing.T) {
 }
 
 func TestNewIngestSettingsValidation(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name           string
 		ingestProfiles func() []IngestProfile
@@ -185,8 +179,6 @@ func TestNewIngestSettingsValidation(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			if _, err := NewIngestSettings(test.ingestProfiles()); err == nil {
 				t.Fatal("NewIngestSettings() error = nil")
 			}
@@ -195,8 +187,6 @@ func TestNewIngestSettingsValidation(t *testing.T) {
 }
 
 func TestNewIngestSettingsUnsupportedLanguageError(t *testing.T) {
-	t.Parallel()
-
 	ingestProfile := validIngestProfile()
 	ingestProfile.Language = "es"
 

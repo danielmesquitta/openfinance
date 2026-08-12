@@ -84,8 +84,6 @@ func noCompanyLookup(t *testing.T) *mockcompanyapi.MockCompanyAPI {
 }
 
 func TestIngestInputValidate(t *testing.T) {
-	t.Parallel()
-
 	now := time.Now()
 	tests := []IngestInput{
 		{},
@@ -105,8 +103,6 @@ func TestIngestInputValidate(t *testing.T) {
 }
 
 func TestCategorizeTransactionsRejectsInvalidCompletion(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name    string
 		content string
@@ -117,8 +113,6 @@ func TestCategorizeTransactionsRejectsInvalidCompletion(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			categorizer := mockgpt.NewMockGPT(t)
 			categorizer.EXPECT().
 				CreateChatCompletion(mock.Anything, mock.Anything, mock.Anything).
@@ -142,8 +136,6 @@ func TestCategorizeTransactionsRejectsInvalidCompletion(t *testing.T) {
 }
 
 func TestCategorizeTransactionsUsesFallbackForMissingAndInvalidCategories(t *testing.T) {
-	t.Parallel()
-
 	categorizer := mockgpt.NewMockGPT(t)
 	categorizer.EXPECT().
 		CreateChatCompletion(mock.Anything, mock.Anything, mock.Anything).
@@ -171,8 +163,6 @@ func TestCategorizeTransactionsUsesFallbackForMissingAndInvalidCategories(t *tes
 }
 
 func TestIngestUsesIngestProfileSpecificCategorizationSettings(t *testing.T) {
-	t.Parallel()
-
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	settings := entity.IngestSettings{IngestProfiles: []entity.IngestProfileSettings{
 		{
@@ -290,8 +280,6 @@ func TestIngestUsesIngestProfileSpecificCategorizationSettings(t *testing.T) {
 }
 
 func TestIngestProcessesEveryMonthAndDeduplicates(t *testing.T) {
-	t.Parallel()
-
 	janDate := time.Date(2026, time.January, 10, 12, 0, 0, 0, time.UTC)
 	febDate := time.Date(2026, time.February, 10, 12, 0, 0, 0, time.UTC)
 	existing := entity.Transaction{Name: "Market", Amount: 10, Date: janDate}
@@ -404,8 +392,6 @@ func TestIngestProcessesEveryMonthAndDeduplicates(t *testing.T) {
 }
 
 func TestIngestReusesExistingTableLanguage(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		name                  string
 		configuredLanguage    entity.Language
@@ -434,8 +420,6 @@ func TestIngestReusesExistingTableLanguage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			date := time.Date(2026, time.August, 10, 12, 0, 0, 0, time.UTC)
 			source := mockopenfinance.NewMockOpenFinance(t)
 			source.EXPECT().
@@ -496,8 +480,6 @@ func TestIngestReusesExistingTableLanguage(t *testing.T) {
 }
 
 func TestIngestCreatesPortugueseTable(t *testing.T) {
-	t.Parallel()
-
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	source := mockopenfinance.NewMockOpenFinance(t)
 	source.EXPECT().
@@ -539,8 +521,6 @@ func TestIngestCreatesPortugueseTable(t *testing.T) {
 }
 
 func TestTransactionTableForMonthPrefersConfiguredLanguage(t *testing.T) {
-	t.Parallel()
-
 	month := time.Date(2026, time.August, 1, 0, 0, 0, 0, time.UTC)
 	tables := map[string]sheet.Table{
 		"Aug 2026": {ID: "english", Title: "Aug 2026"},
@@ -558,8 +538,6 @@ func TestTransactionTableForMonthPrefersConfiguredLanguage(t *testing.T) {
 }
 
 func TestTransactionTableForMonthUsesConfiguredLanguageForSharedTitle(t *testing.T) {
-	t.Parallel()
-
 	month := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	tables := map[string]sheet.Table{
 		"Jan 2026": {ID: "shared", Title: "Jan 2026"},
@@ -570,8 +548,6 @@ func TestTransactionTableForMonthUsesConfiguredLanguageForSharedTitle(t *testing
 		entity.LanguagePortugueseBrazil,
 	} {
 		t.Run(string(language), func(t *testing.T) {
-			t.Parallel()
-
 			table, tableLanguage, exists := transactionTableForMonth(tables, month, language)
 			if !exists || table.ID != "shared" || tableLanguage != language {
 				t.Fatalf(
@@ -586,8 +562,6 @@ func TestTransactionTableForMonthUsesConfiguredLanguageForSharedTitle(t *testing
 }
 
 func TestGroupTransactionsByMonthUsesStableKeys(t *testing.T) {
-	t.Parallel()
-
 	transactions := []entity.Transaction{
 		{Date: time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)},
 		{Date: time.Date(2026, time.January, 31, 0, 0, 0, 0, time.UTC)},
@@ -602,8 +576,6 @@ func TestGroupTransactionsByMonthUsesStableKeys(t *testing.T) {
 }
 
 func TestIngestEnrichesUniqueCompany(t *testing.T) {
-	t.Parallel()
-
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	company := mockcompanyapi.NewMockCompanyAPI(t)
 	company.EXPECT().
@@ -662,8 +634,6 @@ func TestIngestEnrichesUniqueCompany(t *testing.T) {
 }
 
 func TestIngestCompanyLookupFailureIsNonFatal(t *testing.T) {
-	t.Parallel()
-
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	companyErr := errors.New("company unavailable")
 	company := mockcompanyapi.NewMockCompanyAPI(t)
@@ -720,8 +690,6 @@ func TestIngestCompanyLookupFailureIsNonFatal(t *testing.T) {
 }
 
 func TestIngestEmptyRangeSkipsCategorizer(t *testing.T) {
-	t.Parallel()
-
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	source := mockopenfinance.NewMockOpenFinance(t)
 	source.EXPECT().
@@ -753,8 +721,6 @@ func TestIngestEmptyRangeSkipsCategorizer(t *testing.T) {
 }
 
 func TestIngestPropagatesSourceErrorAndCancellation(t *testing.T) {
-	t.Parallel()
-
 	date := time.Now()
 	t.Run("source error", func(t *testing.T) {
 		wantErr := errors.New("source failed")
@@ -804,8 +770,6 @@ func TestIngestPropagatesSourceErrorAndCancellation(t *testing.T) {
 }
 
 func TestIngestPropagatesCategorizerAndStoreErrors(t *testing.T) {
-	t.Parallel()
-
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	transaction := entity.Transaction{Name: "Store", Amount: 1, Date: date}
 	categorizerErr := errors.New("categorizer failed")
@@ -879,8 +843,6 @@ func TestIngestPropagatesCategorizerAndStoreErrors(t *testing.T) {
 }
 
 func TestIngestBoundsIngestProfileConcurrency(t *testing.T) {
-	t.Parallel()
-
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	ingestProfileIDs := make([]string, 12)
 	for index := range ingestProfileIDs {
@@ -940,8 +902,6 @@ func TestIngestBoundsIngestProfileConcurrency(t *testing.T) {
 }
 
 func TestIngestBoundsInsertConcurrency(t *testing.T) {
-	t.Parallel()
-
 	date := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	transactions := make([]entity.Transaction, 12)
 	for index := range transactions {
