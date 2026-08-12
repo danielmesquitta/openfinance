@@ -20,20 +20,24 @@ func TestNewTransaction(t *testing.T) {
 		want     Transaction
 	}{
 		{
-			name: "bank description and account currency amount",
+			name: "bank description, account currency amount, and source metadata",
 			input: TransactionInput{
 				AccountType:             AccountTypeBank,
 				Description:             "Market",
 				Amount:                  -99,
 				AmountInAccountCurrency: &accountAmount,
 				Date:                    date,
+				SourceCategory:          "Groceries",
+				Direction:               TransactionDirectionDebit,
 				PaymentMethod:           &pix,
 			},
 			accepted: true,
 			want: Transaction{
 				Name:          "Market",
+				Category:      "Groceries",
 				Amount:        12.34,
 				Date:          date,
+				Direction:     TransactionDirectionDebit,
 				PaymentMethod: PaymentMethodPix,
 			},
 		},
@@ -76,25 +80,21 @@ func TestNewTransaction(t *testing.T) {
 			},
 		},
 		{
-			name:     "incoming credit",
-			input:    TransactionInput{Direction: TransactionDirectionCredit},
-			accepted: false,
-		},
-		{name: "investment category", input: TransactionInput{SourceCategory: "Investments"}, accepted: false},
-		{
-			name:     "investment description",
-			input:    TransactionInput{Description: "Aplicação automática"},
-			accepted: false,
-		},
-		{
-			name:     "card bill payment",
-			input:    TransactionInput{Description: "Pagamento de fatura"},
-			accepted: false,
-		},
-		{
-			name:     "same person transfer",
-			input:    TransactionInput{SourceCategory: "Same person transfer"},
-			accepted: false,
+			name: "transaction filtering is deferred to the ingest use case",
+			input: TransactionInput{
+				AccountType:    AccountTypeBank,
+				Description:    "Aplicação automática",
+				SourceCategory: "Same person transfer",
+				Direction:      TransactionDirectionCredit,
+				PaymentMethod:  &pix,
+			},
+			accepted: true,
+			want: Transaction{
+				Name:          "Aplicação automática",
+				Category:      "Same person transfer",
+				Direction:     TransactionDirectionCredit,
+				PaymentMethod: PaymentMethodPix,
+			},
 		},
 		{
 			name: "bank without payment method",

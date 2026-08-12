@@ -8,12 +8,13 @@ import (
 )
 
 type IngestProfileSettings struct {
-	ID               string
-	Language         Language
-	Categories       []Category
-	ColorsByCategory map[Category]Color
-	Mappings         map[string]Category
-	Fallback         Category
+	ID                        string
+	Language                  Language
+	IgnoreSamePersonTransfers bool
+	Categories                []Category
+	ColorsByCategory          map[Category]Color
+	Mappings                  map[string]Category
+	Fallback                  Category
 }
 
 type IngestSettings struct {
@@ -27,58 +28,79 @@ func NewIngestSettings(ingestProfiles []IngestProfile) (IngestSettings, error) {
 
 	ingestProfileSettings := make([]IngestProfileSettings, 0, len(ingestProfiles))
 	for _, ingestProfile := range ingestProfiles {
-		language := ingestProfile.Language
-		if language == "" {
-			language = DefaultLanguage
-		}
-		if !language.IsValid() {
-			return IngestSettings{}, fmt.Errorf(
-				"ingest profile %q: unsupported language %q (supported: %s, %s)",
-				ingestProfile.ID,
-				language,
-				LanguageEnglish,
-				LanguagePortugueseBrazil,
-			)
+		settings, err := newIngestProfileSettings(ingestProfile)
+		if err != nil {
+			return IngestSettings{}, err
 		}
 
-		if len(ingestProfile.Categories) == 0 {
-			return IngestSettings{}, fmt.Errorf("ingest profile %q: at least one category is required", ingestProfile.ID)
-		}
-		if ingestProfile.Mappings == nil {
-			return IngestSettings{}, fmt.Errorf("ingest profile %q: mappings are required", ingestProfile.ID)
-		}
-
-		fallback := ingestProfile.Fallback
-		if fallback == "" {
-			fallback = DefaultFallbackCategory
-		}
-
-		colorsByCategory := maps.Clone(ingestProfile.Categories)
-		if _, exists := colorsByCategory[fallback]; !exists {
-			colorsByCategory[fallback] = Gray
-		}
-
-		if err := ValidateCategories(colorsByCategory, ingestProfile.Mappings); err != nil {
-			return IngestSettings{}, fmt.Errorf("ingest profile %q: %w", ingestProfile.ID, err)
-		}
-
-		categories := make([]Category, 0, len(colorsByCategory))
-		for category := range colorsByCategory {
-			categories = append(categories, category)
-		}
-		slices.Sort(categories)
-
-		ingestProfileSettings = append(ingestProfileSettings, IngestProfileSettings{
-			ID:               ingestProfile.ID,
-			Language:         language,
-			Categories:       categories,
-			ColorsByCategory: colorsByCategory,
-			Mappings:         maps.Clone(ingestProfile.Mappings),
-			Fallback:         fallback,
-		})
+		ingestProfileSettings = append(ingestProfileSettings, settings)
 	}
 
 	return IngestSettings{IngestProfiles: ingestProfileSettings}, nil
+}
+
+func newIngestProfileSettings(ingestProfile IngestProfile) (IngestProfileSettings, error) {
+	language := ingestProfile.Language
+	if language == "" {
+		language = DefaultLanguage
+	}
+	if !language.IsValid() {
+		return IngestProfileSettings{}, fmt.Errorf(
+			"ingest profile %q: unsupported language %q (supported: %s, %s)",
+			ingestProfile.ID,
+			language,
+			LanguageEnglish,
+			LanguagePortugueseBrazil,
+		)
+	}
+
+	ignoreSamePersonTransfers := true
+	if ingestProfile.IgnoreSamePersonTransfers != nil {
+		ignoreSamePersonTransfers = *ingestProfile.IgnoreSamePersonTransfers
+	}
+
+	if len(ingestProfile.Categories) == 0 {
+		return IngestProfileSettings{}, fmt.Errorf(
+			"ingest profile %q: at least one category is required",
+			ingestProfile.ID,
+		)
+	}
+	if ingestProfile.Mappings == nil {
+		return IngestProfileSettings{}, fmt.Errorf(
+			"ingest profile %q: mappings are required",
+			ingestProfile.ID,
+		)
+	}
+
+	fallback := ingestProfile.Fallback
+	if fallback == "" {
+		fallback = DefaultFallbackCategory
+	}
+
+	colorsByCategory := maps.Clone(ingestProfile.Categories)
+	if _, exists := colorsByCategory[fallback]; !exists {
+		colorsByCategory[fallback] = Gray
+	}
+
+	if err := ValidateCategories(colorsByCategory, ingestProfile.Mappings); err != nil {
+		return IngestProfileSettings{}, fmt.Errorf("ingest profile %q: %w", ingestProfile.ID, err)
+	}
+
+	categories := make([]Category, 0, len(colorsByCategory))
+	for category := range colorsByCategory {
+		categories = append(categories, category)
+	}
+	slices.Sort(categories)
+
+	return IngestProfileSettings{
+		ID:                        ingestProfile.ID,
+		Language:                  language,
+		IgnoreSamePersonTransfers: ignoreSamePersonTransfers,
+		Categories:                categories,
+		ColorsByCategory:          colorsByCategory,
+		Mappings:                  maps.Clone(ingestProfile.Mappings),
+		Fallback:                  fallback,
+	}, nil
 }
 
 func ValidateIngestProfiles(ingestProfiles []IngestProfile) error {

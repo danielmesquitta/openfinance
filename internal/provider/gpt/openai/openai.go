@@ -52,9 +52,8 @@ func (o *OpenAIClient) CreateChatCompletion(
 		Messages:        messages,
 	}
 	if completionOptions.JSONResponse {
-		jsonObjectFormat := shared.NewResponseFormatJSONObjectParam()
 		params.ResponseFormat = openai.ChatCompletionNewParamsResponseFormatUnion{
-			OfJSONObject: &jsonObjectFormat,
+			OfJSONObject: new(shared.NewResponseFormatJSONObjectParam()),
 		}
 	}
 

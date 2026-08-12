@@ -19,6 +19,7 @@ type Transaction struct {
 	Amount         float64
 	PaymentMethod  PaymentMethod
 	Date           time.Time
+	Direction      TransactionDirection
 	CardLastDigits *string
 }
 
@@ -43,26 +44,17 @@ type TransactionInput struct {
 	CardLastDigits          *string
 }
 
-const (
-	investmentCategory         = "Investments"
-	samePersonTransferCategory = "Same person transfer"
-	creditCardBillPayment      = "Pagamento de fatura"
-)
-
 func NewTransaction(input TransactionInput) (Transaction, bool) {
-	if shouldIgnoreTransaction(input) {
-		return Transaction{}, false
-	}
-
 	amount := input.Amount
 	if input.AmountInAccountCurrency != nil && *input.AmountInAccountCurrency != 0 {
 		amount = *input.AmountInAccountCurrency
 	}
 
 	transaction := Transaction{
-		Amount:   math.Abs(amount),
-		Date:     input.Date,
-		Category: Category(input.SourceCategory),
+		Amount:    math.Abs(amount),
+		Date:      input.Date,
+		Category:  Category(input.SourceCategory),
+		Direction: input.Direction,
 	}
 
 	switch input.AccountType {
@@ -86,14 +78,6 @@ func NewTransaction(input TransactionInput) (Transaction, bool) {
 	}
 
 	return transaction, true
-}
-
-func shouldIgnoreTransaction(input TransactionInput) bool {
-	return input.Direction == TransactionDirectionCredit ||
-		input.SourceCategory == investmentCategory ||
-		strings.Contains(input.Description, "Aplicação") ||
-		input.Description == creditCardBillPayment ||
-		input.SourceCategory == samePersonTransferCategory
 }
 
 func bankTransactionName(input TransactionInput) string {

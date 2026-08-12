@@ -116,6 +116,7 @@ func (s *Ingest) ingestProfile(
 	if err != nil {
 		return fmt.Errorf("list transactions: %w", err)
 	}
+	transactions = filterTransactions(transactions, settings.IgnoreSamePersonTransfers)
 
 	s.enrichTransactionNames(ctx, transactions)
 

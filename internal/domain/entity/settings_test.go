@@ -20,6 +20,7 @@ func TestNewIngestSettingsNormalizesEachIngestProfile(t *testing.T) {
 
 	first := validIngestProfile()
 	first.Mappings = map[string]Category{"Market": "Food"}
+	first.IgnoreSamePersonTransfers = new(false)
 	second := validIngestProfile()
 	second.ID = "second"
 	second.Categories = map[Category]Color{"Education": Blue}
@@ -41,6 +42,9 @@ func TestNewIngestSettingsNormalizesEachIngestProfile(t *testing.T) {
 	if firstSettings.Language != LanguageEnglish {
 		t.Fatalf("first language = %q, want %q", firstSettings.Language, LanguageEnglish)
 	}
+	if firstSettings.IgnoreSamePersonTransfers {
+		t.Fatal("first profile ignores same-person transfers, want false")
+	}
 	if len(firstSettings.Categories) != 2 || firstSettings.Categories[0] != "Food" ||
 		firstSettings.Categories[1] != DefaultFallbackCategory {
 		t.Fatalf("first categories = %#v", firstSettings.Categories)
@@ -60,6 +64,9 @@ func TestNewIngestSettingsNormalizesEachIngestProfile(t *testing.T) {
 			secondSettings.Language,
 			LanguagePortugueseBrazil,
 		)
+	}
+	if !secondSettings.IgnoreSamePersonTransfers {
+		t.Fatal("second profile ignores same-person transfers = false, want default true")
 	}
 	if len(secondSettings.Categories) != 2 || secondSettings.Categories[0] != "Education" ||
 		secondSettings.Categories[1] != "Outros" {
