@@ -47,7 +47,7 @@ func (o *OpenAIClient) CreateChatCompletion(
 	}
 
 	params := openai.ChatCompletionNewParams{
-		Model:           openai.ChatModelGPT5_6Terra,
+		Model:           openai.ChatModelGPT5_6Luna,
 		ReasoningEffort: openai.ReasoningEffortMedium,
 		Messages:        messages,
 	}
