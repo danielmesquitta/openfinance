@@ -70,14 +70,19 @@ func transactionToRow(transaction entity.Transaction, language entity.Language) 
 		cardLastDigits = *transaction.CardLastDigits
 	}
 
-	return sheet.Row{
+	row := sheet.Row{
 		columns.name:           sheet.TitleCell(transaction.Name),
 		columns.category:       sheet.SelectCell(transaction.Category),
 		columns.amount:         sheet.NumberCell(transaction.Amount),
-		columns.paymentMethod:  sheet.SelectCell(localization.paymentMethodLabels[transaction.PaymentMethod]),
 		columns.cardLastDigits: sheet.TextCell(cardLastDigits),
 		columns.date:           sheet.DateCell(transaction.Date),
 	}
+
+	if paymentMethodLabel := localization.paymentMethodLabels[transaction.PaymentMethod]; paymentMethodLabel != "" {
+		row[columns.paymentMethod] = sheet.SelectCell(paymentMethodLabel)
+	}
+
+	return row
 }
 
 func rowToTransaction(row sheet.Row, language entity.Language) (entity.Transaction, error) {

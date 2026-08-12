@@ -170,6 +170,25 @@ func TestTransactionRowEmptyCardLastDigits(t *testing.T) {
 	}
 }
 
+func TestTransactionToRowOmitsEmptyPaymentMethod(t *testing.T) {
+	t.Parallel()
+
+	columns := transactionTableLocalizationFor(entity.LanguageEnglish).columns
+	row := transactionToRow(entity.Transaction{Name: "Payment made"}, entity.LanguageEnglish)
+
+	if paymentMethod, exists := row[columns.paymentMethod]; exists {
+		t.Fatalf("payment method cell = %#v, want omitted", paymentMethod)
+	}
+
+	transaction, err := rowToTransaction(row, entity.LanguageEnglish)
+	if err != nil {
+		t.Fatalf("rowToTransaction() error = %v", err)
+	}
+	if transaction.PaymentMethod != "" {
+		t.Fatalf("payment method = %q, want empty", transaction.PaymentMethod)
+	}
+}
+
 func TestRowToTransactionRejectsUnexpectedCellType(t *testing.T) {
 	t.Parallel()
 
