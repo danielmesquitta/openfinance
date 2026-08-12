@@ -140,3 +140,31 @@ func TestTransactionID(t *testing.T) {
 		t.Fatalf("ID() = %q, want %q", got, want)
 	}
 }
+
+func TestCleanBankTransactionName(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "empty", input: "", want: ""},
+		{name: "unchanged", input: "Market", want: "Market"},
+		{name: "trim spaces", input: "  Market  ", want: "Market"},
+		{name: "only pipe", input: "|", want: ""},
+		{name: "only spaces", input: "   ", want: ""},
+		{name: "leading pipe", input: "|Market", want: "Market"},
+		{name: "pipe followed by spaces", input: "| Market", want: "Market"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := cleanBankTransactionName(test.input); got != test.want {
+				t.Fatalf("cleanBankTransactionName(%q) = %q, want %q", test.input, got, test.want)
+			}
+		})
+	}
+}

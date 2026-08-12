@@ -1,7 +1,9 @@
 package entity
 
 import (
+	"cmp"
 	"fmt"
+	"log"
 	"math"
 	"strings"
 	"time"
@@ -81,24 +83,30 @@ func NewTransaction(input TransactionInput) (Transaction, bool) {
 }
 
 func bankTransactionName(input TransactionInput) string {
-	if description := strings.TrimSpace(input.Description); description != "" {
-		return description
+	description := cleanBankTransactionName(input.Description)
+	receiverName := cleanBankTransactionName(input.ReceiverName)
+
+	if name := cmp.Or(description, receiverName); name != "" {
+		return name
 	}
 
-	if receiverName := strings.TrimSpace(input.ReceiverName); receiverName != "" {
-		return receiverName
-	}
-
-	if input.ReceiverDocument == "" {
-		return ""
-	}
-
-	document, err := docutil.MaskDocument(input.ReceiverDocument)
+	receiverDocument := cleanBankTransactionName(input.ReceiverDocument)
+	document, err := docutil.MaskDocument(receiverDocument)
 	if err != nil {
+		log.Printf("failed to mask document %q: %v", receiverDocument, err)
+
 		return ""
 	}
 
 	return document
+}
+
+func cleanBankTransactionName(name string) string {
+	if _, after, ok := strings.Cut(name, "|"); ok {
+		name = after
+	}
+
+	return strings.TrimSpace(name)
 }
 
 func (t Transaction) ID() string {
