@@ -125,6 +125,84 @@ func (_c *MockSheet_CreateTable_Call) RunAndReturn(run func(ctx context.Context,
 	return _c
 }
 
+// EnsureTableColumns provides a mock function for the type MockSheet
+func (_mock *MockSheet) EnsureTableColumns(ctx context.Context, connectionID string, tableID string, columns ...sheet.Column) error {
+	var tmpRet mock.Arguments
+	if len(columns) > 0 {
+		tmpRet = _mock.Called(ctx, connectionID, tableID, columns)
+	} else {
+		tmpRet = _mock.Called(ctx, connectionID, tableID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnsureTableColumns")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, ...sheet.Column) error); ok {
+		r0 = returnFunc(ctx, connectionID, tableID, columns...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockSheet_EnsureTableColumns_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnsureTableColumns'
+type MockSheet_EnsureTableColumns_Call struct {
+	*mock.Call
+}
+
+// EnsureTableColumns is a helper method to define mock.On call
+//   - ctx context.Context
+//   - connectionID string
+//   - tableID string
+//   - columns ...sheet.Column
+func (_e *MockSheet_Expecter) EnsureTableColumns(ctx interface{}, connectionID interface{}, tableID interface{}, columns ...interface{}) *MockSheet_EnsureTableColumns_Call {
+	return &MockSheet_EnsureTableColumns_Call{Call: _e.mock.On("EnsureTableColumns",
+		append([]interface{}{ctx, connectionID, tableID}, columns...)...)}
+}
+
+func (_c *MockSheet_EnsureTableColumns_Call) Run(run func(ctx context.Context, connectionID string, tableID string, columns ...sheet.Column)) *MockSheet_EnsureTableColumns_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []sheet.Column
+		var variadicArgs []sheet.Column
+		if len(args) > 3 {
+			variadicArgs = args[3].([]sheet.Column)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSheet_EnsureTableColumns_Call) Return(err error) *MockSheet_EnsureTableColumns_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockSheet_EnsureTableColumns_Call) RunAndReturn(run func(ctx context.Context, connectionID string, tableID string, columns ...sheet.Column) error) *MockSheet_EnsureTableColumns_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // InsertRow provides a mock function for the type MockSheet
 func (_mock *MockSheet) InsertRow(ctx context.Context, connectionID string, tableID string, row sheet.Row) error {
 	ret := _mock.Called(ctx, connectionID, tableID, row)

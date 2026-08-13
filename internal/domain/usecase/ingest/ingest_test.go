@@ -35,6 +35,16 @@ type categorizationInput struct {
 	Fallback         entity.Category            `json:"fallback"`
 }
 
+type combinedCategorizationInput struct {
+	TransactionNames    []string                      `json:"transaction_names"`
+	Categories          []entity.Category             `json:"categories"`
+	CategoryMappings    map[string]entity.Category    `json:"category_examples"`
+	CategoryFallback    entity.Category               `json:"category_fallback"`
+	BudgetGroups        []entity.BudgetGroup          `json:"budget_groups"`
+	BudgetGroupMappings map[string]entity.BudgetGroup `json:"budget_group_examples"`
+	BudgetGroupFallback entity.BudgetGroup            `json:"budget_group_fallback"`
+}
+
 func applyChatCompletionOptions(options []gpt.ChatCompletionOption) gpt.ChatCompletionOptions {
 	completionOptions := gpt.ChatCompletionOptions{}
 	for _, option := range options {
@@ -66,6 +76,20 @@ func testIngestProfileSettings(ingestProfileID string) entity.IngestProfileSetti
 		Mappings: map[string]entity.Category{"Market": "Food"},
 		Fallback: entity.DefaultFallbackCategory,
 	}
+}
+
+func testBudgetGroupProfileSettings(ingestProfileID string) entity.IngestProfileSettings {
+	settings := testIngestProfileSettings(ingestProfileID)
+	settings.BudgetGroups = []entity.BudgetGroup{"Fixed Costs", "Lifestyle", "Other"}
+	settings.ColorsByBudgetGroup = map[entity.BudgetGroup]entity.Color{
+		"Fixed Costs": entity.Red,
+		"Lifestyle":   entity.Pink,
+		"Other":       entity.Gray,
+	}
+	settings.BudgetGroupMappings = map[string]entity.BudgetGroup{"Rent": "Fixed Costs"}
+	settings.BudgetGroupFallback = "Other"
+
+	return settings
 }
 
 func testSettings(ingestProfileIDs ...string) entity.IngestSettings {
@@ -159,6 +183,80 @@ func TestCategorizeTransactionsUsesFallbackForMissingAndInvalidCategories(t *tes
 		if transaction.Category != entity.DefaultFallbackCategory {
 			t.Fatalf("transaction = %#v", transaction)
 		}
+	}
+}
+
+func TestCategorizeTransactionsClassifiesBudgetGroupsInSameRequest(t *testing.T) {
+	categorizer := mockgpt.NewMockGPT(t)
+	categorizer.EXPECT().
+		CreateChatCompletion(mock.Anything, mock.Anything, mock.Anything).
+		RunAndReturn(func(
+			_ context.Context,
+			message string,
+			options ...gpt.ChatCompletionOption,
+		) (string, error) {
+			var input combinedCategorizationInput
+			if err := json.Unmarshal([]byte(message), &input); err != nil {
+				t.Fatalf("combined categorization input = %q: %v", message, err)
+			}
+			if len(input.TransactionNames) != 3 || len(input.Categories) != 2 ||
+				input.CategoryMappings["Market"] != "Food" ||
+				input.CategoryFallback != entity.DefaultFallbackCategory ||
+				len(input.BudgetGroups) != 3 || input.BudgetGroupMappings["Rent"] != "Fixed Costs" ||
+				input.BudgetGroupFallback != "Other" {
+				t.Fatalf("combined categorization input = %#v", input)
+			}
+
+			completionOptions := applyChatCompletionOptions(options)
+			if completionOptions.SystemMessage != combinedCategorizationSystemMessage ||
+				!completionOptions.JSONResponse {
+				t.Fatalf("completion options = %#v", completionOptions)
+			}
+
+			return `{
+				"Store":{"category":"Food","budget_group":"not-configured"},
+				"Invalid":{"category":"not-configured","budget_group":"Lifestyle"},
+				"Ignored":{"category":"Food","budget_group":"Lifestyle"}
+			}`, nil
+		}).
+		Once()
+
+	transactions := []entity.Transaction{{Name: "Store"}, {Name: "Invalid"}, {Name: "Missing"}}
+	settings := testBudgetGroupProfileSettings("ingest-profile")
+	if err := (&Ingest{gptProvider: categorizer}).categorizeTransactions(
+		t.Context(),
+		settings,
+		transactions,
+	); err != nil {
+		t.Fatalf("categorizeTransactions() error = %v", err)
+	}
+
+	want := []transactionClassifications{
+		{Category: "Food", BudgetGroup: "Other"},
+		{Category: entity.DefaultFallbackCategory, BudgetGroup: "Lifestyle"},
+		{Category: entity.DefaultFallbackCategory, BudgetGroup: "Other"},
+	}
+	for index, transaction := range transactions {
+		if transaction.Category != want[index].Category || transaction.BudgetGroup != want[index].BudgetGroup {
+			t.Fatalf("transaction %d = %#v, want %#v", index, transaction, want[index])
+		}
+	}
+}
+
+func TestCategorizeTransactionsRejectsMalformedCombinedCompletion(t *testing.T) {
+	categorizer := mockgpt.NewMockGPT(t)
+	categorizer.EXPECT().
+		CreateChatCompletion(mock.Anything, mock.Anything, mock.Anything).
+		Return("not JSON", nil).
+		Once()
+
+	err := (&Ingest{gptProvider: categorizer}).categorizeTransactions(
+		t.Context(),
+		testBudgetGroupProfileSettings("ingest-profile"),
+		[]entity.Transaction{{Name: "Store"}},
+	)
+	if err == nil {
+		t.Fatal("categorizeTransactions() error = nil")
 	}
 }
 
@@ -476,6 +574,81 @@ func TestIngestReusesExistingTableLanguage(t *testing.T) {
 				t.Fatalf("Execute() error = %v", err)
 			}
 		})
+	}
+}
+
+func TestIngestUpgradesExistingTableAndOnlyCategorizesNewRows(t *testing.T) {
+	date := time.Date(2026, time.August, 10, 12, 0, 0, 0, time.UTC)
+	existing := entity.Transaction{Name: "Rent", Amount: 1000, Date: date}
+	newTransaction := entity.Transaction{Name: "Cafe", Amount: 20, Date: date}
+
+	source := mockopenfinance.NewMockOpenFinance(t)
+	source.EXPECT().
+		ListTransactionsByIngestProfileID(mock.Anything, "ingest-profile", date, date).
+		Return([]entity.Transaction{existing, newTransaction}, nil).
+		Once()
+
+	categorizer := mockgpt.NewMockGPT(t)
+	categorizer.EXPECT().
+		CreateChatCompletion(mock.Anything, mock.Anything, mock.Anything).
+		Return(`{
+			"Rent":{"category":"Food","budget_group":"Fixed Costs"},
+			"Cafe":{"category":"Food","budget_group":"Lifestyle"}
+		}`, nil).
+		Once()
+
+	store := mocksheet.NewMockSheet(t)
+	store.EXPECT().
+		ListTables(mock.Anything, "ingest-profile").
+		Return([]sheet.Table{{ID: "august", Title: "Ago 2026"}}, nil).
+		Once()
+	store.EXPECT().
+		EnsureTableColumns(
+			mock.Anything,
+			"ingest-profile",
+			"august",
+			mock.MatchedBy(func(columns []sheet.Column) bool {
+				if len(columns) != 1 || columns[0].Name() != "Grupo do orçamento" {
+					return false
+				}
+				options := columns[0].SelectOptions()
+
+				return len(options) == 3 && options[0].Name() == "Fixed Costs" &&
+					options[1].Name() == "Lifestyle" && options[2].Name() == "Other"
+			}),
+		).
+		Return(nil).
+		Once()
+	store.EXPECT().
+		ListRows(mock.Anything, "ingest-profile", "august").
+		Return([]sheet.Row{transactionToRow(existing, entity.LanguagePortugueseBrazil)}, nil).
+		Once()
+	store.EXPECT().
+		InsertRow(
+			mock.Anything,
+			"ingest-profile",
+			"august",
+			mock.MatchedBy(func(row sheet.Row) bool {
+				transaction, err := rowToTransaction(row, entity.LanguagePortugueseBrazil)
+
+				return err == nil && transaction.Name == "Cafe" &&
+					transaction.Category == "Food" && transaction.BudgetGroup == "Lifestyle"
+			}),
+		).
+		Return(nil).
+		Once()
+
+	settings := testBudgetGroupProfileSettings("ingest-profile")
+	settings.Language = entity.LanguagePortugueseBrazil
+	if err := NewIngest(
+		testMaxConcurrentOperations,
+		entity.IngestSettings{IngestProfiles: []entity.IngestProfileSettings{settings}},
+		noCompanyLookup(t),
+		categorizer,
+		store,
+		source,
+	).Execute(context.Background(), IngestInput{StartDate: date, EndDate: date}); err != nil {
+		t.Fatalf("Execute() error = %v", err)
 	}
 }
 

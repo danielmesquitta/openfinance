@@ -39,26 +39,58 @@ func transactionTableOptions(settings entity.IngestProfileSettings) []sheet.Crea
 		)
 	}
 
-	return []sheet.CreateTableOption{
-		sheet.WithIcon(transactionTableIcon),
-		sheet.WithColumns(
-			sheet.NewTitleColumn(columns.name),
-			sheet.NewSelectColumn(
-				columns.category,
-				sheet.WithSelectOptions(categoryOptions...),
-			),
-			sheet.NewNumberColumn(
-				columns.amount,
-				sheet.WithCurrency(transactionCurrency),
-			),
-			sheet.NewSelectColumn(
-				columns.paymentMethod,
-				sheet.WithSelectOptions(paymentMethodOptions...),
-			),
-			sheet.NewTextColumn(columns.cardLastDigits),
-			sheet.NewDateColumn(columns.date),
+	tableColumns := []sheet.Column{
+		sheet.NewTitleColumn(columns.name),
+		sheet.NewSelectColumn(
+			columns.category,
+			sheet.WithSelectOptions(categoryOptions...),
 		),
 	}
+	if budgetGroupColumn, enabled := budgetGroupTableColumn(settings, settings.Language); enabled {
+		tableColumns = append(tableColumns, budgetGroupColumn)
+	}
+	tableColumns = append(
+		tableColumns,
+		sheet.NewNumberColumn(
+			columns.amount,
+			sheet.WithCurrency(transactionCurrency),
+		),
+		sheet.NewSelectColumn(
+			columns.paymentMethod,
+			sheet.WithSelectOptions(paymentMethodOptions...),
+		),
+		sheet.NewTextColumn(columns.cardLastDigits),
+		sheet.NewDateColumn(columns.date),
+	)
+
+	return []sheet.CreateTableOption{
+		sheet.WithIcon(transactionTableIcon),
+		sheet.WithColumns(tableColumns...),
+	}
+}
+
+func budgetGroupTableColumn(
+	settings entity.IngestProfileSettings,
+	language entity.Language,
+) (sheet.Column, bool) {
+	if len(settings.BudgetGroups) == 0 {
+		return sheet.Column{}, false
+	}
+
+	options := make([]sheet.SelectOption, 0, len(settings.BudgetGroups))
+	for _, budgetGroup := range settings.BudgetGroups {
+		options = append(options, sheet.NewSelectOption(
+			string(budgetGroup),
+			sheet.WithColor(settings.ColorsByBudgetGroup[budgetGroup]),
+		))
+	}
+
+	columns := transactionTableLocalizationFor(language).columns
+
+	return sheet.NewSelectColumn(
+		columns.budgetGroup,
+		sheet.WithSelectOptions(options...),
+	), true
 }
 
 func transactionToRow(transaction entity.Transaction, language entity.Language) sheet.Row {
@@ -76,6 +108,9 @@ func transactionToRow(transaction entity.Transaction, language entity.Language) 
 		columns.amount:         sheet.NumberCell(transaction.Amount),
 		columns.cardLastDigits: sheet.TextCell(cardLastDigits),
 		columns.date:           sheet.DateCell(transaction.Date),
+	}
+	if transaction.BudgetGroup != "" {
+		row[columns.budgetGroup] = sheet.SelectCell(transaction.BudgetGroup)
 	}
 
 	if paymentMethodLabel := localization.paymentMethodLabels[transaction.PaymentMethod]; paymentMethodLabel != "" {
@@ -95,6 +130,11 @@ func rowToTransaction(row sheet.Row, language entity.Language) (entity.Transacti
 	}
 
 	category, err := rowCell[sheet.SelectCell](row, columns.category, sheet.ColumnTypeSelect)
+	if err != nil {
+		return entity.Transaction{}, err
+	}
+
+	budgetGroup, err := rowCell[sheet.SelectCell](row, columns.budgetGroup, sheet.ColumnTypeSelect)
 	if err != nil {
 		return entity.Transaction{}, err
 	}
@@ -130,6 +170,7 @@ func rowToTransaction(row sheet.Row, language entity.Language) (entity.Transacti
 	transaction := entity.Transaction{
 		Name:          string(name),
 		Category:      entity.Category(category),
+		BudgetGroup:   entity.BudgetGroup(budgetGroup),
 		Amount:        float64(amount),
 		PaymentMethod: paymentMethod,
 		Date:          time.Time(date),

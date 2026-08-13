@@ -18,6 +18,7 @@ const (
 type Transaction struct {
 	Name           string
 	Category       Category
+	BudgetGroup    BudgetGroup
 	Amount         float64
 	PaymentMethod  PaymentMethod
 	Date           time.Time

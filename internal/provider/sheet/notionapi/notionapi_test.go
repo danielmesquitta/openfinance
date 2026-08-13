@@ -115,6 +115,184 @@ func TestCreateTableTranslatesGenericDefinition(t *testing.T) {
 	}
 }
 
+func TestEnsureTableColumnsAddsMissingSelectProperty(t *testing.T) {
+	var requests atomic.Int32
+	var requestData updateTableReq
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requests.Add(1)
+		if request.Header.Get("Authorization") != "Bearer token" {
+			t.Errorf("authorization = %q", request.Header.Get("Authorization"))
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		switch request.Method {
+		case http.MethodGet:
+			_, _ = fmt.Fprint(writer, `{"properties":{"Category":{"type":"select","select":{"options":[]}}}}`)
+		case http.MethodPatch:
+			if err := json.NewDecoder(request.Body).Decode(&requestData); err != nil {
+				t.Errorf("decode request: %v", err)
+			}
+			_, _ = fmt.Fprint(writer, `{}`)
+		default:
+			t.Errorf("method = %q", request.Method)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	err := testClient(server.URL).EnsureTableColumns(
+		t.Context(),
+		"connection",
+		"table",
+		sheet.NewSelectColumn("Budget Group", sheet.WithSelectOptions(
+			sheet.NewSelectOption("Fixed, Costs", sheet.WithColor("red")),
+			sheet.NewSelectOption("Other", sheet.WithColor("default")),
+		)),
+	)
+	if err != nil {
+		t.Fatalf("EnsureTableColumns() error = %v", err)
+	}
+	if requests.Load() != 2 {
+		t.Fatalf("requests = %d, want 2", requests.Load())
+	}
+	options := requestData.Properties["Budget Group"].Select.Options
+	if len(options) != 2 || options[0].Name != "Fixed Costs" || options[0].Color != "red" ||
+		options[1].Name != "Other" || options[1].Color != "default" {
+		t.Fatalf("options = %#v", options)
+	}
+}
+
+func TestEnsureTableColumnsMergesSelectOptionsAdditively(t *testing.T) {
+	var requestData updateTableReq
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		if request.Method == http.MethodGet {
+			_, _ = fmt.Fprint(writer, `{"properties":{"Budget Group":{"type":"select","select":{"options":[
+				{"id":"custom-id","name":"Custom","color":"blue"},
+				{"id":"fixed-id","name":"Fixed Costs","color":"yellow"}
+			]}}}}`)
+
+			return
+		}
+		if err := json.NewDecoder(request.Body).Decode(&requestData); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		_, _ = fmt.Fprint(writer, `{}`)
+	}))
+	t.Cleanup(server.Close)
+
+	err := testClient(server.URL).EnsureTableColumns(
+		t.Context(),
+		"connection",
+		"table",
+		sheet.NewSelectColumn("Budget Group", sheet.WithSelectOptions(
+			sheet.NewSelectOption("Fixed Costs", sheet.WithColor("red")),
+			sheet.NewSelectOption("Lifestyle", sheet.WithColor("pink")),
+		)),
+	)
+	if err != nil {
+		t.Fatalf("EnsureTableColumns() error = %v", err)
+	}
+
+	options := requestData.Properties["Budget Group"].Select.Options
+	if len(options) != 3 || options[0].ID != "custom-id" || options[1].ID != "fixed-id" ||
+		options[0].Name != "" || options[0].Color != "" ||
+		options[1].Name != "" || options[1].Color != "" ||
+		options[2].Name != "Lifestyle" || options[2].Color != "pink" {
+		t.Fatalf("merged options = %#v", options)
+	}
+}
+
+func TestEnsureTableColumnsSkipsSatisfiedProperty(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requests.Add(1)
+		if request.Method != http.MethodGet {
+			t.Errorf("unexpected method = %q", request.Method)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(writer, `{"properties":{"Budget Group":{"type":"select","select":{"options":[
+			{"id":"fixed-id","name":"Fixed Costs","color":"yellow"}
+		]}}}}`)
+	}))
+	t.Cleanup(server.Close)
+
+	err := testClient(server.URL).EnsureTableColumns(
+		t.Context(),
+		"connection",
+		"table",
+		sheet.NewSelectColumn("Budget Group", sheet.WithSelectOptions(
+			sheet.NewSelectOption("Fixed Costs", sheet.WithColor("red")),
+		)),
+	)
+	if err != nil {
+		t.Fatalf("EnsureTableColumns() error = %v", err)
+	}
+	if requests.Load() != 1 {
+		t.Fatalf("requests = %d, want 1", requests.Load())
+	}
+}
+
+func TestEnsureTableColumnsRejectsIncompatibleProperty(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(writer, `{"properties":{"Budget Group":{"type":"rich_text"}}}`)
+	}))
+	t.Cleanup(server.Close)
+
+	err := testClient(server.URL).EnsureTableColumns(
+		t.Context(),
+		"connection",
+		"table",
+		sheet.NewSelectColumn("Budget Group"),
+	)
+	if err == nil || err.Error() != `column "Budget Group" has type "rich_text", want "select"` {
+		t.Fatalf("EnsureTableColumns() error = %v", err)
+	}
+}
+
+func TestEnsureTableColumnsPropagatesSchemaErrors(t *testing.T) {
+	t.Run("missing connection", func(t *testing.T) {
+		err := (&Client{}).EnsureTableColumns(t.Context(), "missing", "table")
+		if err == nil {
+			t.Fatal("EnsureTableColumns() error = nil")
+		}
+	})
+
+	t.Run("malformed retrieve response", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+			_, _ = fmt.Fprint(writer, `not JSON`)
+		}))
+		t.Cleanup(server.Close)
+
+		err := testClient(server.URL).EnsureTableColumns(t.Context(), "connection", "table")
+		if err == nil {
+			t.Fatal("EnsureTableColumns() error = nil")
+		}
+	})
+
+	t.Run("update response", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			if request.Method == http.MethodGet {
+				_, _ = fmt.Fprint(writer, `{"properties":{}}`)
+
+				return
+			}
+			writer.WriteHeader(http.StatusBadRequest)
+			_, _ = fmt.Fprint(writer, `invalid schema`)
+		}))
+		t.Cleanup(server.Close)
+
+		err := testClient(server.URL).EnsureTableColumns(
+			t.Context(),
+			"connection",
+			"table",
+			sheet.NewSelectColumn("Budget Group"),
+		)
+		if err == nil {
+			t.Fatal("EnsureTableColumns() error = nil")
+		}
+	})
+}
+
 func TestCreateTableRequestSupportsEmptyOptionalMetadata(t *testing.T) {
 	requestData, err := createTableRequest("page", "Table", sheet.CreateTableOptions{
 		Columns: []sheet.Column{

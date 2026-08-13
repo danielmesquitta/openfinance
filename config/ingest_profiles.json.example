@@ -17,11 +17,23 @@
       "Subscription": "blue",
       "Transportation": "gray"
     },
-    "mappings": {
+    "category_mappings": {
       "Uber": "Transportation",
       "Amazon": "Shopping",
       "Openai *Chatgpt Subscription": "Subscription"
-    }
+    },
+    "budget_groups": {
+      "Fixed Costs": "red",
+      "Lifestyle": "pink",
+      "Goals": "yellow",
+      "Investments": "green",
+      "Education": "blue"
+    },
+    "budget_group_mappings": {
+      "Rent": "Fixed Costs",
+      "Broker Transfer": "Investments"
+    },
+    "budget_group_fallback": "Other"
   },
   {
     "id": "janedoe@email.com",
@@ -43,10 +55,22 @@
       "Transporte": "gray",
       "Outros": "default"
     },
-    "mappings": {
+    "category_mappings": {
       "Uber": "Transporte",
       "Amazon": "Compras"
     },
-    "fallback": "Outros"
+    "fallback": "Outros",
+    "budget_groups": {
+      "Custos fixos": "red",
+      "Estilo de vida": "pink",
+      "Metas": "yellow",
+      "Investimentos": "green",
+      "Educação": "blue"
+    },
+    "budget_group_mappings": {
+      "Aluguel": "Custos fixos",
+      "Transferência para corretora": "Investimentos"
+    },
+    "budget_group_fallback": "Outros"
   }
 ]

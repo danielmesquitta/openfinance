@@ -23,6 +23,10 @@ const (
 	categorizationSystemMessage = "Categorize each transaction name using only the supplied categories. " +
 		"Return one JSON object whose keys are the exact transaction names and whose values are category names. " +
 		"Use the fallback when uncertain."
+	combinedCategorizationSystemMessage = "Classify each transaction name in two independent dimensions using only the supplied values. " +
+		"Category describes what the transaction represents. Budget group describes its financial or budgeting purpose. " +
+		"Return one JSON object whose keys are the exact transaction names and whose values are objects with category and budget_group fields. " +
+		"Use each dimension's fallback when uncertain."
 )
 
 type IngestInput struct {
@@ -136,53 +140,94 @@ func (s *Ingest) ingestProfile(
 
 	transactionsByMonth := groupTransactionsByMonth(transactions)
 	for _, month := range monthsInRange(input.StartDate, input.EndDate) {
-		configuredLanguage := normalizedLanguage(settings.Language)
-		title := localizedTransactionTableTitle(month, configuredLanguage)
-		monthTransactions := transactionsByMonth[newTransactionMonth(month)]
-
-		table, tableLanguage, exists := transactionTableForMonth(
-			tableByTitle,
+		prepared, err := s.prepareTransactionTable(
+			ctx,
+			settings,
 			month,
-			configuredLanguage,
+			tableByTitle,
+			transactionsByMonth[newTransactionMonth(month)],
 		)
-		if !exists {
-			table, err = s.sheetProvider.CreateTable(
-				ctx,
-				settings.ID,
-				title,
-				transactionTableOptions(settings)...,
-			)
-			if err != nil {
-				return fmt.Errorf("create table %q: %w", title, err)
-			}
-
-			tableByTitle[title] = table
-			tableLanguage = configuredLanguage
-		} else {
-			monthTransactions, err = s.onlyNewTransactions(
-				ctx,
-				settings.ID,
-				table.ID,
-				tableLanguage,
-				monthTransactions,
-			)
-			if err != nil {
-				return fmt.Errorf("filter transactions for table %q: %w", table.Title, err)
-			}
+		if err != nil {
+			return err
 		}
 
 		if err := s.insertTransactions(
 			ctx,
 			settings.ID,
-			table.ID,
-			tableLanguage,
-			monthTransactions,
+			prepared.table.ID,
+			prepared.language,
+			prepared.transactions,
 		); err != nil {
-			return fmt.Errorf("insert transactions into table %q: %w", table.Title, err)
+			return fmt.Errorf("insert transactions into table %q: %w", prepared.table.Title, err)
 		}
 	}
 
 	return nil
+}
+
+type preparedTransactionTable struct {
+	table        sheet.Table
+	language     entity.Language
+	transactions []entity.Transaction
+}
+
+func (s *Ingest) prepareTransactionTable(
+	ctx context.Context,
+	settings entity.IngestProfileSettings,
+	month time.Time,
+	tableByTitle map[string]sheet.Table,
+	transactions []entity.Transaction,
+) (preparedTransactionTable, error) {
+	configuredLanguage := normalizedLanguage(settings.Language)
+	title := localizedTransactionTableTitle(month, configuredLanguage)
+	table, tableLanguage, exists := transactionTableForMonth(tableByTitle, month, configuredLanguage)
+	if !exists {
+		created, err := s.sheetProvider.CreateTable(
+			ctx,
+			settings.ID,
+			title,
+			transactionTableOptions(settings)...,
+		)
+		if err != nil {
+			return preparedTransactionTable{}, fmt.Errorf("create table %q: %w", title, err)
+		}
+
+		tableByTitle[title] = created
+
+		return preparedTransactionTable{
+			table:        created,
+			language:     configuredLanguage,
+			transactions: transactions,
+		}, nil
+	}
+
+	if budgetGroupColumn, enabled := budgetGroupTableColumn(settings, tableLanguage); enabled {
+		if err := s.sheetProvider.EnsureTableColumns(
+			ctx,
+			settings.ID,
+			table.ID,
+			budgetGroupColumn,
+		); err != nil {
+			return preparedTransactionTable{}, fmt.Errorf("upgrade table %q: %w", table.Title, err)
+		}
+	}
+
+	newTransactions, err := s.onlyNewTransactions(
+		ctx,
+		settings.ID,
+		table.ID,
+		tableLanguage,
+		transactions,
+	)
+	if err != nil {
+		return preparedTransactionTable{}, fmt.Errorf("filter transactions for table %q: %w", table.Title, err)
+	}
+
+	return preparedTransactionTable{
+		table:        table,
+		language:     tableLanguage,
+		transactions: newTransactions,
+	}, nil
 }
 
 func (s *Ingest) enrichTransactionNames(ctx context.Context, transactions []entity.Transaction) {
@@ -270,6 +315,9 @@ func (s *Ingest) categorizeTransactions(
 	if len(names) == 0 {
 		return nil
 	}
+	if len(settings.BudgetGroups) > 0 {
+		return s.categorizeTransactionsWithBudgetGroups(ctx, settings, transactions, names)
+	}
 
 	payload, err := json.Marshal(struct {
 		TransactionNames []string                   `json:"transaction_names"`
@@ -313,6 +361,78 @@ func (s *Ingest) categorizeTransactions(
 		}
 
 		transactions[index].Category = category
+	}
+
+	return nil
+}
+
+type transactionClassifications struct {
+	Category    entity.Category    `json:"category"`
+	BudgetGroup entity.BudgetGroup `json:"budget_group"`
+}
+
+func (s *Ingest) categorizeTransactionsWithBudgetGroups(
+	ctx context.Context,
+	settings entity.IngestProfileSettings,
+	transactions []entity.Transaction,
+	names []string,
+) error {
+	payload, err := json.Marshal(struct {
+		TransactionNames    []string                      `json:"transaction_names"`
+		Categories          []entity.Category             `json:"categories"`
+		CategoryMappings    map[string]entity.Category    `json:"category_examples"`
+		CategoryFallback    entity.Category               `json:"category_fallback"`
+		BudgetGroups        []entity.BudgetGroup          `json:"budget_groups"`
+		BudgetGroupMappings map[string]entity.BudgetGroup `json:"budget_group_examples"`
+		BudgetGroupFallback entity.BudgetGroup            `json:"budget_group_fallback"`
+	}{
+		TransactionNames:    names,
+		Categories:          settings.Categories,
+		CategoryMappings:    settings.Mappings,
+		CategoryFallback:    settings.Fallback,
+		BudgetGroups:        settings.BudgetGroups,
+		BudgetGroupMappings: settings.BudgetGroupMappings,
+		BudgetGroupFallback: settings.BudgetGroupFallback,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal combined categorization input: %w", err)
+	}
+
+	content, err := s.gptProvider.CreateChatCompletion(
+		ctx,
+		string(payload),
+		gpt.WithSystemMessage(combinedCategorizationSystemMessage),
+		gpt.WithJSONResponse(),
+	)
+	if err != nil {
+		return fmt.Errorf("create combined categorization chat completion: %w", err)
+	}
+
+	classificationsByName := make(map[string]transactionClassifications)
+	if err := json.Unmarshal([]byte(content), &classificationsByName); err != nil {
+		return fmt.Errorf("decode combined categorization chat completion: %w", err)
+	}
+
+	allowedCategories := make(map[entity.Category]struct{}, len(settings.Categories))
+	for _, category := range settings.Categories {
+		allowedCategories[category] = struct{}{}
+	}
+	allowedBudgetGroups := make(map[entity.BudgetGroup]struct{}, len(settings.BudgetGroups))
+	for _, budgetGroup := range settings.BudgetGroups {
+		allowedBudgetGroups[budgetGroup] = struct{}{}
+	}
+
+	for index := range transactions {
+		classifications, ok := classificationsByName[transactions[index].Name]
+		if _, allowed := allowedCategories[classifications.Category]; !ok || !allowed {
+			classifications.Category = settings.Fallback
+		}
+		if _, allowed := allowedBudgetGroups[classifications.BudgetGroup]; !ok || !allowed {
+			classifications.BudgetGroup = settings.BudgetGroupFallback
+		}
+
+		transactions[index].Category = classifications.Category
+		transactions[index].BudgetGroup = classifications.BudgetGroup
 	}
 
 	return nil

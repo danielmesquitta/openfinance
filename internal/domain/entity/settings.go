@@ -15,6 +15,10 @@ type IngestProfileSettings struct {
 	ColorsByCategory          map[Category]Color
 	Mappings                  map[string]Category
 	Fallback                  Category
+	BudgetGroups              []BudgetGroup
+	ColorsByBudgetGroup       map[BudgetGroup]Color
+	BudgetGroupMappings       map[string]BudgetGroup
+	BudgetGroupFallback       BudgetGroup
 }
 
 type IngestSettings struct {
@@ -65,9 +69,9 @@ func newIngestProfileSettings(ingestProfile IngestProfile) (IngestProfileSetting
 			ingestProfile.ID,
 		)
 	}
-	if ingestProfile.Mappings == nil {
+	if ingestProfile.CategoryMappings == nil {
 		return IngestProfileSettings{}, fmt.Errorf(
-			"ingest profile %q: mappings are required",
+			"ingest profile %q: category mappings are required",
 			ingestProfile.ID,
 		)
 	}
@@ -82,7 +86,7 @@ func newIngestProfileSettings(ingestProfile IngestProfile) (IngestProfileSetting
 		colorsByCategory[fallback] = Gray
 	}
 
-	if err := ValidateCategories(colorsByCategory, ingestProfile.Mappings); err != nil {
+	if err := ValidateCategories(colorsByCategory, ingestProfile.CategoryMappings); err != nil {
 		return IngestProfileSettings{}, fmt.Errorf("ingest profile %q: %w", ingestProfile.ID, err)
 	}
 
@@ -92,14 +96,76 @@ func newIngestProfileSettings(ingestProfile IngestProfile) (IngestProfileSetting
 	}
 	slices.Sort(categories)
 
+	budgetGroupSettings, err := normalizeBudgetGroups(ingestProfile)
+	if err != nil {
+		return IngestProfileSettings{}, fmt.Errorf("ingest profile %q: %w", ingestProfile.ID, err)
+	}
+
 	return IngestProfileSettings{
 		ID:                        ingestProfile.ID,
 		Language:                  language,
 		IgnoreSamePersonTransfers: ignoreSamePersonTransfers,
 		Categories:                categories,
 		ColorsByCategory:          colorsByCategory,
-		Mappings:                  maps.Clone(ingestProfile.Mappings),
+		Mappings:                  maps.Clone(ingestProfile.CategoryMappings),
 		Fallback:                  fallback,
+		BudgetGroups:              budgetGroupSettings.groups,
+		ColorsByBudgetGroup:       budgetGroupSettings.colorsByGroup,
+		BudgetGroupMappings:       budgetGroupSettings.mappings,
+		BudgetGroupFallback:       budgetGroupSettings.fallback,
+	}, nil
+}
+
+type normalizedBudgetGroupSettings struct {
+	groups        []BudgetGroup
+	colorsByGroup map[BudgetGroup]Color
+	mappings      map[string]BudgetGroup
+	fallback      BudgetGroup
+}
+
+func normalizeBudgetGroups(ingestProfile IngestProfile) (normalizedBudgetGroupSettings, error) {
+	if ingestProfile.BudgetGroups == nil {
+		if ingestProfile.BudgetGroupMappings != nil || ingestProfile.BudgetGroupFallback != "" {
+			return normalizedBudgetGroupSettings{}, errors.New(
+				"budget groups are required when budget group mappings or fallback are configured",
+			)
+		}
+
+		return normalizedBudgetGroupSettings{}, nil
+	}
+
+	if len(ingestProfile.BudgetGroups) == 0 {
+		return normalizedBudgetGroupSettings{}, errors.New("at least one budget group is required")
+	}
+	if ingestProfile.BudgetGroupMappings == nil {
+		return normalizedBudgetGroupSettings{}, errors.New("budget group mappings are required")
+	}
+
+	fallback := ingestProfile.BudgetGroupFallback
+	if fallback == "" {
+		fallback = DefaultFallbackBudgetGroup
+	}
+
+	colorsByBudgetGroup := maps.Clone(ingestProfile.BudgetGroups)
+	if _, exists := colorsByBudgetGroup[fallback]; !exists {
+		colorsByBudgetGroup[fallback] = Gray
+	}
+
+	if err := ValidateBudgetGroups(colorsByBudgetGroup, ingestProfile.BudgetGroupMappings); err != nil {
+		return normalizedBudgetGroupSettings{}, err
+	}
+
+	budgetGroups := make([]BudgetGroup, 0, len(colorsByBudgetGroup))
+	for budgetGroup := range colorsByBudgetGroup {
+		budgetGroups = append(budgetGroups, budgetGroup)
+	}
+	slices.Sort(budgetGroups)
+
+	return normalizedBudgetGroupSettings{
+		groups:        budgetGroups,
+		colorsByGroup: colorsByBudgetGroup,
+		mappings:      maps.Clone(ingestProfile.BudgetGroupMappings),
+		fallback:      fallback,
 	}, nil
 }
 
@@ -151,6 +217,37 @@ func ValidateCategories(
 
 		if _, ok := colorsByCategory[category]; !ok {
 			return fmt.Errorf("mapping category %q is not configured", category)
+		}
+	}
+
+	return nil
+}
+
+func ValidateBudgetGroups(
+	colorsByBudgetGroup map[BudgetGroup]Color,
+	mappings map[string]BudgetGroup,
+) error {
+	if len(colorsByBudgetGroup) == 0 {
+		return errors.New("at least one budget group is required")
+	}
+
+	for budgetGroup, color := range colorsByBudgetGroup {
+		if budgetGroup == "" {
+			return errors.New("budget group name cannot be empty")
+		}
+
+		if !color.IsValid() {
+			return fmt.Errorf("color %q for budget group %q is invalid", color, budgetGroup)
+		}
+	}
+
+	for transactionName, budgetGroup := range mappings {
+		if transactionName == "" {
+			return errors.New("budget group mapping transaction name cannot be empty")
+		}
+
+		if _, ok := colorsByBudgetGroup[budgetGroup]; !ok {
+			return fmt.Errorf("mapping budget group %q is not configured", budgetGroup)
 		}
 	}
 

@@ -77,6 +77,43 @@ func TestTransactionTableOptions(t *testing.T) {
 	}
 }
 
+func TestTransactionTableOptionsIncludeLocalizedBudgetGroup(t *testing.T) {
+	tests := []struct {
+		language   entity.Language
+		columnName string
+	}{
+		{language: entity.LanguageEnglish, columnName: "Budget Group"},
+		{language: entity.LanguagePortugueseBrazil, columnName: "Grupo do orçamento"},
+	}
+
+	for _, test := range tests {
+		t.Run(string(test.language), func(t *testing.T) {
+			settings := entity.IngestProfileSettings{
+				Language:         test.language,
+				Categories:       []entity.Category{"Food"},
+				ColorsByCategory: map[entity.Category]entity.Color{"Food": entity.Red},
+				BudgetGroups:     []entity.BudgetGroup{"Fixed Costs", "Other"},
+				ColorsByBudgetGroup: map[entity.BudgetGroup]entity.Color{
+					"Fixed Costs": entity.Red,
+					"Other":       entity.Gray,
+				},
+			}
+
+			got := resolveCreateTableOptions(transactionTableOptions(settings))
+			if len(got.Columns) != 7 || got.Columns[2].Name() != test.columnName ||
+				got.Columns[2].Type() != sheet.ColumnTypeSelect {
+				t.Fatalf("columns = %#v", got.Columns)
+			}
+			options := got.Columns[2].SelectOptions()
+			if len(options) != 2 || options[0].Name() != "Fixed Costs" ||
+				options[0].Color() != entity.Red || options[1].Name() != "Other" ||
+				options[1].Color() != entity.Gray {
+				t.Fatalf("budget group options = %#v", options)
+			}
+		})
+	}
+}
+
 func resolveCreateTableOptions(options []sheet.CreateTableOption) sheet.CreateTableOptions {
 	resolved := sheet.CreateTableOptions{}
 	for _, option := range options {
@@ -93,6 +130,7 @@ func TestTransactionRowRoundTrip(t *testing.T) {
 	transaction := entity.Transaction{
 		Name:           "Store",
 		Category:       "Food",
+		BudgetGroup:    "Lifestyle",
 		Amount:         42.5,
 		PaymentMethod:  entity.PaymentMethodCreditCard,
 		CardLastDigits: &cardLastDigits,
@@ -124,6 +162,7 @@ func TestTransactionRowRoundTrip(t *testing.T) {
 			row := transactionToRow(transaction, test.language)
 			if row[test.columns.name] != sheet.TitleCell("Store") ||
 				row[test.columns.category] != sheet.SelectCell("Food") ||
+				row[test.columns.budgetGroup] != sheet.SelectCell("Lifestyle") ||
 				row[test.columns.amount] != sheet.NumberCell(42.5) ||
 				row[test.columns.paymentMethod] != sheet.SelectCell(test.paymentMethodLabel) ||
 				row[test.columns.cardLastDigits] != sheet.TextCell("1234") ||
@@ -167,6 +206,9 @@ func TestTransactionToRowOmitsEmptyPaymentMethod(t *testing.T) {
 	if paymentMethod, exists := row[columns.paymentMethod]; exists {
 		t.Fatalf("payment method cell = %#v, want omitted", paymentMethod)
 	}
+	if budgetGroup, exists := row[columns.budgetGroup]; exists {
+		t.Fatalf("budget group cell = %#v, want omitted", budgetGroup)
+	}
 
 	transaction, err := rowToTransaction(row, entity.LanguageEnglish)
 	if err != nil {
@@ -174,6 +216,25 @@ func TestTransactionToRowOmitsEmptyPaymentMethod(t *testing.T) {
 	}
 	if transaction.PaymentMethod != "" {
 		t.Fatalf("payment method = %q, want empty", transaction.PaymentMethod)
+	}
+}
+
+func TestRowToTransactionAcceptsLegacyRowWithoutBudgetGroup(t *testing.T) {
+	transaction := entity.Transaction{
+		Name:     "Store",
+		Category: "Food",
+		Amount:   10,
+		Date:     time.Date(2026, time.August, 9, 12, 0, 0, 0, time.UTC),
+	}
+	row := transactionToRow(transaction, entity.LanguageEnglish)
+	delete(row, "Budget Group")
+
+	got, err := rowToTransaction(row, entity.LanguageEnglish)
+	if err != nil {
+		t.Fatalf("rowToTransaction() error = %v", err)
+	}
+	if !reflect.DeepEqual(got, transaction) {
+		t.Fatalf("transaction = %#v, want %#v", got, transaction)
 	}
 }
 

@@ -12,6 +12,12 @@ type Provider interface {
 		title string,
 		options ...CreateTableOption,
 	) (Table, error)
+	EnsureTableColumns(
+		ctx context.Context,
+		connectionID string,
+		tableID string,
+		columns ...Column,
+	) error
 	InsertRow(ctx context.Context, connectionID, tableID string, row Row) error
 	ListTables(ctx context.Context, connectionID string) ([]Table, error)
 	ListRows(ctx context.Context, connectionID, tableID string) ([]Row, error)

@@ -1,6 +1,9 @@
 package entity
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func validIngestProfile() IngestProfile {
 	return IngestProfile{
@@ -11,18 +14,18 @@ func validIngestProfile() IngestProfile {
 		PluggyClientSecret: "secret",
 		PluggyAccountIDs:   []string{"account"},
 		Categories:         map[Category]Color{"Food": Red},
-		Mappings:           map[string]Category{},
+		CategoryMappings:   map[string]Category{},
 	}
 }
 
 func TestNewIngestSettingsNormalizesEachIngestProfile(t *testing.T) {
 	first := validIngestProfile()
-	first.Mappings = map[string]Category{"Market": "Food"}
+	first.CategoryMappings = map[string]Category{"Market": "Food"}
 	first.IgnoreSamePersonTransfers = new(false)
 	second := validIngestProfile()
 	second.ID = "second"
 	second.Categories = map[Category]Color{"Education": Blue}
-	second.Mappings = map[string]Category{"Unknown store": "Outros"}
+	second.CategoryMappings = map[string]Category{"Unknown store": "Outros"}
 	second.Fallback = "Outros"
 	second.Language = LanguagePortugueseBrazil
 
@@ -89,6 +92,56 @@ func TestNewIngestSettingsPreservesConfiguredFallbackColor(t *testing.T) {
 	}
 }
 
+func TestNewIngestSettingsNormalizesBudgetGroups(t *testing.T) {
+	ingestProfile := validIngestProfile()
+	ingestProfile.BudgetGroups = map[BudgetGroup]Color{
+		"Lifestyle":   Pink,
+		"Fixed Costs": Red,
+	}
+	ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{"Rent": "Fixed Costs"}
+
+	settings, err := NewIngestSettings([]IngestProfile{ingestProfile})
+	if err != nil {
+		t.Fatalf("NewIngestSettings() error = %v", err)
+	}
+
+	got := settings.IngestProfiles[0]
+	wantGroups := []BudgetGroup{"Fixed Costs", "Lifestyle", DefaultFallbackBudgetGroup}
+	if !slices.Equal(got.BudgetGroups, wantGroups) {
+		t.Fatalf("budget groups = %#v, want %#v", got.BudgetGroups, wantGroups)
+	}
+	if got.BudgetGroupFallback != DefaultFallbackBudgetGroup ||
+		got.ColorsByBudgetGroup[DefaultFallbackBudgetGroup] != Gray ||
+		got.BudgetGroupMappings["Rent"] != "Fixed Costs" {
+		t.Fatalf("budget group settings = %#v", got)
+	}
+	if _, mutated := ingestProfile.BudgetGroups[DefaultFallbackBudgetGroup]; mutated {
+		t.Fatal("NewIngestSettings() mutated the input budget groups")
+	}
+
+	ingestProfile.BudgetGroups["Lifestyle"] = Blue
+	ingestProfile.BudgetGroupMappings["Rent"] = "Lifestyle"
+	if got.ColorsByBudgetGroup["Lifestyle"] != Pink || got.BudgetGroupMappings["Rent"] != "Fixed Costs" {
+		t.Fatal("NewIngestSettings() retained mutable budget group input maps")
+	}
+}
+
+func TestNewIngestSettingsPreservesConfiguredBudgetGroupFallbackColor(t *testing.T) {
+	ingestProfile := validIngestProfile()
+	ingestProfile.BudgetGroups = map[BudgetGroup]Color{"Needs": Red, "Unallocated": Purple}
+	ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{}
+	ingestProfile.BudgetGroupFallback = "Unallocated"
+
+	settings, err := NewIngestSettings([]IngestProfile{ingestProfile})
+	if err != nil {
+		t.Fatalf("NewIngestSettings() error = %v", err)
+	}
+	got := settings.IngestProfiles[0]
+	if got.BudgetGroupFallback != "Unallocated" || got.ColorsByBudgetGroup["Unallocated"] != Purple {
+		t.Fatalf("budget group fallback settings = %#v", got)
+	}
+}
+
 func TestNewIngestSettingsValidation(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -131,10 +184,10 @@ func TestNewIngestSettingsValidation(t *testing.T) {
 			},
 		},
 		{
-			name: "missing mappings",
+			name: "missing category mappings",
 			ingestProfiles: func() []IngestProfile {
 				ingestProfile := validIngestProfile()
-				ingestProfile.Mappings = nil
+				ingestProfile.CategoryMappings = nil
 
 				return []IngestProfile{ingestProfile}
 			},
@@ -161,7 +214,7 @@ func TestNewIngestSettingsValidation(t *testing.T) {
 			name: "empty mapping name",
 			ingestProfiles: func() []IngestProfile {
 				ingestProfile := validIngestProfile()
-				ingestProfile.Mappings[""] = "Food"
+				ingestProfile.CategoryMappings[""] = "Food"
 
 				return []IngestProfile{ingestProfile}
 			},
@@ -170,7 +223,84 @@ func TestNewIngestSettingsValidation(t *testing.T) {
 			name: "unknown mapping category",
 			ingestProfiles: func() []IngestProfile {
 				ingestProfile := validIngestProfile()
-				ingestProfile.Mappings["Store"] = "Shopping"
+				ingestProfile.CategoryMappings["Store"] = "Shopping"
+
+				return []IngestProfile{ingestProfile}
+			},
+		},
+		{
+			name: "empty budget groups",
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.BudgetGroups = map[BudgetGroup]Color{}
+				ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{}
+
+				return []IngestProfile{ingestProfile}
+			},
+		},
+		{
+			name: "missing budget group mappings",
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.BudgetGroups = map[BudgetGroup]Color{"Needs": Red}
+
+				return []IngestProfile{ingestProfile}
+			},
+		},
+		{
+			name: "budget group mappings without groups",
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{}
+
+				return []IngestProfile{ingestProfile}
+			},
+		},
+		{
+			name: "budget group fallback without groups",
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.BudgetGroupFallback = "Other"
+
+				return []IngestProfile{ingestProfile}
+			},
+		},
+		{
+			name: "invalid budget group color",
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.BudgetGroups = map[BudgetGroup]Color{"Needs": "invalid"}
+				ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{}
+
+				return []IngestProfile{ingestProfile}
+			},
+		},
+		{
+			name: "empty budget group name",
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.BudgetGroups = map[BudgetGroup]Color{"": Red}
+				ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{}
+
+				return []IngestProfile{ingestProfile}
+			},
+		},
+		{
+			name: "empty budget group mapping name",
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.BudgetGroups = map[BudgetGroup]Color{"Needs": Red}
+				ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{"": "Needs"}
+
+				return []IngestProfile{ingestProfile}
+			},
+		},
+		{
+			name: "unknown mapped budget group",
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.BudgetGroups = map[BudgetGroup]Color{"Needs": Red}
+				ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{"Store": "Wants"}
 
 				return []IngestProfile{ingestProfile}
 			},

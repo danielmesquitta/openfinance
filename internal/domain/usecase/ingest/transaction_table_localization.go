@@ -12,6 +12,7 @@ const monthsPerYear = 12
 type transactionTableColumns struct {
 	name           string
 	category       string
+	budgetGroup    string
 	amount         string
 	paymentMethod  string
 	cardLastDigits string
@@ -30,6 +31,7 @@ var transactionTableLocalizations = map[entity.Language]transactionTableLocaliza
 		transactionTableColumns{
 			name:           "Name",
 			category:       "Category",
+			budgetGroup:    "Budget Group",
 			amount:         "Amount",
 			paymentMethod:  "Payment Method",
 			cardLastDigits: "Card Last Digits",
@@ -47,6 +49,7 @@ var transactionTableLocalizations = map[entity.Language]transactionTableLocaliza
 		transactionTableColumns{
 			name:           "Nome",
 			category:       "Categoria",
+			budgetGroup:    "Grupo do orçamento",
 			amount:         "Valor",
 			paymentMethod:  "Forma de pagamento",
 			cardLastDigits: "Últimos dígitos do cartão",
