@@ -1,0 +1,4 @@
+interface:
+  display_name: "Follow Architecture"
+  short_description: "Follow this repository's Go architecture"
+  default_prompt: "Use $follow-architecture to implement this change following the repository's package boundaries."
