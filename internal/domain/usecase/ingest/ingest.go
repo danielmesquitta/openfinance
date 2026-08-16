@@ -3,7 +3,6 @@ package ingest
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
 	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
+	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
 	"github.com/danielmesquitta/openfinance/internal/provider/companyapi"
 	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
 	"github.com/danielmesquitta/openfinance/internal/provider/openfinance"
@@ -31,31 +31,16 @@ const (
 )
 
 type IngestInput struct {
-	StartDate time.Time
-	EndDate   time.Time
+	StartDate time.Time `validate:"required"`
+	EndDate   time.Time `validate:"required,gtefield=StartDate"`
 }
 
 type IngestExecutor interface {
 	Execute(ctx context.Context, input IngestInput) error
 }
 
-func (input IngestInput) Validate() error {
-	if input.StartDate.IsZero() {
-		return errors.New("start date is required")
-	}
-
-	if input.EndDate.IsZero() {
-		return errors.New("end date is required")
-	}
-
-	if input.StartDate.After(input.EndDate) {
-		return errors.New("start date cannot be after end date")
-	}
-
-	return nil
-}
-
 type Ingest struct {
+	val                     *validator.Validator
 	maxConcurrentOperations int
 	settings                entity.IngestSettings
 	companyAPIProvider      companyapi.APIProvider
@@ -65,6 +50,7 @@ type Ingest struct {
 }
 
 func NewIngest(
+	val *validator.Validator,
 	maxConcurrentOperations int,
 	settings entity.IngestSettings,
 	companyAPIProvider companyapi.APIProvider,
@@ -73,6 +59,7 @@ func NewIngest(
 	openFinanceAPIProvider openfinance.APIProvider,
 ) *Ingest {
 	return &Ingest{
+		val:                     val,
 		maxConcurrentOperations: maxConcurrentOperations,
 		settings:                settings,
 		companyAPIProvider:      companyAPIProvider,
@@ -83,7 +70,7 @@ func NewIngest(
 }
 
 func (s *Ingest) Execute(ctx context.Context, input IngestInput) error {
-	if err := input.Validate(); err != nil {
+	if err := s.val.Validate(input); err != nil {
 		return fmt.Errorf("invalid ingest input: %w", err)
 	}
 

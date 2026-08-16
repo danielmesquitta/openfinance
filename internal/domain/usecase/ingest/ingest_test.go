@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
 	"github.com/danielmesquitta/openfinance/internal/provider/companyapi/mockcompanyapi"
 	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
 	"github.com/danielmesquitta/openfinance/internal/provider/gpt/mockgpt"
@@ -107,22 +109,52 @@ func noCompanyLookup(t *testing.T) *mockcompanyapi.MockCompanyAPI {
 	return mockcompanyapi.NewMockCompanyAPI(t)
 }
 
-func TestIngestInputValidate(t *testing.T) {
+func TestIngestInputValidation(t *testing.T) {
 	now := time.Now()
-	tests := []IngestInput{
-		{},
-		{StartDate: now},
-		{StartDate: now, EndDate: now.Add(-time.Second)},
+	tests := []struct {
+		name    string
+		input   IngestInput
+		wantErr bool
+	}{
+		{name: "missing start date", input: IngestInput{EndDate: now}, wantErr: true},
+		{name: "missing end date", input: IngestInput{StartDate: now}, wantErr: true},
+		{
+			name:    "start date after end date",
+			input:   IngestInput{StartDate: now, EndDate: now.Add(-time.Second)},
+			wantErr: true,
+		},
+		{name: "equal dates", input: IngestInput{StartDate: now, EndDate: now}},
+		{
+			name:  "start date before end date",
+			input: IngestInput{StartDate: now, EndDate: now.Add(time.Second)},
+		},
 	}
+	val := validator.NewValidator()
 
-	for _, input := range tests {
-		if err := input.Validate(); err == nil {
-			t.Fatalf("Validate(%#v) error = nil", input)
-		}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := val.Validate(test.input)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("Validate(%#v) error = %v, wantErr %t", test.input, err, test.wantErr)
+			}
+		})
 	}
+}
 
-	if err := (IngestInput{StartDate: now, EndDate: now}).Validate(); err != nil {
-		t.Fatalf("valid input error = %v", err)
+func TestIngestExecuteRejectsInvalidInputBeforeCallingProviders(t *testing.T) {
+	ingestUseCase := NewIngest(
+		validator.NewValidator(),
+		testMaxConcurrentOperations,
+		testSettings("ingest-profile"),
+		noCompanyLookup(t),
+		mockgpt.NewMockGPT(t),
+		mocksheet.NewMockSheet(t),
+		mockopenfinance.NewMockOpenFinance(t),
+	)
+
+	err := ingestUseCase.Execute(t.Context(), IngestInput{})
+	if err == nil || !strings.Contains(err.Error(), "invalid ingest input") {
+		t.Fatalf("Execute() error = %v, want invalid ingest input", err)
 	}
 }
 
@@ -357,6 +389,7 @@ func TestIngestUsesIngestProfileSpecificCategorizationSettings(t *testing.T) {
 		Twice()
 
 	err := NewIngest(
+		validator.NewValidator(),
 		testMaxConcurrentOperations,
 		settings,
 		noCompanyLookup(t),
@@ -469,6 +502,7 @@ func TestIngestProcessesEveryMonthAndDeduplicates(t *testing.T) {
 		Twice()
 
 	ingestUseCase := NewIngest(
+		validator.NewValidator(),
 		testMaxConcurrentOperations,
 		testSettings("ingest-profile"),
 		noCompanyLookup(t),
@@ -571,6 +605,7 @@ func TestIngestReusesExistingTableLanguage(t *testing.T) {
 			settings := testSettings("ingest-profile")
 			settings.IngestProfiles[0].Language = test.configuredLanguage
 			if err := NewIngest(
+				validator.NewValidator(),
 				testMaxConcurrentOperations,
 				settings,
 				noCompanyLookup(t),
@@ -648,6 +683,7 @@ func TestIngestUpgradesExistingTableAndOnlyCategorizesNewRows(t *testing.T) {
 	settings := testBudgetGroupProfileSettings("ingest-profile")
 	settings.Language = entity.LanguagePortugueseBrazil
 	if err := NewIngest(
+		validator.NewValidator(),
 		testMaxConcurrentOperations,
 		entity.IngestSettings{IngestProfiles: []entity.IngestProfileSettings{settings}},
 		noCompanyLookup(t),
@@ -689,6 +725,7 @@ func TestIngestCreatesPortugueseTable(t *testing.T) {
 	settings := testSettings("ingest-profile")
 	settings.IngestProfiles[0].Language = entity.LanguagePortugueseBrazil
 	if err := NewIngest(
+		validator.NewValidator(),
 		testMaxConcurrentOperations,
 		settings,
 		noCompanyLookup(t),
@@ -799,6 +836,7 @@ func TestIngestEnrichesUniqueCompany(t *testing.T) {
 		Twice()
 
 	if err := NewIngest(
+		validator.NewValidator(),
 		testMaxConcurrentOperations,
 		testSettings("ingest-profile"),
 		company,
@@ -855,6 +893,7 @@ func TestIngestCompanyLookupFailureIsNonFatal(t *testing.T) {
 		Once()
 
 	if err := NewIngest(
+		validator.NewValidator(),
 		testMaxConcurrentOperations,
 		testSettings("ingest-profile"),
 		company,
@@ -886,6 +925,7 @@ func TestIngestEmptyRangeSkipsCategorizer(t *testing.T) {
 		Once()
 
 	if err := NewIngest(
+		validator.NewValidator(),
 		testMaxConcurrentOperations,
 		testSettings("ingest-profile"),
 		noCompanyLookup(t),
@@ -911,6 +951,7 @@ func TestIngestPropagatesSourceErrorAndCancellation(t *testing.T) {
 			Once()
 
 		err := NewIngest(
+			validator.NewValidator(),
 			testMaxConcurrentOperations,
 			testSettings("ingest-profile"),
 			noCompanyLookup(t),
@@ -936,6 +977,7 @@ func TestIngestPropagatesSourceErrorAndCancellation(t *testing.T) {
 			Once()
 
 		err := NewIngest(
+			validator.NewValidator(),
 			testMaxConcurrentOperations,
 			testSettings("ingest-profile"),
 			noCompanyLookup(t),
@@ -1005,6 +1047,7 @@ func TestIngestPropagatesCategorizerAndStoreErrors(t *testing.T) {
 			}
 
 			err := NewIngest(
+				validator.NewValidator(),
 				testMaxConcurrentOperations,
 				testSettings("ingest-profile"),
 				noCompanyLookup(t),
@@ -1063,6 +1106,7 @@ func TestIngestBoundsIngestProfileConcurrency(t *testing.T) {
 		Times(len(ingestProfileIDs))
 
 	if err := NewIngest(
+		validator.NewValidator(),
 		testMaxConcurrentOperations,
 		testSettings(ingestProfileIDs...),
 		noCompanyLookup(t),
@@ -1147,6 +1191,7 @@ func TestIngestBoundsInsertConcurrency(t *testing.T) {
 		Times(len(transactions))
 
 	if err := NewIngest(
+		validator.NewValidator(),
 		testMaxConcurrentOperations,
 		testSettings("ingest-profile"),
 		noCompanyLookup(t),

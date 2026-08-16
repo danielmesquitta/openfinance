@@ -34,7 +34,7 @@ func NewIngestUseCase() (*ingest.Ingest, error) {
 	if err != nil {
 		return nil, err
 	}
-	ingestIngest := ingest.NewIngest(int2, entityIngestSettings, client, openAIClient, notionapiClient, pluggyapiClient)
+	ingestIngest := ingest.NewIngest(validatorValidator, int2, entityIngestSettings, client, openAIClient, notionapiClient, pluggyapiClient)
 	return ingestIngest, nil
 }
 

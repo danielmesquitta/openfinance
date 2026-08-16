@@ -19,7 +19,7 @@ type EnvFileData struct {
 
 // IngestProfilesFileData is the data for the ingest_profiles.json file.
 type IngestProfilesFileData struct {
-	IngestProfiles []entity.IngestProfile `json:"ingest_profiles" validate:"required"`
+	IngestProfiles []entity.IngestProfile `json:"ingest_profiles" validate:"required,min=1,unique=ID,dive"`
 }
 
 // Env is the environment variables.
@@ -62,7 +62,7 @@ func (e *Env) loadEnv() error {
 		return fmt.Errorf("failed to validate ingest profiles file: %w", err)
 	}
 
-	return nil
+	return e.loadIngestSettings()
 }
 
 func (e *Env) loadDataFromEnvFile() error {
@@ -91,6 +91,10 @@ func (e *Env) loadDataFromIngestProfilesFile() error {
 		return fmt.Errorf("failed to load ingest profiles: %w", err)
 	}
 
+	return nil
+}
+
+func (e *Env) loadIngestSettings() error {
 	settings, err := entity.NewIngestSettings(e.IngestProfiles)
 	if err != nil {
 		return fmt.Errorf("invalid domain settings: %w", err)
