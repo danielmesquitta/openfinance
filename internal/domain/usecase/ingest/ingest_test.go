@@ -36,13 +36,13 @@ type categorizationInput struct {
 }
 
 type combinedCategorizationInput struct {
-	TransactionNames    []string                      `json:"transaction_names"`
-	Categories          []entity.Category             `json:"categories"`
-	CategoryMappings    map[string]entity.Category    `json:"category_examples"`
-	CategoryFallback    entity.Category               `json:"category_fallback"`
-	BudgetGroups        []entity.BudgetGroup          `json:"budget_groups"`
-	BudgetGroupMappings map[string]entity.BudgetGroup `json:"budget_group_examples"`
-	BudgetGroupFallback entity.BudgetGroup            `json:"budget_group_fallback"`
+	TransactionNames    []string                               `json:"transaction_names"`
+	Categories          []entity.Category                      `json:"categories"`
+	CategoryMappings    map[string]entity.Category             `json:"category_examples"`
+	CategoryFallback    entity.Category                        `json:"category_fallback"`
+	BudgetGroups        []entity.BudgetGroup                   `json:"budget_groups"`
+	BudgetGroupMappings map[entity.Category]entity.BudgetGroup `json:"budget_group_examples"`
+	BudgetGroupFallback entity.BudgetGroup                     `json:"budget_group_fallback"`
 }
 
 func applyChatCompletionOptions(options []gpt.ChatCompletionOption) gpt.ChatCompletionOptions {
@@ -86,7 +86,7 @@ func testBudgetGroupProfileSettings(ingestProfileID string) entity.IngestProfile
 		"Lifestyle":   entity.Pink,
 		"Other":       entity.Gray,
 	}
-	settings.BudgetGroupMappings = map[string]entity.BudgetGroup{"Rent": "Fixed Costs"}
+	settings.BudgetGroupMappings = map[entity.Category]entity.BudgetGroup{"Food": "Fixed Costs"}
 	settings.BudgetGroupFallback = "Other"
 
 	return settings
@@ -199,10 +199,10 @@ func TestCategorizeTransactionsClassifiesBudgetGroupsInSameRequest(t *testing.T)
 			if err := json.Unmarshal([]byte(message), &input); err != nil {
 				t.Fatalf("combined categorization input = %q: %v", message, err)
 			}
-			if len(input.TransactionNames) != 3 || len(input.Categories) != 2 ||
+			if len(input.TransactionNames) != 4 || len(input.Categories) != 2 ||
 				input.CategoryMappings["Market"] != "Food" ||
 				input.CategoryFallback != entity.DefaultFallbackCategory ||
-				len(input.BudgetGroups) != 3 || input.BudgetGroupMappings["Rent"] != "Fixed Costs" ||
+				len(input.BudgetGroups) != 3 || input.BudgetGroupMappings["Food"] != "Fixed Costs" ||
 				input.BudgetGroupFallback != "Other" {
 				t.Fatalf("combined categorization input = %#v", input)
 			}
@@ -214,14 +214,20 @@ func TestCategorizeTransactionsClassifiesBudgetGroupsInSameRequest(t *testing.T)
 			}
 
 			return `{
-				"Store":{"category":"Food","budget_group":"not-configured"},
+				"Store":{"category":"Food","budget_group":"Lifestyle"},
 				"Invalid":{"category":"not-configured","budget_group":"Lifestyle"},
+				"Invalid Group":{"category":"Food","budget_group":"not-configured"},
 				"Ignored":{"category":"Food","budget_group":"Lifestyle"}
 			}`, nil
 		}).
 		Once()
 
-	transactions := []entity.Transaction{{Name: "Store"}, {Name: "Invalid"}, {Name: "Missing"}}
+	transactions := []entity.Transaction{
+		{Name: "Store"},
+		{Name: "Invalid"},
+		{Name: "Invalid Group"},
+		{Name: "Missing"},
+	}
 	settings := testBudgetGroupProfileSettings("ingest-profile")
 	if err := (&Ingest{gptProvider: categorizer}).categorizeTransactions(
 		t.Context(),
@@ -232,8 +238,9 @@ func TestCategorizeTransactionsClassifiesBudgetGroupsInSameRequest(t *testing.T)
 	}
 
 	want := []transactionClassifications{
-		{Category: "Food", BudgetGroup: "Other"},
+		{Category: "Food", BudgetGroup: "Lifestyle"},
 		{Category: entity.DefaultFallbackCategory, BudgetGroup: "Lifestyle"},
+		{Category: "Food", BudgetGroup: "Other"},
 		{Category: entity.DefaultFallbackCategory, BudgetGroup: "Other"},
 	}
 	for index, transaction := range transactions {

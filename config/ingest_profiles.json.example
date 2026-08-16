@@ -30,8 +30,8 @@
       "Education": "blue"
     },
     "budget_group_mappings": {
-      "Rent": "Fixed Costs",
-      "Broker Transfer": "Investments"
+      "Subscription": "Lifestyle",
+      "Shopping": "Lifestyle"
     },
     "budget_group_fallback": "Other"
   },
@@ -68,8 +68,8 @@
       "Educação": "blue"
     },
     "budget_group_mappings": {
-      "Aluguel": "Custos fixos",
-      "Transferência para corretora": "Investimentos"
+      "Assinaturas": "Estilo de vida",
+      "Compras": "Estilo de vida"
     },
     "budget_group_fallback": "Outros"
   }

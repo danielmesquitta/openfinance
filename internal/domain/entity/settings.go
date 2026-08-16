@@ -17,7 +17,7 @@ type IngestProfileSettings struct {
 	Fallback                  Category
 	BudgetGroups              []BudgetGroup
 	ColorsByBudgetGroup       map[BudgetGroup]Color
-	BudgetGroupMappings       map[string]BudgetGroup
+	BudgetGroupMappings       map[Category]BudgetGroup
 	BudgetGroupFallback       BudgetGroup
 }
 
@@ -96,7 +96,7 @@ func newIngestProfileSettings(ingestProfile IngestProfile) (IngestProfileSetting
 	}
 	slices.Sort(categories)
 
-	budgetGroupSettings, err := normalizeBudgetGroups(ingestProfile)
+	budgetGroupSettings, err := normalizeBudgetGroups(ingestProfile, colorsByCategory)
 	if err != nil {
 		return IngestProfileSettings{}, fmt.Errorf("ingest profile %q: %w", ingestProfile.ID, err)
 	}
@@ -119,11 +119,14 @@ func newIngestProfileSettings(ingestProfile IngestProfile) (IngestProfileSetting
 type normalizedBudgetGroupSettings struct {
 	groups        []BudgetGroup
 	colorsByGroup map[BudgetGroup]Color
-	mappings      map[string]BudgetGroup
+	mappings      map[Category]BudgetGroup
 	fallback      BudgetGroup
 }
 
-func normalizeBudgetGroups(ingestProfile IngestProfile) (normalizedBudgetGroupSettings, error) {
+func normalizeBudgetGroups(
+	ingestProfile IngestProfile,
+	colorsByCategory map[Category]Color,
+) (normalizedBudgetGroupSettings, error) {
 	if ingestProfile.BudgetGroups == nil {
 		if ingestProfile.BudgetGroupMappings != nil || ingestProfile.BudgetGroupFallback != "" {
 			return normalizedBudgetGroupSettings{}, errors.New(
@@ -151,7 +154,11 @@ func normalizeBudgetGroups(ingestProfile IngestProfile) (normalizedBudgetGroupSe
 		colorsByBudgetGroup[fallback] = Gray
 	}
 
-	if err := ValidateBudgetGroups(colorsByBudgetGroup, ingestProfile.BudgetGroupMappings); err != nil {
+	if err := ValidateBudgetGroups(
+		colorsByCategory,
+		colorsByBudgetGroup,
+		ingestProfile.BudgetGroupMappings,
+	); err != nil {
 		return normalizedBudgetGroupSettings{}, err
 	}
 
@@ -224,8 +231,9 @@ func ValidateCategories(
 }
 
 func ValidateBudgetGroups(
+	colorsByCategory map[Category]Color,
 	colorsByBudgetGroup map[BudgetGroup]Color,
-	mappings map[string]BudgetGroup,
+	mappings map[Category]BudgetGroup,
 ) error {
 	if len(colorsByBudgetGroup) == 0 {
 		return errors.New("at least one budget group is required")
@@ -241,9 +249,13 @@ func ValidateBudgetGroups(
 		}
 	}
 
-	for transactionName, budgetGroup := range mappings {
-		if transactionName == "" {
-			return errors.New("budget group mapping transaction name cannot be empty")
+	for category, budgetGroup := range mappings {
+		if category == "" {
+			return errors.New("budget group mapping category cannot be empty")
+		}
+
+		if _, ok := colorsByCategory[category]; !ok {
+			return fmt.Errorf("mapping category %q is not configured", category)
 		}
 
 		if _, ok := colorsByBudgetGroup[budgetGroup]; !ok {

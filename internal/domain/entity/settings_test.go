@@ -98,7 +98,7 @@ func TestNewIngestSettingsNormalizesBudgetGroups(t *testing.T) {
 		"Lifestyle":   Pink,
 		"Fixed Costs": Red,
 	}
-	ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{"Rent": "Fixed Costs"}
+	ingestProfile.BudgetGroupMappings = map[Category]BudgetGroup{"Food": "Fixed Costs"}
 
 	settings, err := NewIngestSettings([]IngestProfile{ingestProfile})
 	if err != nil {
@@ -112,7 +112,7 @@ func TestNewIngestSettingsNormalizesBudgetGroups(t *testing.T) {
 	}
 	if got.BudgetGroupFallback != DefaultFallbackBudgetGroup ||
 		got.ColorsByBudgetGroup[DefaultFallbackBudgetGroup] != Gray ||
-		got.BudgetGroupMappings["Rent"] != "Fixed Costs" {
+		got.BudgetGroupMappings["Food"] != "Fixed Costs" {
 		t.Fatalf("budget group settings = %#v", got)
 	}
 	if _, mutated := ingestProfile.BudgetGroups[DefaultFallbackBudgetGroup]; mutated {
@@ -120,8 +120,8 @@ func TestNewIngestSettingsNormalizesBudgetGroups(t *testing.T) {
 	}
 
 	ingestProfile.BudgetGroups["Lifestyle"] = Blue
-	ingestProfile.BudgetGroupMappings["Rent"] = "Lifestyle"
-	if got.ColorsByBudgetGroup["Lifestyle"] != Pink || got.BudgetGroupMappings["Rent"] != "Fixed Costs" {
+	ingestProfile.BudgetGroupMappings["Food"] = "Lifestyle"
+	if got.ColorsByBudgetGroup["Lifestyle"] != Pink || got.BudgetGroupMappings["Food"] != "Fixed Costs" {
 		t.Fatal("NewIngestSettings() retained mutable budget group input maps")
 	}
 }
@@ -129,7 +129,7 @@ func TestNewIngestSettingsNormalizesBudgetGroups(t *testing.T) {
 func TestNewIngestSettingsPreservesConfiguredBudgetGroupFallbackColor(t *testing.T) {
 	ingestProfile := validIngestProfile()
 	ingestProfile.BudgetGroups = map[BudgetGroup]Color{"Needs": Red, "Unallocated": Purple}
-	ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{}
+	ingestProfile.BudgetGroupMappings = map[Category]BudgetGroup{}
 	ingestProfile.BudgetGroupFallback = "Unallocated"
 
 	settings, err := NewIngestSettings([]IngestProfile{ingestProfile})
@@ -233,7 +233,7 @@ func TestNewIngestSettingsValidation(t *testing.T) {
 			ingestProfiles: func() []IngestProfile {
 				ingestProfile := validIngestProfile()
 				ingestProfile.BudgetGroups = map[BudgetGroup]Color{}
-				ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{}
+				ingestProfile.BudgetGroupMappings = map[Category]BudgetGroup{}
 
 				return []IngestProfile{ingestProfile}
 			},
@@ -251,7 +251,7 @@ func TestNewIngestSettingsValidation(t *testing.T) {
 			name: "budget group mappings without groups",
 			ingestProfiles: func() []IngestProfile {
 				ingestProfile := validIngestProfile()
-				ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{}
+				ingestProfile.BudgetGroupMappings = map[Category]BudgetGroup{}
 
 				return []IngestProfile{ingestProfile}
 			},
@@ -270,7 +270,7 @@ func TestNewIngestSettingsValidation(t *testing.T) {
 			ingestProfiles: func() []IngestProfile {
 				ingestProfile := validIngestProfile()
 				ingestProfile.BudgetGroups = map[BudgetGroup]Color{"Needs": "invalid"}
-				ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{}
+				ingestProfile.BudgetGroupMappings = map[Category]BudgetGroup{}
 
 				return []IngestProfile{ingestProfile}
 			},
@@ -280,17 +280,27 @@ func TestNewIngestSettingsValidation(t *testing.T) {
 			ingestProfiles: func() []IngestProfile {
 				ingestProfile := validIngestProfile()
 				ingestProfile.BudgetGroups = map[BudgetGroup]Color{"": Red}
-				ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{}
+				ingestProfile.BudgetGroupMappings = map[Category]BudgetGroup{}
 
 				return []IngestProfile{ingestProfile}
 			},
 		},
 		{
-			name: "empty budget group mapping name",
+			name: "empty budget group mapping category",
 			ingestProfiles: func() []IngestProfile {
 				ingestProfile := validIngestProfile()
 				ingestProfile.BudgetGroups = map[BudgetGroup]Color{"Needs": Red}
-				ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{"": "Needs"}
+				ingestProfile.BudgetGroupMappings = map[Category]BudgetGroup{"": "Needs"}
+
+				return []IngestProfile{ingestProfile}
+			},
+		},
+		{
+			name: "unknown budget group mapping category",
+			ingestProfiles: func() []IngestProfile {
+				ingestProfile := validIngestProfile()
+				ingestProfile.BudgetGroups = map[BudgetGroup]Color{"Needs": Red}
+				ingestProfile.BudgetGroupMappings = map[Category]BudgetGroup{"Shopping": "Needs"}
 
 				return []IngestProfile{ingestProfile}
 			},
@@ -300,7 +310,7 @@ func TestNewIngestSettingsValidation(t *testing.T) {
 			ingestProfiles: func() []IngestProfile {
 				ingestProfile := validIngestProfile()
 				ingestProfile.BudgetGroups = map[BudgetGroup]Color{"Needs": Red}
-				ingestProfile.BudgetGroupMappings = map[string]BudgetGroup{"Store": "Wants"}
+				ingestProfile.BudgetGroupMappings = map[Category]BudgetGroup{"Food": "Wants"}
 
 				return []IngestProfile{ingestProfile}
 			},

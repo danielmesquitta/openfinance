@@ -23,8 +23,9 @@ const (
 	categorizationSystemMessage = "Categorize each transaction name using only the supplied categories. " +
 		"Return one JSON object whose keys are the exact transaction names and whose values are category names. " +
 		"Use the fallback when uncertain."
-	combinedCategorizationSystemMessage = "Classify each transaction name in two independent dimensions using only the supplied values. " +
+	combinedCategorizationSystemMessage = "Classify each transaction name in two dimensions using only the supplied values. " +
 		"Category describes what the transaction represents. Budget group describes its financial or budgeting purpose. " +
+		"Budget group examples map category names to budget groups; use them as guidance and infer a group for unmapped categories. " +
 		"Return one JSON object whose keys are the exact transaction names and whose values are objects with category and budget_group fields. " +
 		"Use each dimension's fallback when uncertain."
 )
@@ -378,13 +379,13 @@ func (s *Ingest) categorizeTransactionsWithBudgetGroups(
 	names []string,
 ) error {
 	payload, err := json.Marshal(struct {
-		TransactionNames    []string                      `json:"transaction_names"`
-		Categories          []entity.Category             `json:"categories"`
-		CategoryMappings    map[string]entity.Category    `json:"category_examples"`
-		CategoryFallback    entity.Category               `json:"category_fallback"`
-		BudgetGroups        []entity.BudgetGroup          `json:"budget_groups"`
-		BudgetGroupMappings map[string]entity.BudgetGroup `json:"budget_group_examples"`
-		BudgetGroupFallback entity.BudgetGroup            `json:"budget_group_fallback"`
+		TransactionNames    []string                               `json:"transaction_names"`
+		Categories          []entity.Category                      `json:"categories"`
+		CategoryMappings    map[string]entity.Category             `json:"category_examples"`
+		CategoryFallback    entity.Category                        `json:"category_fallback"`
+		BudgetGroups        []entity.BudgetGroup                   `json:"budget_groups"`
+		BudgetGroupMappings map[entity.Category]entity.BudgetGroup `json:"budget_group_examples"`
+		BudgetGroupFallback entity.BudgetGroup                     `json:"budget_group_fallback"`
 	}{
 		TransactionNames:    names,
 		Categories:          settings.Categories,
