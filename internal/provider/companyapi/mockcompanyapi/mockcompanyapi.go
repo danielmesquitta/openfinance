@@ -7,7 +7,7 @@ package mockcompanyapi
 import (
 	"context"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/entity"
 	mock "github.com/stretchr/testify/mock"
 )
 

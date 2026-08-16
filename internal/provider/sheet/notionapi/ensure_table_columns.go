@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
-	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/sheet"
 )
 
 type retrieveTableResp struct {

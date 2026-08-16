@@ -3,8 +3,8 @@ package notionapi
 import (
 	"strings"
 
-	"github.com/danielmesquitta/openfinance/internal/config"
-	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/config"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/sheet"
 	"github.com/go-resty/resty/v2"
 )
 

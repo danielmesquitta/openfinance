@@ -7,7 +7,7 @@ package mocksheet
 import (
 	"context"
 
-	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/sheet"
 	mock "github.com/stretchr/testify/mock"
 )
 

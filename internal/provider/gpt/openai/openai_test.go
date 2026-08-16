@@ -11,7 +11,7 @@ import (
 	openaisdk "github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 
-	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/gpt"
 )
 
 type chatCompletionRequest struct {

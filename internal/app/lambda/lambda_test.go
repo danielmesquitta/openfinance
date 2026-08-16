@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/mock"
 
-	ingest "github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest"
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase/mockingest"
+	ingest "github.com/danielmesquitta/openfinance-to-sheets/internal/domain/usecase/ingest"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/usecase/mockingest"
 )
 
 func TestLambdaHandlerSuccess(t *testing.T) {

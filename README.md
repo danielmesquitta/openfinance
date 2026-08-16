@@ -1,8 +1,8 @@
-# Open Finance Integration Project
+# OpenFinance to Sheets
 
 ## Overview
 
-This project provides a solution to fetch card and account information from Brazil's Open Finance and automatically populate a Notion database using the Notion API. It's designed to help users effortlessly manage their financial data within a Notion workspace.
+This project fetches card and account information from Brazil's Open Finance and syncs it to spreadsheet-style databases. The currently implemented sheet adapter uses the Notion API, helping users manage their financial data within a Notion workspace.
 
 ## Dependencies
 
@@ -14,7 +14,7 @@ This project provides a solution to fetch card and account information from Braz
 1. Clone the repo
 
 ```bash
-git clone https://github.com/danielmesquitta/openfinance
+git clone https://github.com/danielmesquitta/openfinance-to-sheets
 
 ```
 

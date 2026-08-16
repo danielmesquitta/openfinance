@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/danielmesquitta/openfinance/internal/app/cli"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/app/cli"
 )
 
 func main() {

@@ -12,7 +12,7 @@ import (
 
 	"github.com/go-resty/resty/v2"
 
-	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/sheet"
 )
 
 func TestListTablesPaginatesAndFiltersUnavailableTables(t *testing.T) {

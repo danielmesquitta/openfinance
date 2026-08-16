@@ -8,8 +8,8 @@ import (
 	"github.com/go-resty/resty/v2"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/danielmesquitta/openfinance/internal/config"
-	"github.com/danielmesquitta/openfinance/internal/provider/openfinance"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/config"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/openfinance"
 )
 
 type conn struct {

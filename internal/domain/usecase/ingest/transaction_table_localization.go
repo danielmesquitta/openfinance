@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/entity"
 )
 
 const monthsPerYear = 12

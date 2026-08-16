@@ -2,7 +2,7 @@ template: testify
 formatter: goimports
 force-file-write: true
 packages:
-  github.com/danielmesquitta/openfinance/internal/provider/companyapi:
+  github.com/danielmesquitta/openfinance-to-sheets/internal/provider/companyapi:
     interfaces:
       APIProvider:
         config:
@@ -10,7 +10,7 @@ packages:
           filename: mockcompanyapi.go
           pkgname: mockcompanyapi
           structname: MockCompanyAPI
-  github.com/danielmesquitta/openfinance/internal/provider/gpt:
+  github.com/danielmesquitta/openfinance-to-sheets/internal/provider/gpt:
     interfaces:
       Provider:
         config:
@@ -18,7 +18,7 @@ packages:
           filename: mockgpt.go
           pkgname: mockgpt
           structname: MockGPT
-  github.com/danielmesquitta/openfinance/internal/provider/openfinance:
+  github.com/danielmesquitta/openfinance-to-sheets/internal/provider/openfinance:
     interfaces:
       APIProvider:
         config:
@@ -26,7 +26,7 @@ packages:
           filename: mockopenfinance.go
           pkgname: mockopenfinance
           structname: MockOpenFinance
-  github.com/danielmesquitta/openfinance/internal/provider/sheet:
+  github.com/danielmesquitta/openfinance-to-sheets/internal/provider/sheet:
     interfaces:
       Provider:
         config:
@@ -34,7 +34,7 @@ packages:
           filename: mocksheet.go
           pkgname: mocksheet
           structname: MockSheet
-  github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest:
+  github.com/danielmesquitta/openfinance-to-sheets/internal/domain/usecase/ingest:
     interfaces:
       IngestExecutor:
         config:

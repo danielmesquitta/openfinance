@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/danielmesquitta/openfinance/internal/app"
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/app"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/usecase/ingest"
 )
 
 const (

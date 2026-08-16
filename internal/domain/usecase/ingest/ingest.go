@@ -10,13 +10,13 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
-	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
-	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
-	"github.com/danielmesquitta/openfinance/internal/provider/companyapi"
-	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
-	"github.com/danielmesquitta/openfinance/internal/provider/openfinance"
-	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/pkg/docutil"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/pkg/validator"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/companyapi"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/gpt"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/openfinance"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/sheet"
 )
 
 const (

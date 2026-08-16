@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-resty/resty/v2"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/entity"
 )
 
 func TestListTransactionsByIngestProfileIDPaginatesAndMaps(t *testing.T) {

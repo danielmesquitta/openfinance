@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/danielmesquitta/openfinance/internal/app"
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/app"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/usecase/ingest"
 )
 
 var timeFormats = []string{
@@ -60,9 +60,9 @@ func Execute() error {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "openfinance-cli",
-	Short: "Open Finance Integration with Notion through Pluggy using CLI",
-	Long:  "This is a tool to help you integrate your open finance data with your Notion database",
+	Use:   "openfinance-to-sheets",
+	Short: "Sync Open Finance data to sheets through Pluggy",
+	Long:  "Sync Open Finance data to spreadsheet-style databases through Pluggy. Notion is the currently supported sheet provider.",
 	RunE:  run,
 }
 

@@ -13,14 +13,14 @@ import (
 
 	"github.com/stretchr/testify/mock"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
-	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
-	"github.com/danielmesquitta/openfinance/internal/provider/companyapi/mockcompanyapi"
-	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
-	"github.com/danielmesquitta/openfinance/internal/provider/gpt/mockgpt"
-	"github.com/danielmesquitta/openfinance/internal/provider/openfinance/mockopenfinance"
-	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
-	"github.com/danielmesquitta/openfinance/internal/provider/sheet/mocksheet"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/pkg/validator"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/companyapi/mockcompanyapi"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/gpt"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/gpt/mockgpt"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/openfinance/mockopenfinance"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/sheet"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/sheet/mocksheet"
 )
 
 type insertedTransaction struct {

@@ -7,14 +7,14 @@
 package app
 
 import (
-	"github.com/danielmesquitta/openfinance/internal/config"
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest"
-	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
-	"github.com/danielmesquitta/openfinance/internal/provider/companyapi/brasilapi"
-	"github.com/danielmesquitta/openfinance/internal/provider/gpt/openai"
-	"github.com/danielmesquitta/openfinance/internal/provider/openfinance/pluggyapi"
-	"github.com/danielmesquitta/openfinance/internal/provider/sheet/notionapi"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/config"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/usecase/ingest"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/pkg/validator"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/companyapi/brasilapi"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/gpt/openai"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/openfinance/pluggyapi"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/sheet/notionapi"
 )
 
 // Injectors from wire.go:

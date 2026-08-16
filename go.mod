@@ -1,4 +1,4 @@
-module github.com/danielmesquitta/openfinance
+module github.com/danielmesquitta/openfinance-to-sheets
 
 go 1.26.0
 

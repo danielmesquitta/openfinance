@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/danielmesquitta/openfinance/internal/pkg/docutil"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/pkg/docutil"
 )
 
 const (

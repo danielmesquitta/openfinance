@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
-	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/pkg/validator"
 )
 
 func validIngestProfilesFileData() IngestProfilesFileData {

@@ -1,7 +1,7 @@
 package brasilapi
 
 import (
-	"github.com/danielmesquitta/openfinance/internal/provider/companyapi"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/companyapi"
 	"github.com/go-resty/resty/v2"
 )
 

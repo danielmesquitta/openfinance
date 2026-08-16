@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest"
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase/mockingest"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/usecase/ingest"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/usecase/mockingest"
 )
 
 func testCommand(startDate, endDate time.Time) *cobra.Command {
@@ -20,6 +20,13 @@ func testCommand(startDate, endDate time.Time) *cobra.Command {
 	command.Flags().Time(endDateFlag, endDate, timeFormats, "")
 
 	return command
+}
+
+func TestRootCommandUsesProjectName(t *testing.T) {
+	const want = "openfinance-to-sheets"
+	if rootCmd.Use != want {
+		t.Fatalf("rootCmd.Use = %q, want %q", rootCmd.Use, want)
+	}
 }
 
 func TestExecuteIngestPropagatesIngestError(t *testing.T) {

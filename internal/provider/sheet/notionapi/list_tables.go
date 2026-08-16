@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/danielmesquitta/openfinance/internal/provider/sheet"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/sheet"
 )
 
 type listTablesResp struct {

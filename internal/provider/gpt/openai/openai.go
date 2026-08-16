@@ -9,8 +9,8 @@ import (
 	"github.com/openai/openai-go/v3/option"
 	"github.com/openai/openai-go/v3/shared"
 
-	"github.com/danielmesquitta/openfinance/internal/config"
-	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/config"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/gpt"
 )
 
 type OpenAIClient struct {

@@ -7,7 +7,7 @@ package mockgpt
 import (
 	"context"
 
-	"github.com/danielmesquitta/openfinance/internal/provider/gpt"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/gpt"
 	mock "github.com/stretchr/testify/mock"
 )
 

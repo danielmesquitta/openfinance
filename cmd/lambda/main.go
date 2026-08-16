@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/aws/aws-lambda-go/lambda"
-	app "github.com/danielmesquitta/openfinance/internal/app/lambda"
+	app "github.com/danielmesquitta/openfinance-to-sheets/internal/app/lambda"
 )
 
 func main() {

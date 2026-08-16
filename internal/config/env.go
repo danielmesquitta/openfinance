@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	root "github.com/danielmesquitta/openfinance"
-	"github.com/danielmesquitta/openfinance/internal/domain/entity"
-	"github.com/danielmesquitta/openfinance/internal/pkg/validator"
+	root "github.com/danielmesquitta/openfinance-to-sheets"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/entity"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/pkg/validator"
 	"github.com/spf13/viper"
 )
 

@@ -7,7 +7,7 @@ package mockingest
 import (
 	"context"
 
-	"github.com/danielmesquitta/openfinance/internal/domain/usecase/ingest"
+	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/usecase/ingest"
 	mock "github.com/stretchr/testify/mock"
 )
 
