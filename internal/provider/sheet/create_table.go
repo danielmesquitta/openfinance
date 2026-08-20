@@ -47,7 +47,7 @@ func (d TableDefinition) Columns() []ColumnDefinition {
 }
 
 func (d TableDefinition) Validate() error {
-	for columnIndex, column := range d.Columns() {
+	for columnIndex, column := range d.columns {
 		if err := column.Validate(); err != nil {
 			return fmt.Errorf("column %d: %w", columnIndex, err)
 		}

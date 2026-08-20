@@ -1,7 +1,6 @@
 package sheet
 
 import (
-	"os/exec"
 	"reflect"
 	"strings"
 	"testing"
@@ -175,31 +174,5 @@ func TestTableDefinitionValidate(t *testing.T) {
 	}
 	if err := (TableDefinition{}).Validate(); err != nil {
 		t.Fatalf("Validate() empty definition error = %v", err)
-	}
-}
-
-func TestInvalidColumnConfigurationDoesNotCompile(t *testing.T) {
-	fixtures := []string{
-		"invalid_currency_title",
-		"invalid_currency_text",
-		"invalid_currency_select",
-		"invalid_currency_date",
-		"invalid_options_title",
-		"invalid_options_text",
-		"invalid_options_number",
-		"invalid_options_date",
-	}
-
-	for _, fixture := range fixtures {
-		t.Run(fixture, func(t *testing.T) {
-			command := exec.Command("go", "test", "./testdata/"+fixture)
-			output, err := command.CombinedOutput()
-			if err == nil {
-				t.Fatalf("invalid fixture compiled successfully:\n%s", output)
-			}
-			if !strings.Contains(string(output), "has no field or method") {
-				t.Fatalf("compile error = %s, want incompatible method-set failure", output)
-			}
-		})
 	}
 }

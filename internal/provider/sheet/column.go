@@ -8,26 +8,22 @@ import (
 	"github.com/danielmesquitta/openfinance-to-sheets/internal/domain/entity"
 )
 
-type columnCell interface {
-	TitleCell | TextCell | NumberCell | SelectCell | DateCell
-}
-
 type Column interface {
 	Definition() ColumnDefinition
 }
 
-type column[T columnCell] struct {
+type column struct {
 	definition ColumnDefinition
 }
 
-func newColumn[T columnCell](name string) column[T] {
-	return column[T]{definition: ColumnDefinition{
+func newColumn(name string, columnType ColumnType) column {
+	return column{definition: ColumnDefinition{
 		name:       name,
-		columnType: columnType[T](),
+		columnType: columnType,
 	}}
 }
 
-func (c column[T]) Definition() ColumnDefinition {
+func (c column) Definition() ColumnDefinition {
 	definition := c.definition
 	definition.selectOptions = slices.Clone(c.definition.selectOptions)
 
@@ -35,27 +31,27 @@ func (c column[T]) Definition() ColumnDefinition {
 }
 
 type TitleColumn struct {
-	column[TitleCell]
+	column
 }
 
 func NewTitleColumn(name string) TitleColumn {
-	return TitleColumn{column: newColumn[TitleCell](name)}
+	return TitleColumn{column: newColumn(name, ColumnTypeTitle)}
 }
 
 type TextColumn struct {
-	column[TextCell]
+	column
 }
 
 func NewTextColumn(name string) TextColumn {
-	return TextColumn{column: newColumn[TextCell](name)}
+	return TextColumn{column: newColumn(name, ColumnTypeText)}
 }
 
 type NumberColumn struct {
-	column[NumberCell]
+	column
 }
 
 func NewNumberColumn(name string) NumberColumn {
-	return NumberColumn{column: newColumn[NumberCell](name)}
+	return NumberColumn{column: newColumn(name, ColumnTypeNumber)}
 }
 
 func (c NumberColumn) Currency(currency Currency) NumberColumn {
@@ -65,28 +61,29 @@ func (c NumberColumn) Currency(currency Currency) NumberColumn {
 }
 
 type SelectColumn struct {
-	column[SelectCell]
+	column
 }
 
 func NewSelectColumn(name string) SelectColumn {
-	return SelectColumn{column: newColumn[SelectCell](name)}
+	return SelectColumn{column: newColumn(name, ColumnTypeSelect)}
 }
 
 func (c SelectColumn) Options(options ...SelectOption) SelectColumn {
-	c.definition.selectOptions = make([]SelectOptionDefinition, 0, len(options))
-	for _, option := range options {
-		c.definition.selectOptions = append(c.definition.selectOptions, option.definition)
+	definitions := make([]SelectOptionDefinition, len(options))
+	for index, option := range options {
+		definitions[index] = option.definition
 	}
+	c.definition.selectOptions = definitions
 
 	return c
 }
 
 type DateColumn struct {
-	column[DateCell]
+	column
 }
 
 func NewDateColumn(name string) DateColumn {
-	return DateColumn{column: newColumn[DateCell](name)}
+	return DateColumn{column: newColumn(name, ColumnTypeDate)}
 }
 
 type ColumnDefinition struct {
@@ -113,18 +110,18 @@ func (d ColumnDefinition) SelectOptions() []SelectOptionDefinition {
 }
 
 func (d ColumnDefinition) Validate() error {
-	if !d.Type().isValid() {
-		return fmt.Errorf("unsupported type %q", d.Type())
+	if !d.columnType.isValid() {
+		return fmt.Errorf("unsupported type %q", d.columnType)
 	}
-	if d.Name() == "" {
+	if d.name == "" {
 		return errors.New("name is required")
 	}
-	if d.Type() != ColumnTypeSelect {
+	if d.columnType != ColumnTypeSelect {
 		return nil
 	}
 
-	for optionIndex, option := range d.SelectOptions() {
-		if option.Name() == "" {
+	for optionIndex, option := range d.selectOptions {
+		if option.name == "" {
 			return fmt.Errorf("select option %d: name is required", optionIndex)
 		}
 	}
@@ -141,24 +138,6 @@ const (
 	ColumnTypeSelect ColumnType = "select"
 	ColumnTypeDate   ColumnType = "date"
 )
-
-func columnType[T columnCell]() ColumnType {
-	var cell T
-	switch any(cell).(type) {
-	case TitleCell:
-		return ColumnTypeTitle
-	case TextCell:
-		return ColumnTypeText
-	case NumberCell:
-		return ColumnTypeNumber
-	case SelectCell:
-		return ColumnTypeSelect
-	case DateCell:
-		return ColumnTypeDate
-	default:
-		return ""
-	}
-}
 
 func (t ColumnType) isValid() bool {
 	switch t {
