@@ -57,13 +57,9 @@ func (c *Client) EnsureTableColumns(
 	if !ok {
 		return errors.New("connection not found for ingest profile " + connectionID)
 	}
-	if err := (sheet.CreateTableOptions{Columns: columns}).Validate(); err != nil {
-		return fmt.Errorf("invalid columns: %w", err)
-	}
-	for _, column := range columns {
-		if column.Type() != sheet.ColumnTypeSelect {
-			return fmt.Errorf("column %q has unsupported ensure type %q", column.Name(), column.Type())
-		}
+	definitions, err := ensureColumnDefinitions(columns)
+	if err != nil {
+		return err
 	}
 
 	table, err := c.retrieveTable(ctx, conn, tableID)
@@ -72,7 +68,7 @@ func (c *Client) EnsureTableColumns(
 	}
 
 	updates := make(map[string]updateTableReqProperty)
-	for _, column := range columns {
+	for _, column := range definitions {
 		property, changed, err := ensureSelectProperty(table.Properties, column)
 		if err != nil {
 			return err
@@ -101,6 +97,31 @@ func (c *Client) EnsureTableColumns(
 	return nil
 }
 
+func ensureColumnDefinitions(columns []sheet.Column) ([]sheet.ColumnDefinition, error) {
+	definitions := make([]sheet.ColumnDefinition, 0, len(columns))
+	for columnIndex, column := range columns {
+		if column == nil {
+			return nil, fmt.Errorf("invalid columns: column %d is nil", columnIndex)
+		}
+
+		definition := column.Definition()
+		if err := definition.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid columns: column %d: %w", columnIndex, err)
+		}
+		if definition.Type() != sheet.ColumnTypeSelect {
+			return nil, fmt.Errorf(
+				"column %q has unsupported ensure type %q",
+				definition.Name(),
+				definition.Type(),
+			)
+		}
+
+		definitions = append(definitions, definition)
+	}
+
+	return definitions, nil
+}
+
 func (c *Client) retrieveTable(
 	ctx context.Context,
 	conn conn,
@@ -127,7 +148,7 @@ func (c *Client) retrieveTable(
 
 func ensureSelectProperty(
 	properties map[string]retrieveTableRespProperty,
-	column sheet.Column,
+	column sheet.ColumnDefinition,
 ) (updateTableReqProperty, bool, error) {
 	existing, exists := properties[column.Name()]
 	if !exists {
@@ -180,7 +201,7 @@ func ensureSelectProperty(
 	return updateTableReqProperty{Select: &updateTableReqSelect{Options: options}}, true, nil
 }
 
-func newSelectOptions(options []sheet.SelectOption) []updateTableReqSelectOption {
+func newSelectOptions(options []sheet.SelectOptionDefinition) []updateTableReqSelectOption {
 	result := make([]updateTableReqSelectOption, 0, len(options))
 	for _, option := range options {
 		result = append(result, updateTableReqSelectOption{

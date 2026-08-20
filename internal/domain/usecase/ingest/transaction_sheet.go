@@ -10,10 +10,13 @@ import (
 
 const (
 	transactionTableIcon = "💸"
-	transactionCurrency  = "BRL"
+	transactionCurrency  = sheet.Currency("BRL")
 )
 
-func transactionTableOptions(settings entity.IngestProfileSettings) []sheet.CreateTableOption {
+func transactionTableDefinition(
+	title string,
+	settings entity.IngestProfileSettings,
+) sheet.TableDefinition {
 	localization := transactionTableLocalizationFor(settings.Language)
 	columns := localization.columns
 
@@ -21,10 +24,8 @@ func transactionTableOptions(settings entity.IngestProfileSettings) []sheet.Crea
 	for _, category := range settings.Categories {
 		categoryOptions = append(
 			categoryOptions,
-			sheet.NewSelectOption(
-				string(category),
-				sheet.WithColor(settings.ColorsByCategory[category]),
-			),
+			sheet.NewSelectOption(string(category)).
+				Color(settings.ColorsByCategory[category]),
 		)
 	}
 
@@ -32,65 +33,52 @@ func transactionTableOptions(settings entity.IngestProfileSettings) []sheet.Crea
 	for _, paymentMethod := range entity.PaymentMethods {
 		paymentMethodOptions = append(
 			paymentMethodOptions,
-			sheet.NewSelectOption(
-				localization.paymentMethodLabels[paymentMethod],
-				sheet.WithColor(entity.PaymentMethodColors[paymentMethod]),
-			),
+			sheet.NewSelectOption(localization.paymentMethodLabels[paymentMethod]).
+				Color(entity.PaymentMethodColors[paymentMethod]),
 		)
 	}
 
-	tableColumns := []sheet.Column{
-		sheet.NewTitleColumn(columns.name),
-		sheet.NewSelectColumn(
-			columns.category,
-			sheet.WithSelectOptions(categoryOptions...),
-		),
-	}
+	definition := sheet.NewTable(title).
+		SetIcon(transactionTableIcon).
+		AddColumn(sheet.NewTitleColumn(columns.name)).
+		AddColumn(sheet.NewSelectColumn(columns.category).Options(categoryOptions...))
 	if budgetGroupColumn, enabled := budgetGroupTableColumn(settings, settings.Language); enabled {
-		tableColumns = append(tableColumns, budgetGroupColumn)
+		definition = definition.AddColumn(budgetGroupColumn)
 	}
-	tableColumns = append(
-		tableColumns,
-		sheet.NewNumberColumn(
-			columns.amount,
-			sheet.WithCurrency(transactionCurrency),
-		),
-		sheet.NewSelectColumn(
-			columns.paymentMethod,
-			sheet.WithSelectOptions(paymentMethodOptions...),
-		),
-		sheet.NewTextColumn(columns.cardLastDigits),
-		sheet.NewDateColumn(columns.date),
-	)
 
-	return []sheet.CreateTableOption{
-		sheet.WithIcon(transactionTableIcon),
-		sheet.WithColumns(tableColumns...),
-	}
+	return definition.
+		AddColumn(
+			sheet.NewNumberColumn(columns.amount).
+				Currency(transactionCurrency),
+		).
+		AddColumn(
+			sheet.NewSelectColumn(columns.paymentMethod).
+				Options(paymentMethodOptions...),
+		).
+		AddColumn(sheet.NewTextColumn(columns.cardLastDigits)).
+		AddColumn(sheet.NewDateColumn(columns.date))
 }
 
 func budgetGroupTableColumn(
 	settings entity.IngestProfileSettings,
 	language entity.Language,
-) (sheet.Column, bool) {
+) (sheet.SelectColumn, bool) {
 	if len(settings.BudgetGroups) == 0 {
-		return sheet.Column{}, false
+		return sheet.SelectColumn{}, false
 	}
 
 	options := make([]sheet.SelectOption, 0, len(settings.BudgetGroups))
 	for _, budgetGroup := range settings.BudgetGroups {
-		options = append(options, sheet.NewSelectOption(
-			string(budgetGroup),
-			sheet.WithColor(settings.ColorsByBudgetGroup[budgetGroup]),
-		))
+		options = append(
+			options,
+			sheet.NewSelectOption(string(budgetGroup)).
+				Color(settings.ColorsByBudgetGroup[budgetGroup]),
+		)
 	}
 
 	columns := transactionTableLocalizationFor(language).columns
 
-	return sheet.NewSelectColumn(
-		columns.budgetGroup,
-		sheet.WithSelectOptions(options...),
-	), true
+	return sheet.NewSelectColumn(columns.budgetGroup).Options(options...), true
 }
 
 func transactionToRow(transaction entity.Transaction, language entity.Language) sheet.Row {

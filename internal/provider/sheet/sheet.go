@@ -9,8 +9,7 @@ type Provider interface {
 	CreateTable(
 		ctx context.Context,
 		connectionID string,
-		title string,
-		options ...CreateTableOption,
+		definition TableDefinition,
 	) (Table, error)
 	EnsureTableColumns(
 		ctx context.Context,

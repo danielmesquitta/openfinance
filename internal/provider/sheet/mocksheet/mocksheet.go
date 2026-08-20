@@ -39,14 +39,8 @@ func (_m *MockSheet) EXPECT() *MockSheet_Expecter {
 }
 
 // CreateTable provides a mock function for the type MockSheet
-func (_mock *MockSheet) CreateTable(ctx context.Context, connectionID string, title string, options ...sheet.CreateTableOption) (sheet.Table, error) {
-	var tmpRet mock.Arguments
-	if len(options) > 0 {
-		tmpRet = _mock.Called(ctx, connectionID, title, options)
-	} else {
-		tmpRet = _mock.Called(ctx, connectionID, title)
-	}
-	ret := tmpRet
+func (_mock *MockSheet) CreateTable(ctx context.Context, connectionID string, definition sheet.TableDefinition) (sheet.Table, error) {
+	ret := _mock.Called(ctx, connectionID, definition)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateTable")
@@ -54,16 +48,16 @@ func (_mock *MockSheet) CreateTable(ctx context.Context, connectionID string, ti
 
 	var r0 sheet.Table
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, ...sheet.CreateTableOption) (sheet.Table, error)); ok {
-		return returnFunc(ctx, connectionID, title, options...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, sheet.TableDefinition) (sheet.Table, error)); ok {
+		return returnFunc(ctx, connectionID, definition)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, ...sheet.CreateTableOption) sheet.Table); ok {
-		r0 = returnFunc(ctx, connectionID, title, options...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, sheet.TableDefinition) sheet.Table); ok {
+		r0 = returnFunc(ctx, connectionID, definition)
 	} else {
 		r0 = ret.Get(0).(sheet.Table)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, ...sheet.CreateTableOption) error); ok {
-		r1 = returnFunc(ctx, connectionID, title, options...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, sheet.TableDefinition) error); ok {
+		r1 = returnFunc(ctx, connectionID, definition)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -78,14 +72,12 @@ type MockSheet_CreateTable_Call struct {
 // CreateTable is a helper method to define mock.On call
 //   - ctx context.Context
 //   - connectionID string
-//   - title string
-//   - options ...sheet.CreateTableOption
-func (_e *MockSheet_Expecter) CreateTable(ctx interface{}, connectionID interface{}, title interface{}, options ...interface{}) *MockSheet_CreateTable_Call {
-	return &MockSheet_CreateTable_Call{Call: _e.mock.On("CreateTable",
-		append([]interface{}{ctx, connectionID, title}, options...)...)}
+//   - definition sheet.TableDefinition
+func (_e *MockSheet_Expecter) CreateTable(ctx interface{}, connectionID interface{}, definition interface{}) *MockSheet_CreateTable_Call {
+	return &MockSheet_CreateTable_Call{Call: _e.mock.On("CreateTable", ctx, connectionID, definition)}
 }
 
-func (_c *MockSheet_CreateTable_Call) Run(run func(ctx context.Context, connectionID string, title string, options ...sheet.CreateTableOption)) *MockSheet_CreateTable_Call {
+func (_c *MockSheet_CreateTable_Call) Run(run func(ctx context.Context, connectionID string, definition sheet.TableDefinition)) *MockSheet_CreateTable_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -95,21 +87,14 @@ func (_c *MockSheet_CreateTable_Call) Run(run func(ctx context.Context, connecti
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 string
+		var arg2 sheet.TableDefinition
 		if args[2] != nil {
-			arg2 = args[2].(string)
+			arg2 = args[2].(sheet.TableDefinition)
 		}
-		var arg3 []sheet.CreateTableOption
-		var variadicArgs []sheet.CreateTableOption
-		if len(args) > 3 {
-			variadicArgs = args[3].([]sheet.CreateTableOption)
-		}
-		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3...,
 		)
 	})
 	return _c
@@ -120,7 +105,7 @@ func (_c *MockSheet_CreateTable_Call) Return(table sheet.Table, err error) *Mock
 	return _c
 }
 
-func (_c *MockSheet_CreateTable_Call) RunAndReturn(run func(ctx context.Context, connectionID string, title string, options ...sheet.CreateTableOption) (sheet.Table, error)) *MockSheet_CreateTable_Call {
+func (_c *MockSheet_CreateTable_Call) RunAndReturn(run func(ctx context.Context, connectionID string, definition sheet.TableDefinition) (sheet.Table, error)) *MockSheet_CreateTable_Call {
 	_c.Call.Return(run)
 	return _c
 }

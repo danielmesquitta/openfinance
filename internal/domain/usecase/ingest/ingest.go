@@ -173,8 +173,7 @@ func (s *Ingest) prepareTransactionTable(
 		created, err := s.sheetProvider.CreateTable(
 			ctx,
 			settings.ID,
-			title,
-			transactionTableOptions(settings)...,
+			transactionTableDefinition(title, settings),
 		)
 		if err != nil {
 			return preparedTransactionTable{}, fmt.Errorf("create table %q: %w", title, err)

@@ -75,23 +75,22 @@ func TestCreateTableTranslatesGenericDefinition(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	table, err := testClient(server.URL).CreateTable(
-		t.Context(),
-		"connection",
-		"Jan 2026",
-		nil,
-		sheet.WithIcon("ignored"),
-		sheet.WithIcon("💸"),
-		sheet.WithColumns(
-			sheet.NewTitleColumn("Name"),
-			sheet.NewSelectColumn("Category", sheet.WithSelectOptions(
-				sheet.NewSelectOption("Food, drinks", sheet.WithColor("red")),
-			)),
-			sheet.NewNumberColumn("Amount", sheet.WithCurrency("BRL")),
-			sheet.NewTextColumn("Notes"),
-			sheet.NewDateColumn("Date"),
-		),
-	)
+	definition := sheet.NewTable("Jan 2026").
+		SetIcon("ignored").
+		SetIcon("💸").
+		AddColumn(sheet.NewTitleColumn("Name")).
+		AddColumn(
+			sheet.NewSelectColumn("Category").Options(
+				sheet.NewSelectOption("Food, drinks").Color("red"),
+			),
+		).
+		AddColumn(
+			sheet.NewNumberColumn("Amount").
+				Currency(sheet.Currency("BRL")),
+		).
+		AddColumn(sheet.NewTextColumn("Notes")).
+		AddColumn(sheet.NewDateColumn("Date"))
+	table, err := testClient(server.URL).CreateTable(t.Context(), "connection", definition)
 	if err != nil {
 		t.Fatalf("CreateTable() error = %v", err)
 	}
@@ -142,10 +141,10 @@ func TestEnsureTableColumnsAddsMissingSelectProperty(t *testing.T) {
 		t.Context(),
 		"connection",
 		"table",
-		sheet.NewSelectColumn("Budget Group", sheet.WithSelectOptions(
-			sheet.NewSelectOption("Fixed, Costs", sheet.WithColor("red")),
-			sheet.NewSelectOption("Other", sheet.WithColor("default")),
-		)),
+		sheet.NewSelectColumn("Budget Group").Options(
+			sheet.NewSelectOption("Fixed, Costs").Color("red"),
+			sheet.NewSelectOption("Other").Color("default"),
+		),
 	)
 	if err != nil {
 		t.Fatalf("EnsureTableColumns() error = %v", err)
@@ -183,10 +182,10 @@ func TestEnsureTableColumnsMergesSelectOptionsAdditively(t *testing.T) {
 		t.Context(),
 		"connection",
 		"table",
-		sheet.NewSelectColumn("Budget Group", sheet.WithSelectOptions(
-			sheet.NewSelectOption("Fixed Costs", sheet.WithColor("red")),
-			sheet.NewSelectOption("Lifestyle", sheet.WithColor("pink")),
-		)),
+		sheet.NewSelectColumn("Budget Group").Options(
+			sheet.NewSelectOption("Fixed Costs").Color("red"),
+			sheet.NewSelectOption("Lifestyle").Color("pink"),
+		),
 	)
 	if err != nil {
 		t.Fatalf("EnsureTableColumns() error = %v", err)
@@ -219,9 +218,9 @@ func TestEnsureTableColumnsSkipsSatisfiedProperty(t *testing.T) {
 		t.Context(),
 		"connection",
 		"table",
-		sheet.NewSelectColumn("Budget Group", sheet.WithSelectOptions(
-			sheet.NewSelectOption("Fixed Costs", sheet.WithColor("red")),
-		)),
+		sheet.NewSelectColumn("Budget Group").Options(
+			sheet.NewSelectOption("Fixed Costs").Color("red"),
+		),
 	)
 	if err != nil {
 		t.Fatalf("EnsureTableColumns() error = %v", err)
@@ -294,12 +293,10 @@ func TestEnsureTableColumnsPropagatesSchemaErrors(t *testing.T) {
 }
 
 func TestCreateTableRequestSupportsEmptyOptionalMetadata(t *testing.T) {
-	requestData, err := createTableRequest("page", "Table", sheet.CreateTableOptions{
-		Columns: []sheet.Column{
-			sheet.NewNumberColumn("Amount"),
-			sheet.NewSelectColumn("Category"),
-		},
-	})
+	definition := sheet.NewTable("Table").
+		AddColumn(sheet.NewNumberColumn("Amount")).
+		AddColumn(sheet.NewSelectColumn("Category"))
+	requestData, err := createTableRequest("page", definition)
 	if err != nil {
 		t.Fatalf("createTableRequest() error = %v", err)
 	}
@@ -314,7 +311,7 @@ func TestCreateTableRequestSupportsEmptyOptionalMetadata(t *testing.T) {
 	}
 }
 
-func TestCreateTableRejectsInvalidOptionsBeforeRequest(t *testing.T) {
+func TestCreateTableRejectsInvalidDefinitionBeforeRequest(t *testing.T) {
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		requests.Add(1)
@@ -322,21 +319,25 @@ func TestCreateTableRejectsInvalidOptionsBeforeRequest(t *testing.T) {
 	t.Cleanup(server.Close)
 	client := testClient(server.URL)
 
-	tests := []sheet.Column{
-		sheet.NewNumberColumn("Amount", sheet.WithCurrency("USD")),
-		{},
-		sheet.NewTitleColumn(""),
-		sheet.NewSelectColumn("Category", sheet.WithSelectOptions(sheet.NewSelectOption(""))),
+	var nilColumn sheet.Column
+	tests := []sheet.TableDefinition{
+		sheet.NewTable("Table").AddColumn(
+			sheet.NewNumberColumn("Amount").Currency(sheet.Currency("USD")),
+		),
+		sheet.NewTable("Table").AddColumn(nilColumn),
+		sheet.NewTable("Table").AddColumn(sheet.NewTitleColumn("")),
+		sheet.NewTable("Table").AddColumn(
+			sheet.NewSelectColumn("Category").Options(sheet.NewSelectOption("")),
+		),
 	}
-	for _, column := range tests {
+	for _, definition := range tests {
 		_, err := client.CreateTable(
 			t.Context(),
 			"connection",
-			"Table",
-			sheet.WithColumns(column),
+			definition,
 		)
 		if err == nil {
-			t.Fatalf("CreateTable(%#v) error = nil", column)
+			t.Fatalf("CreateTable(%#v) error = nil", definition)
 		}
 	}
 	if requests.Load() != 0 {
@@ -468,7 +469,7 @@ func TestListRowsPaginatesMapsPropertiesAndSkipsMalformedDates(t *testing.T) {
 
 func TestOperationsRejectMissingConnection(t *testing.T) {
 	client := &Client{client: resty.New(), conns: map[string]conn{}}
-	if _, err := client.CreateTable(t.Context(), "missing", "Table"); err == nil {
+	if _, err := client.CreateTable(t.Context(), "missing", sheet.NewTable("Table")); err == nil {
 		t.Fatal("CreateTable() error = nil")
 	}
 	if err := client.InsertRow(t.Context(), "missing", "table", nil); err == nil {

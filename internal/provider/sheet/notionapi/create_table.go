@@ -68,27 +68,20 @@ type createTableRespTitle struct {
 func (c *Client) CreateTable(
 	ctx context.Context,
 	connectionID string,
-	title string,
-	options ...sheet.CreateTableOption,
+	definition sheet.TableDefinition,
 ) (sheet.Table, error) {
 	conn, ok := c.conns[connectionID]
 	if !ok {
 		return sheet.Table{}, errors.New("connection not found for ingest profile " + connectionID)
 	}
 
-	createOptions := sheet.CreateTableOptions{}
-	for _, option := range options {
-		if option != nil {
-			option(&createOptions)
-		}
-	}
-	if err := createOptions.Validate(); err != nil {
-		return sheet.Table{}, fmt.Errorf("invalid table options: %w", err)
+	if err := definition.Validate(); err != nil {
+		return sheet.Table{}, fmt.Errorf("invalid table definition: %w", err)
 	}
 
-	requestData, err := createTableRequest(conn.pageID, title, createOptions)
+	requestData, err := createTableRequest(conn.pageID, definition)
 	if err != nil {
-		return sheet.Table{}, fmt.Errorf("invalid table options: %w", err)
+		return sheet.Table{}, fmt.Errorf("invalid table definition: %w", err)
 	}
 
 	res, err := c.client.R().
@@ -125,22 +118,23 @@ func (c *Client) CreateTable(
 }
 
 func createTableRequest(
-	pageID, title string,
-	options sheet.CreateTableOptions,
+	pageID string,
+	definition sheet.TableDefinition,
 ) (createTableReq, error) {
+	columns := definition.Columns()
 	requestData := createTableReq{
 		Parent: createTableReqParent{Type: "page_id", PageID: pageID},
 		Title: []createTableReqTitle{{
 			Type: "text",
-			Text: createTableReqText{Content: title},
+			Text: createTableReqText{Content: definition.Title()},
 		}},
-		Properties: make(map[string]createTableReqProperty, len(options.Columns)),
+		Properties: make(map[string]createTableReqProperty, len(columns)),
 	}
-	if options.Icon != "" {
-		requestData.Icon = &createTableReqIcon{Type: "emoji", Emoji: options.Icon}
+	if definition.Icon() != "" {
+		requestData.Icon = &createTableReqIcon{Type: "emoji", Emoji: definition.Icon()}
 	}
 
-	for _, column := range options.Columns {
+	for _, column := range columns {
 		property, err := createTableProperty(column)
 		if err != nil {
 			return createTableReq{}, fmt.Errorf("column %q: %w", column.Name(), err)
@@ -151,7 +145,7 @@ func createTableRequest(
 	return requestData, nil
 }
 
-func createTableProperty(column sheet.Column) (createTableReqProperty, error) {
+func createTableProperty(column sheet.ColumnDefinition) (createTableReqProperty, error) {
 	empty := &struct{}{}
 	switch column.Type() {
 	case sheet.ColumnTypeTitle:
@@ -162,7 +156,7 @@ func createTableProperty(column sheet.Column) (createTableReqProperty, error) {
 		number := &createTableReqNumber{}
 		switch column.Currency() {
 		case "":
-		case "BRL":
+		case sheet.Currency("BRL"):
 			number.Format = "real"
 		default:
 			return createTableReqProperty{}, fmt.Errorf("unsupported currency %q", column.Currency())

@@ -9,50 +9,52 @@ import (
 	"github.com/danielmesquitta/openfinance-to-sheets/internal/provider/sheet"
 )
 
-func TestTransactionTableOptions(t *testing.T) {
+func TestTransactionTableDefinition(t *testing.T) {
 	tests := []struct {
 		name     string
 		language entity.Language
-		columns  []sheet.Column
+		columns  []sheet.ColumnDefinition
 	}{
 		{
 			name:     "English default",
 			language: "",
-			columns: []sheet.Column{
-				sheet.NewTitleColumn("Name"),
-				sheet.NewSelectColumn("Category", sheet.WithSelectOptions(
-					sheet.NewSelectOption("Food", sheet.WithColor(entity.Red)),
-					sheet.NewSelectOption("Others", sheet.WithColor(entity.Gray)),
-				)),
-				sheet.NewNumberColumn("Amount", sheet.WithCurrency("BRL")),
-				sheet.NewSelectColumn("Payment Method", sheet.WithSelectOptions(
-					sheet.NewSelectOption("BOLETO", sheet.WithColor(entity.Yellow)),
-					sheet.NewSelectOption("PIX", sheet.WithColor(entity.Blue)),
-					sheet.NewSelectOption("TED", sheet.WithColor(entity.Green)),
-					sheet.NewSelectOption("CREDIT CARD", sheet.WithColor(entity.Purple)),
-				)),
-				sheet.NewTextColumn("Card Last Digits"),
-				sheet.NewDateColumn("Date"),
+			columns: []sheet.ColumnDefinition{
+				sheet.NewTitleColumn("Name").Definition(),
+				sheet.NewSelectColumn("Category").Options(
+					sheet.NewSelectOption("Food").Color(entity.Red),
+					sheet.NewSelectOption("Others").Color(entity.Gray),
+				).Definition(),
+				sheet.NewNumberColumn("Amount").
+					Currency(sheet.Currency("BRL")).Definition(),
+				sheet.NewSelectColumn("Payment Method").Options(
+					sheet.NewSelectOption("BOLETO").Color(entity.Yellow),
+					sheet.NewSelectOption("PIX").Color(entity.Blue),
+					sheet.NewSelectOption("TED").Color(entity.Green),
+					sheet.NewSelectOption("CREDIT CARD").Color(entity.Purple),
+				).Definition(),
+				sheet.NewTextColumn("Card Last Digits").Definition(),
+				sheet.NewDateColumn("Date").Definition(),
 			},
 		},
 		{
 			name:     "Brazilian Portuguese",
 			language: entity.LanguagePortugueseBrazil,
-			columns: []sheet.Column{
-				sheet.NewTitleColumn("Nome"),
-				sheet.NewSelectColumn("Categoria", sheet.WithSelectOptions(
-					sheet.NewSelectOption("Food", sheet.WithColor(entity.Red)),
-					sheet.NewSelectOption("Others", sheet.WithColor(entity.Gray)),
-				)),
-				sheet.NewNumberColumn("Valor", sheet.WithCurrency("BRL")),
-				sheet.NewSelectColumn("Forma de pagamento", sheet.WithSelectOptions(
-					sheet.NewSelectOption("BOLETO", sheet.WithColor(entity.Yellow)),
-					sheet.NewSelectOption("PIX", sheet.WithColor(entity.Blue)),
-					sheet.NewSelectOption("TED", sheet.WithColor(entity.Green)),
-					sheet.NewSelectOption("CARTÃO DE CRÉDITO", sheet.WithColor(entity.Purple)),
-				)),
-				sheet.NewTextColumn("Últimos dígitos do cartão"),
-				sheet.NewDateColumn("Data"),
+			columns: []sheet.ColumnDefinition{
+				sheet.NewTitleColumn("Nome").Definition(),
+				sheet.NewSelectColumn("Categoria").Options(
+					sheet.NewSelectOption("Food").Color(entity.Red),
+					sheet.NewSelectOption("Others").Color(entity.Gray),
+				).Definition(),
+				sheet.NewNumberColumn("Valor").
+					Currency(sheet.Currency("BRL")).Definition(),
+				sheet.NewSelectColumn("Forma de pagamento").Options(
+					sheet.NewSelectOption("BOLETO").Color(entity.Yellow),
+					sheet.NewSelectOption("PIX").Color(entity.Blue),
+					sheet.NewSelectOption("TED").Color(entity.Green),
+					sheet.NewSelectOption("CARTÃO DE CRÉDITO").Color(entity.Purple),
+				).Definition(),
+				sheet.NewTextColumn("Últimos dígitos do cartão").Definition(),
+				sheet.NewDateColumn("Data").Definition(),
 			},
 		},
 	}
@@ -67,17 +69,16 @@ func TestTransactionTableOptions(t *testing.T) {
 				},
 			}
 
-			got := resolveCreateTableOptions(transactionTableOptions(settings))
-			want := sheet.CreateTableOptions{Icon: "💸", Columns: test.columns}
-
-			if !reflect.DeepEqual(got, want) {
-				t.Fatalf("definition = %#v, want %#v", got, want)
+			got := transactionTableDefinition("Transactions", settings)
+			if got.Title() != "Transactions" || got.Icon() != "💸" ||
+				!reflect.DeepEqual(got.Columns(), test.columns) {
+				t.Fatalf("definition = %#v, want columns %#v", got, test.columns)
 			}
 		})
 	}
 }
 
-func TestTransactionTableOptionsIncludeLocalizedBudgetGroup(t *testing.T) {
+func TestTransactionTableDefinitionIncludesLocalizedBudgetGroup(t *testing.T) {
 	tests := []struct {
 		language   entity.Language
 		columnName string
@@ -99,12 +100,12 @@ func TestTransactionTableOptionsIncludeLocalizedBudgetGroup(t *testing.T) {
 				},
 			}
 
-			got := resolveCreateTableOptions(transactionTableOptions(settings))
-			if len(got.Columns) != 7 || got.Columns[2].Name() != test.columnName ||
-				got.Columns[2].Type() != sheet.ColumnTypeSelect {
-				t.Fatalf("columns = %#v", got.Columns)
+			columns := transactionTableDefinition("Transactions", settings).Columns()
+			if len(columns) != 7 || columns[2].Name() != test.columnName ||
+				columns[2].Type() != sheet.ColumnTypeSelect {
+				t.Fatalf("columns = %#v", columns)
 			}
-			options := got.Columns[2].SelectOptions()
+			options := columns[2].SelectOptions()
 			if len(options) != 2 || options[0].Name() != "Fixed Costs" ||
 				options[0].Color() != entity.Red || options[1].Name() != "Other" ||
 				options[1].Color() != entity.Gray {
@@ -112,17 +113,6 @@ func TestTransactionTableOptionsIncludeLocalizedBudgetGroup(t *testing.T) {
 			}
 		})
 	}
-}
-
-func resolveCreateTableOptions(options []sheet.CreateTableOption) sheet.CreateTableOptions {
-	resolved := sheet.CreateTableOptions{}
-	for _, option := range options {
-		if option != nil {
-			option(&resolved)
-		}
-	}
-
-	return resolved
 }
 
 func TestTransactionRowRoundTrip(t *testing.T) {

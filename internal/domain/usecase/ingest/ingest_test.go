@@ -360,13 +360,13 @@ func TestIngestUsesIngestProfileSpecificCategorizationSettings(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().ListTables(mock.Anything, mock.Anything).Return(nil, nil).Twice()
 	store.EXPECT().
-		CreateTable(mock.Anything, mock.Anything, "Jan 2026", mock.Anything).
+		CreateTable(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(
 			_ context.Context,
-			ingestProfileID, title string,
-			_ ...sheet.CreateTableOption,
+			ingestProfileID string,
+			definition sheet.TableDefinition,
 		) (sheet.Table, error) {
-			return sheet.Table{ID: ingestProfileID + "-table", Title: title}, nil
+			return sheet.Table{ID: ingestProfileID + "-table", Title: definition.Title()}, nil
 		}).
 		Twice()
 
@@ -477,7 +477,6 @@ func TestIngestProcessesEveryMonthAndDeduplicates(t *testing.T) {
 		CreateTable(
 			mock.Anything,
 			"ingest-profile",
-			"Feb 2026",
 			mock.Anything,
 		).
 		Return(sheet.Table{ID: "created-Feb 2026", Title: "Feb 2026"}, nil).
@@ -650,10 +649,14 @@ func TestIngestUpgradesExistingTableAndOnlyCategorizesNewRows(t *testing.T) {
 			"ingest-profile",
 			"august",
 			mock.MatchedBy(func(columns []sheet.Column) bool {
-				if len(columns) != 1 || columns[0].Name() != "Grupo do orçamento" {
+				if len(columns) != 1 {
 					return false
 				}
-				options := columns[0].SelectOptions()
+				definition := columns[0].Definition()
+				if definition.Name() != "Grupo do orçamento" {
+					return false
+				}
+				options := definition.SelectOptions()
 
 				return len(options) == 3 && options[0].Name() == "Fixed Costs" &&
 					options[1].Name() == "Lifestyle" && options[2].Name() == "Other"
@@ -706,19 +709,19 @@ func TestIngestCreatesPortugueseTable(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 	store.EXPECT().
-		CreateTable(mock.Anything, "ingest-profile", "Jan 2026", mock.Anything).
+		CreateTable(mock.Anything, "ingest-profile", mock.Anything).
 		RunAndReturn(func(
 			_ context.Context,
-			_, title string,
-			options ...sheet.CreateTableOption,
+			_ string,
+			definition sheet.TableDefinition,
 		) (sheet.Table, error) {
-			resolved := resolveCreateTableOptions(options)
-			if len(resolved.Columns) != 6 || resolved.Columns[0].Name() != "Nome" ||
-				resolved.Columns[3].Name() != "Forma de pagamento" {
-				t.Fatalf("table options = %#v", resolved)
+			columns := definition.Columns()
+			if len(columns) != 6 || columns[0].Name() != "Nome" ||
+				columns[3].Name() != "Forma de pagamento" {
+				t.Fatalf("table definition = %#v", definition)
 			}
 
-			return sheet.Table{ID: "january", Title: title}, nil
+			return sheet.Table{ID: "january", Title: definition.Title()}, nil
 		}).
 		Once()
 
@@ -818,7 +821,7 @@ func TestIngestEnrichesUniqueCompany(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 	store.EXPECT().
-		CreateTable(mock.Anything, "ingest-profile", "Jan 2026", mock.Anything).
+		CreateTable(mock.Anything, "ingest-profile", mock.Anything).
 		Return(sheet.Table{ID: "jan", Title: "Jan 2026"}, nil).
 		Once()
 	store.EXPECT().
@@ -875,7 +878,7 @@ func TestIngestCompanyLookupFailureIsNonFatal(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 	store.EXPECT().
-		CreateTable(mock.Anything, "ingest-profile", "Jan 2026", mock.Anything).
+		CreateTable(mock.Anything, "ingest-profile", mock.Anything).
 		Return(sheet.Table{ID: "jan", Title: "Jan 2026"}, nil).
 		Once()
 	store.EXPECT().
@@ -920,7 +923,7 @@ func TestIngestEmptyRangeSkipsCategorizer(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 	store.EXPECT().
-		CreateTable(mock.Anything, "ingest-profile", "Jan 2026", mock.Anything).
+		CreateTable(mock.Anything, "ingest-profile", mock.Anything).
 		Return(sheet.Table{ID: "jan", Title: "Jan 2026"}, nil).
 		Once()
 
@@ -1037,7 +1040,7 @@ func TestIngestPropagatesCategorizerAndStoreErrors(t *testing.T) {
 					Once()
 				store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 				store.EXPECT().
-					CreateTable(mock.Anything, "ingest-profile", "Jan 2026", mock.Anything).
+					CreateTable(mock.Anything, "ingest-profile", mock.Anything).
 					Return(sheet.Table{ID: "jan", Title: "Jan 2026"}, nil).
 					Once()
 				store.EXPECT().
@@ -1095,13 +1098,13 @@ func TestIngestBoundsIngestProfileConcurrency(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().ListTables(mock.Anything, mock.Anything).Return(nil, nil).Times(len(ingestProfileIDs))
 	store.EXPECT().
-		CreateTable(mock.Anything, mock.Anything, "Jan 2026", mock.Anything).
+		CreateTable(mock.Anything, mock.Anything, mock.Anything).
 		RunAndReturn(func(
 			_ context.Context,
-			ingestProfileID, title string,
-			_ ...sheet.CreateTableOption,
+			ingestProfileID string,
+			definition sheet.TableDefinition,
 		) (sheet.Table, error) {
-			return sheet.Table{ID: ingestProfileID + "-jan", Title: title}, nil
+			return sheet.Table{ID: ingestProfileID + "-jan", Title: definition.Title()}, nil
 		}).
 		Times(len(ingestProfileIDs))
 
@@ -1171,7 +1174,7 @@ func TestIngestBoundsInsertConcurrency(t *testing.T) {
 	store := mocksheet.NewMockSheet(t)
 	store.EXPECT().ListTables(mock.Anything, "ingest-profile").Return(nil, nil).Once()
 	store.EXPECT().
-		CreateTable(mock.Anything, "ingest-profile", "Jan 2026", mock.Anything).
+		CreateTable(mock.Anything, "ingest-profile", mock.Anything).
 		Return(sheet.Table{ID: "jan", Title: "Jan 2026"}, nil).
 		Once()
 	store.EXPECT().

@@ -5,47 +5,51 @@ import (
 	"slices"
 )
 
-type CreateTableOptions struct {
-	Icon    string
-	Columns []Column
+type TableDefinition struct {
+	title   string
+	icon    string
+	columns []ColumnDefinition
 }
 
-type CreateTableOption func(*CreateTableOptions)
+func NewTable(title string) TableDefinition {
+	return TableDefinition{title: title}
+}
 
-func WithIcon(icon string) CreateTableOption {
-	return func(options *CreateTableOptions) {
-		options.Icon = icon
+func (d TableDefinition) SetIcon(icon string) TableDefinition {
+	d.icon = icon
+
+	return d
+}
+
+func (d TableDefinition) AddColumn[C Column](column C) TableDefinition {
+	d.columns = slices.Clone(d.columns)
+	if any(column) == nil {
+		d.columns = append(d.columns, ColumnDefinition{})
+
+		return d
 	}
+
+	d.columns = append(d.columns, column.Definition())
+
+	return d
 }
 
-func WithColumns(columns ...Column) CreateTableOption {
-	configuredColumns := slices.Clone(columns)
-
-	return func(options *CreateTableOptions) {
-		options.Columns = slices.Clone(configuredColumns)
-	}
+func (d TableDefinition) Title() string {
+	return d.title
 }
 
-func (options CreateTableOptions) Validate() error {
-	for columnIndex, column := range options.Columns {
-		if !column.Type().isValid() {
-			return fmt.Errorf("column %d has unsupported type %q", columnIndex, column.Type())
-		}
-		if column.Name() == "" {
-			return fmt.Errorf("column %d: name is required", columnIndex)
-		}
-		if column.Type() != ColumnTypeSelect {
-			continue
-		}
+func (d TableDefinition) Icon() string {
+	return d.icon
+}
 
-		for optionIndex, option := range column.SelectOptions() {
-			if option.Name() == "" {
-				return fmt.Errorf(
-					"column %q: select option %d: name is required",
-					column.Name(),
-					optionIndex,
-				)
-			}
+func (d TableDefinition) Columns() []ColumnDefinition {
+	return slices.Clone(d.columns)
+}
+
+func (d TableDefinition) Validate() error {
+	for columnIndex, column := range d.Columns() {
+		if err := column.Validate(); err != nil {
+			return fmt.Errorf("column %d: %w", columnIndex, err)
 		}
 	}
 
